@@ -1,5 +1,9 @@
 /build/
 /dist/
+/bootstrap/target/
+/DeliriumSA-local-v1/
+/DeliriumSA-local-v1.tmp-*/
+*.iso
 /.cache/
 *.user
 *.log

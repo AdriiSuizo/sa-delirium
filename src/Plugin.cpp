@@ -37,6 +37,24 @@ static bool supported(const fs::path& path) {
         hash.data(), static_cast<ULONG>(hash.size())) >= 0 && hash == steamR2;
 }
 
+static void prepareDelirium(const fs::path& root, std::ostream& log) {
+    const auto library = root / L"scripts" / L"sa_delirium_bootstrap.dll";
+    if (!fs::is_regular_file(library)) return;
+    const auto module = LoadLibraryExW(library.c_str(), nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    using Prepare = int(__cdecl*)(const wchar_t*, std::size_t, char*, std::size_t);
+    const auto prepare = module ? reinterpret_cast<Prepare>(GetProcAddress(module, "sa_delirium_prepare")) : nullptr;
+    if (!prepare) {
+        if (module) FreeLibrary(module);
+        log << "delirium_bootstrap_unavailable\n";
+        return;
+    }
+    log << "delirium_bootstrap_started\n" << std::flush;
+    std::array<char, 1024> status{};
+    const int result = prepare(root.c_str(), root.native().size(), status.data(), status.size());
+    log << (result == 0 ? "delirium_assets_ready " : "delirium_assets_error ") << status.data() << '\n';
+}
+
 static void initialize() {
     wchar_t name[32768];
     const DWORD len = GetModuleFileNameW(nullptr, name, static_cast<DWORD>(std::size(name)));
@@ -45,6 +63,7 @@ static void initialize() {
     const auto root = exe.parent_path();
     std::ofstream log(root / L"SAStandalone.log", std::ios::trunc);
     if (!supported(exe)) { log << "unsupported_executable\n"; return; }
+    prepareDelirium(root, log);
     const auto config = root / L"scripts" / L"SAStandalone.ini";
     if (GetPrivateProfileIntW(L"AirPitch", L"Experimental", 0, config.c_str()) == 1) {
         log << (installSteamAirPitch() ? "experimental_air_pitch_installed\n" : "experimental_air_pitch_unavailable\n");

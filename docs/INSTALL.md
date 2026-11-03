@@ -4,6 +4,8 @@ Previa técnica privada para GTA San Andreas clásico de Steam, build 459558, co
 
 En alpha.2, deja `AirPitch.Experimental=0`. El control aéreo requiere pruebas de conducción y viene desactivado.
 
+Estos RAR son anteriores al preparador de Delirium. El flujo de primer arranque con la ISO se documenta en el repositorio.
+
 1. Cierra el juego.
 2. En Steam abre la carpeta de instalación desde **Administrar → Explorar archivos locales**.
 3. Extrae el RAR directamente junto a **gta-sa.exe**. Si ya tienes un **dinput8.dll**, conserva tu copia antes de instalar.

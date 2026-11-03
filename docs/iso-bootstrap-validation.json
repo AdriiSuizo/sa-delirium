@@ -1,0 +1,22 @@
+{
+  "steam_build": 459558,
+  "delirium_version": "0.6.0",
+  "delirium_revision": "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4",
+  "missing_iso": "rejected without a cache",
+  "owned_europe_asia_retail_iso": {
+    "disc_opened": true,
+    "xex_decoded": true,
+    "program_blake3": "e87cf5277aa90de585b1af9b4e85d422ea2a2331419146aefdef2c7877e29964",
+    "sdk_program_accepted": false,
+    "different_mapped_references_vs_supported_xex": 122
+  },
+  "supported_disc_fixture": {
+    "format": "lab XDVDFS image of the minimum files from an owned extracted compatible edition",
+    "program_blake3": "5d164b473a0ed043502e4fbb1af8dafc68f64e87b27d22aefe64dba3bd9a0a00",
+    "first_gta_sa_process": "delirium_assets_ready imported_iso",
+    "next_gta_sa_process_without_iso_and_key_cache": "delirium_assets_ready cache_ready",
+    "agent_segments": 21,
+    "headless_x86_fall_simulation_steps": 120
+  },
+  "live_pedestrian_simulation_verified": false
+}

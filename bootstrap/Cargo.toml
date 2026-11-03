@@ -1,0 +1,19 @@
+[package]
+name = "sa-delirium-bootstrap"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+delirium = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4" }
+delirium-data = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4" }
+delirium-sdk = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4" }
+bevy_math = { version = "=0.20.0", default-features = false, features = ["std"] }
+bevy_transform = { version = "=0.20.0", default-features = false, features = ["std"] }
+
+[profile.release]
+opt-level = 2
