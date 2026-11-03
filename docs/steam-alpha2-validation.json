@@ -1,0 +1,30 @@
+{
+  "steam_build": 459558,
+  "executable_sha256": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+  "rar_sha256": "da588f6a3b091757f197966d61e9e262a5cff3bf7a7cf57eb6ea8fc3b98f0c95",
+  "asi_sha256": "0741e64570944d427d3670283b83c75ce9368bd61f311448aa42f009e6f3fe27",
+  "stock_file_hash_matches": 416,
+  "payload_files": 7,
+  "handling_tests": "passed",
+  "air_pitch_math_tests": "passed",
+  "package_default": {
+    "game_window": true,
+    "experimental_hook_installed": false,
+    "suspension_rows": 136,
+    "damping_landstal_and_bravura": 0.08640000224113464
+  },
+  "experimental_flag_in_lab": {
+    "game_window": true,
+    "experimental_hook_installed": true,
+    "suspension_rows": 136,
+    "damping_landstal_and_bravura": 0.08640000224113464
+  },
+  "native_vehicle_probe": {
+    "minimum_automobile_updates_observed": 600,
+    "sample_contact_wheels": 4,
+    "sample_driven_contact_wheels": 2,
+    "player_vehicle_updates_observed": 0,
+    "repeat": "hook and XInput interposer installed; no polls or vehicle updates; window captures timed out"
+  },
+  "airborne_driving_and_landing": "not_verified"
+}

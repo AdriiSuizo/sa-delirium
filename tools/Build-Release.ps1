@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '0.1.0-alpha.1',
+    [Parameter(Mandatory=$true)][string]$Version,
     [string]$LoaderArchive,
     [string]$Rar = (Join-Path $env:ProgramFiles 'WinRAR/Rar.exe')
 )

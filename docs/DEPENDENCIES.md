@@ -22,3 +22,9 @@ El empaquetador usa una lista cerrada. Solo contiene esos dos binarios, el INI y
 | Texturas, modelos, sonidos, HUD y trainer | Se excluyen de esta previa. Incluye la familia RoSA, BSOR, NextGen, mejoras de mapa y partículas, packs de armas, vehículos y peatones, HUD y trainer. |
 
 Las copias de Steam y de desarrollo son referencias de prueba locales. La previa no contiene ejecutables originales ni adaptados, partidas, archivos de GTA IV, animaciones del juego ni mods del montaje de desarrollo.
+
+## Comprobaciones de candidatos
+
+- [Delirium Physics 0.6.0](https://github.com/PVCPC/delirium-physics/tree/v0.6.0) sigue requiriendo GTA IV por jugador. En esa versión el SDK obtiene las constantes del programa de GTA IV. La inicialización con un personaje JSON también exige `nm_unlock`. El port autónomo requiere su propio motor o una ruta pública con datos propios que inicialice los comportamientos con solo GTA SA.
+- [SilentPatchSA Build 34.1](https://github.com/CookiePLMonster/SilentPatch/releases/tag/1.1-BUILD34.1-SA) ofrece compatibilidad parcial con el ejecutable de Steam de diciembre de 2014. El paquete actual omite el ASI mientras se verifica la procedencia de su textura lunar embebida y el inventario de licencias de las bibliotecas que enlaza.
+- La prueba del cabeceo aéreo de alpha.2 usa código propio, una tabla virtual comprobada y el contador nativo de las cuatro ruedas. Está desactivada por defecto mientras falta la conducción. El binario de Izzy sigue fuera del paquete.

@@ -8,6 +8,7 @@
 #include <mutex>
 #include <string>
 #include "Handling.hpp"
+#include "SteamVehicle.hpp"
 
 namespace fs = std::filesystem;
 using AddVirtualFile = bool(WINAPI*)(const wchar_t*, const unsigned char*, std::size_t, int);
@@ -45,6 +46,9 @@ static void initialize() {
     std::ofstream log(root / L"SAStandalone.log", std::ios::trunc);
     if (!supported(exe)) { log << "unsupported_executable\n"; return; }
     const auto config = root / L"scripts" / L"SAStandalone.ini";
+    if (GetPrivateProfileIntW(L"AirPitch", L"Experimental", 0, config.c_str()) == 1) {
+        log << (installSteamAirPitch() ? "experimental_air_pitch_installed\n" : "experimental_air_pitch_unavailable\n");
+    }
     const int percent = GetPrivateProfileIntW(L"Suspension", L"DampingIncreasePercent", 8, config.c_str());
     if (percent <= 0) { log << "suspension_disabled\n"; return; }
     const auto loader = GetModuleHandleW(L"dinput8.dll");
