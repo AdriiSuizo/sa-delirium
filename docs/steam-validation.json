@@ -1,0 +1,32 @@
+{
+  "vanilla": [
+    {
+      "vehicle": "LANDSTAL",
+      "force": 2.4000000953674316,
+      "damping": 0.07999999821186066
+    },
+    {
+      "vehicle": "BRAVURA",
+      "force": 1.2999999523162842,
+      "damping": 0.07999999821186066
+    }
+  ],
+  "modded": [
+    {
+      "vehicle": "LANDSTAL",
+      "force": 2.4000000953674316,
+      "damping": 0.08640000224113464
+    },
+    {
+      "vehicle": "BRAVURA",
+      "force": 1.2999999523162842,
+      "damping": 0.08640000224113464
+    }
+  ],
+  "steam_build": 459558,
+  "original_files_hash_equal": 416,
+  "user_profiles_hash_equal": 2,
+  "parser_tests": "passed",
+  "gameplay_driving": "not_performed",
+  "rar_sha256": "a6c7f06bb153200b407d2ddc93438ff45dbe133d1a283adc1fbbeeb081033e49"
+}
