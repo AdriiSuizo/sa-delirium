@@ -237,6 +237,8 @@ mod tests {
     #[test]
     #[ignore = "requires a cache generated locally from a supported owned disc"]
     fn runs_an_initialized_delirium_agent() {
+        use std::hash::{DefaultHasher, Hasher};
+
         let root = PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
         assert_eq!(prepare(&root).unwrap(), "cache_ready");
         let body = sdk_file(&root.join(CACHE).join(BODY)).unwrap();
@@ -265,9 +267,17 @@ mod tests {
             let diagnostics = std::ffi::CStr::from_ptr(diagnostics.as_ptr()).to_string_lossy();
             assert!(!diagnostics.contains("no behaviours"), "{diagnostics}");
             assert!(!diagnostics.contains("no task params"), "{diagnostics}");
+            let mut trajectory = DefaultHasher::new();
+            let mut pose = [0.0f32; PARTS as usize * 7];
             for _ in 0..120 {
                 assert!(sdk::nm_agent_step(agent, world, 1.0 / 120.0) >= 0);
+                assert!(sdk::nm_agent_get_part_transforms(agent, pose.as_mut_ptr(), PARTS) >= 0);
+                for value in pose {
+                    assert!(value.is_finite());
+                    trajectory.write_u32(value.to_bits());
+                }
             }
+            println!("fall_trajectory={:016x}", trajectory.finish());
             let mut after = [0.0f32; 3];
             assert!(
                 sdk::nm_agent_get_part_transform(

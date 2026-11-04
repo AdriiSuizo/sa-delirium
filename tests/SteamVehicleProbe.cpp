@@ -2,6 +2,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include <xinput.h>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -11,11 +12,14 @@ namespace {
 using ProcessControl = void(__thiscall*)(void*);
 using GetState = DWORD(WINAPI*)(DWORD, XINPUT_STATE*);
 ProcessControl nativeControl{};
+ProcessControl nativePedPreRender{};
 GetState nativeGetState{};
 const std::byte* image{};
 FILE* trace{};
 ULONGLONG started{};
 unsigned padCalls{}, carCalls{}, playerCarCalls{};
+unsigned pedCalls{}, playerPedCalls{};
+bool civilPoseSeen{}, playerPoseSeen{};
 
 template <typename T>
 T field(const std::byte* object, std::size_t offset) {
@@ -32,6 +36,39 @@ bool install(void** entry, void* expected, void* replacement) {
     DWORD unused{};
     const bool restored = VirtualProtect(entry, sizeof(*entry), protection, &unused) != 0;
     return swapped && restored;
+}
+
+void __fastcall observePedPreRender(void* actor, void*) {
+    nativePedPreRender(actor);
+    const auto* ped = static_cast<const std::byte*>(actor);
+    const bool player = field<const void*>(ped, 0) == image + 0x4b7eb4;
+    auto& seen = player ? playerPoseSeen : civilPoseSeen;
+    auto& calls = player ? playerPedCalls : pedCalls;
+    ++calls;
+    if (seen) return;
+
+    const auto clump = field<void*>(ped, 0x18);
+    if (!clump || !(field<unsigned>(ped, 0x474) & 0x400)) return;
+    const auto hierarchyForClump = reinterpret_cast<const std::byte*(__cdecl*)(void*)>(image + 0x361890);
+    const auto nodeIndex = reinterpret_cast<int(__cdecl*)(const std::byte*, int)>(image + 0x3f99a0);
+    const auto matrixArray = reinterpret_cast<const std::byte*(__cdecl*)(const std::byte*)>(image + 0x3f9920);
+    const auto* hierarchy = hierarchyForClump(clump);
+    if (!hierarchy) return;
+    const int nodes = field<int>(hierarchy, 4);
+    if (nodes < 20 || nodes > 128) return;
+    const int pelvis = nodeIndex(hierarchy, 1);
+    const int head = nodeIndex(hierarchy, 5);
+    if (pelvis < 0 || head < 0 || pelvis >= nodes || head >= nodes) return;
+    const auto* matrices = matrixArray(hierarchy);
+    if (!matrices) return;
+    const float pelvisZ = field<float>(matrices, pelvis * 64 + 56);
+    const float headZ = field<float>(matrices, head * 64 + 56);
+    const float height = headZ - pelvisZ;
+    if (!std::isfinite(height) || height < 0.20f || height > 1.20f) return;
+    seen = true;
+    std::fprintf(trace, "ped_pose %llu player=%d calls=%u nodes=%d head_above_pelvis=%.5f\n",
+        GetTickCount64() - started, player, calls, nodes, height);
+    std::fflush(trace);
 }
 
 void __fastcall observeControl(void* vehicle, void*) {
@@ -82,6 +119,13 @@ extern "C" __declspec(dllexport) void InitializeASI() {
     const auto padSlot = reinterpret_cast<void**>(const_cast<std::byte*>(image) + 0x4a036c);
     const bool carHook = install(carSlot, reinterpret_cast<void*>(nativeControl), reinterpret_cast<void*>(observeControl));
     const bool padHook = nativeGetState && install(padSlot, reinterpret_cast<void*>(nativeGetState), reinterpret_cast<void*>(labPad));
-    std::fprintf(trace, "probe car=%d pad=%d\n", carHook, padHook);
+    nativePedPreRender = reinterpret_cast<ProcessControl>(image + 0x204f20);
+    auto** civilianSlot = reinterpret_cast<void**>(const_cast<std::byte*>(image) + 0x4b6c8c) + 17;
+    auto** playerSlot = reinterpret_cast<void**>(const_cast<std::byte*>(image) + 0x4b7eb4) + 17;
+    const bool civilianHook = install(civilianSlot, reinterpret_cast<void*>(nativePedPreRender),
+                                      reinterpret_cast<void*>(observePedPreRender));
+    const bool playerHook = install(playerSlot, reinterpret_cast<void*>(nativePedPreRender),
+                                    reinterpret_cast<void*>(observePedPreRender));
+    std::fprintf(trace, "probe car=%d pad=%d civilian=%d player=%d\n", carHook, padHook, civilianHook, playerHook);
     std::fflush(trace);
 }

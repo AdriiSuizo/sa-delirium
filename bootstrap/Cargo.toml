@@ -15,5 +15,8 @@ delirium-sdk = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "9
 bevy_math = { version = "=0.20.0", default-features = false, features = ["std"] }
 bevy_transform = { version = "=0.20.0", default-features = false, features = ["std"] }
 
+[patch."https://github.com/PVCPC/delirium-physics.git"]
+delirium-data = { path = ".sdk/delirium-data" }
+
 [profile.release]
 opt-level = 2

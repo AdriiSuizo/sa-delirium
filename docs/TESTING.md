@@ -15,3 +15,9 @@ El ensayo comprueba carga del paquete y de los valores de suspensión. Quedan po
 - En otra sesión con una sonda, el juego aceptó entrada XInput de laboratorio y procesó al menos 600 actualizaciones nativas de coches durante el comienzo de una partida. Se observaron coches con cuatro ruedas en contacto, de las cuales dos eran motrices. La sonda no registró a CJ conduciendo. En la repetición, la captura de ventana agotó el plazo y no hubo muestras de entrada o de vehículos. Estos casos no validan control aéreo, aterrizajes ni conducción.
 
 El RAR de alpha.2 es un artefacto de laboratorio. El borrador de distribución permanece en alpha.1. Véase [steam-alpha2-validation.json](steam-alpha2-validation.json) para las comprobaciones realizadas.
+
+## Lectura de peatones en Steam
+
+La sonda de laboratorio intercaló `CPed::PreRender` después de su trabajo nativo. Leyó un civil y a CJ con jerarquías RenderWare de 32 nodos y matrices finitas. Se localizaron pelvis y cabeza por etiqueta en cada jerarquía. Esta prueba no aplica una pose física ni comprueba reacciones de juego.
+
+El método compartido está en RVA `0x204f20`. Se verificó la entrada 17 de las tablas de civil y jugador y se comprobó el puntero original antes de instalar la sonda. La identificación parte de los métodos y tablas documentados en [gta-reversed](https://github.com/gta-reversed/gta-reversed/tree/master/source/game_sa/Entity/Ped).

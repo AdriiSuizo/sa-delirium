@@ -518,7 +518,6 @@ dependencies = [
 [[package]]
 name = "delirium-data"
 version = "0.1.0"
-source = "git+https://github.com/PVCPC/delirium-physics.git?rev=93eed4d6a0aafa2e84526730ea1f54dab48ac7d4#93eed4d6a0aafa2e84526730ea1f54dab48ac7d4"
 dependencies = [
  "aes",
  "blake3",

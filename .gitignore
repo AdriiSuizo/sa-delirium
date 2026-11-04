@@ -1,6 +1,7 @@
 /build/
 /dist/
 /bootstrap/target/
+/bootstrap/.sdk/
 /DeliriumSA-local-v1/
 /DeliriumSA-local-v1.tmp-*/
 *.iso
