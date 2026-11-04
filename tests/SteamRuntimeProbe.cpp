@@ -148,8 +148,21 @@ void observeRoad(){
         const auto*pm=field<const M*>(player,0x14);if(!readable(pm,sizeof(M)))return;
         using Request=void(__cdecl*)(int,int);using Load=void(__cdecl*)(bool);
         reinterpret_cast<Request>(image+0x8b00)(7,2);reinterpret_cast<Request>(image+0x8b00)(400,2);
+        char lamp[4]{};const bool lampProbe=GetEnvironmentVariableA("SA_STEAM_LAMP_PROBE",lamp,4)==1&&lamp[0]=='1';
+        if(lampProbe)reinterpret_cast<Request>(image+0x8b00)(1297,2);
         if(roadBikeModel){reinterpret_cast<Request>(image+0x8b00)(roadBikeModel,2);reinterpret_cast<Request>(image+0x8b00)(284,2);}
         reinterpret_cast<Load>(image+0xfc00)(false);
+        if(lampProbe){
+            const auto*model=field<const std::byte*>(image,0x712818+1297*4);
+            if(readable(model,0x20)){
+                const int txd=field<short>(model,0xa);const auto*stream=image+0x55c8a0+1297*0x14;
+                const auto loaded=(txd>=0&&txd<5000)?field<unsigned char>(image,0x55c8a0+(20000+txd)*0x14+16):0;
+                const auto txdSector=(txd>=0&&txd<5000)?field<unsigned>(image,0x55c8a0+(20000+txd)*0x14+8):0;
+                const auto txdSectors=(txd>=0&&txd<5000)?field<unsigned>(image,0x55c8a0+(20000+txd)*0x14+12):0;
+                std::fprintf(trace,"native_visual_lamp model=1297 txd_slot=%d txd_loaded=%u model_loaded=%u sectors=%u rw_object=%u txd_sector=%u txd_sectors=%u\n",
+                    txd,loaded,field<unsigned char>(stream,16),field<unsigned>(stream,12),field<void*>(model,0x1c)!=nullptr,txdSector,txdSectors);
+            }
+        }
         const V pedestrian=pm->pos+V{1.7f,6.f,0};
         if(roadBikeModel){
             roadBike=reinterpret_cast<void*(__cdecl*)(int,V,bool)>(image+0x34170)(roadBikeModel,pedestrian+V{0,0,-1.f},false);
@@ -368,8 +381,8 @@ void __cdecl observeProcess(){
             }
         }
     }
-    std::fprintf(trace,"process %llu calls=%ld timestep=%.6f pool_capacity=%d occupied=%u finite=%u players=%u\n",
-        now-started,processCalls,delta,count,occupied,finite,players);
+    std::fprintf(trace,"process %llu calls=%ld timestep=%.6f pool_capacity=%d occupied=%u finite=%u players=%u streaming_budget=%u streaming_used=%u native_radiosity=%u\n",
+        now-started,processCalls,delta,count,occupied,finite,players,field<unsigned>(image,0x514074),field<unsigned>(image,0x55c898),field<unsigned char>(image,0x8db1f6));
     reportMenu("process");
 }
 DWORD WINAPI setup(void*){

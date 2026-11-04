@@ -12,3 +12,13 @@
 - **SkyGfx**, de aap y colaboradores. Referencia técnica de la modulación de color PS2. [Proyecto](https://github.com/aap/skygfx)
 
 Desarrollo asistido por Codex. GTA San Andreas y GTA IV pertenecen a sus titulares.
+
+## Optional local visual data
+
+These references credit locally imported user downloads; they do not grant
+redistribution rights. The local payload and generated game archives are not
+uploaded to this source repository.
+
+- [HD Skin Pack 299 Skins](https://www.gtainside.com/sanandreas/skins/94757-hd-skin-pack-299-skins-updated/).
+- [NeXtGen Remaster Weapons](https://www.mixmods.com.br/2021/05/nextgen-remaster-weapons-pack-de-armas-em-hd/). Visual model/texture import; sound banks are a separate pending connection.
+- [Improved Lamps v0.8](https://www.mixmods.com.br/2021/09/improved-lamps-v0-8-postes-remasterizados-em-hd/). Local candidate integrates its model/texture definitions using sparse owner-side data patches.

@@ -18,6 +18,8 @@ Cierra el juego y retira **scripts/DeliriumSA.asi**, **DeliriumSA.ini**, **scrip
 
 Puedes borrar **DeliriumSA-local-v3**, **SAStandalone.log** y **DeliriumSA-native-startup.log** para retirar los datos y registros generados. Las cachés antiguas **DeliriumSA-local-v1/v2** también son opcionales. Retira **dinput8.dll** solo si venía de este RAR y ningún otro mod lo utiliza.
 
+`SAStandalone-CONTENTS.json` identifica exactamente la candidata y sus componentes. También se puede retirar al desinstalar. El presupuesto de streaming usa el lector nativo de `stream.ini`, sin sustituir ese archivo: `Streaming/MemoryMiB` admite 0 para conservar el valor nativo, o 50–512 MiB en el ejecutable Steam sin LAA. `Visuals/Ps2PostEffects` controla los ajustes nativos adicionales; no equivale a todos los pipelines de SkyGfx.
+
 ## Capa visual opcional
 
 Si el RAR incluye `SAStandalone-assets`, el primer inicio compone `SAStandalone-asset-cache` desde tus archivos originales sin sustituirlos. Los siguientes inicios reutilizan esa caché. Retira también esas dos carpetas, `SAStandalone-assets-active.tsv` y `LOCAL-CONTENT.md` al desinstalar esa capa. Un archivo marcado `.local` es una candidata personal; no concede permisos de redistribución ni representa el paquete completo.

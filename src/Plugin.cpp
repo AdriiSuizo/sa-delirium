@@ -16,6 +16,7 @@ bool installSteamColour(const fs::path& log);
 bool installSteamGamepad(const fs::path& log);
 bool installSteamBorderless(const fs::path& log);
 bool prepareVisualAssets(const fs::path& root, std::ostream& log);
+bool installSteamStreaming(const fs::path& root, std::ostream& log);
 
 static std::string read(const fs::path& path, std::size_t limit) {
     std::ifstream in(path, std::ios::binary | std::ios::ate);
@@ -103,6 +104,7 @@ static void initialize() {
     const auto root = exe.parent_path();
     std::ofstream log(root / L"SAStandalone.log", std::ios::trunc);
     if (!supported(exe)) { log << "unsupported_executable\n"; return; }
+    if (!installSteamStreaming(root,log)) log << "streaming_ini_overlay_unavailable\n";
     if (!prepareVisualAssets(root, log)) {
         log << "visual_pack_failed_not_registered\n" << std::flush;
         MessageBoxW(nullptr,L"No se pudo preparar el paquete visual. Consulta SAStandalone.log. Los archivos originales se conservan.",

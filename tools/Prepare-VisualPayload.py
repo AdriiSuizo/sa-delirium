@@ -76,6 +76,18 @@ def main():
                 entries.append({'name':name,'file':'blobs/'+h,'size':len(data),'blake3':h,'source':mod['id']})
                 total+=len(data);published&=mod['rights']!='local-only'
         if entries:manifest['imgs'].append({'target':archive,'base':{'size':base.stat().st_size,'blake3':digest(base)},'entries':entries})
+    for item in profile.get('new_assets',[]):
+        if item['rights']not in ['local-only','redistributable','original']:raise ValueError('Declare additional asset rights')
+        name=item['name'].lower();archive=item['archive']
+        assert 0<len(name)<=23 and name.isascii()and PurePosixPath(name).name==name and ':'not in name and '\\'not in name
+        assert PurePosixPath(name).suffix in ['.txd','.dff','.col']and name not in archives[archive],'Only explicitly new render/collision assets'
+        target=next((a for a in manifest['imgs']if a['target']==archive),None)
+        if target is None:
+            base=args.game/archive;target={'target':archive,'base':{'size':base.stat().st_size,'blake3':digest(base)},'entries':[]};manifest['imgs'].append(target)
+        assert name not in {e['name']for e in target['entries']}
+        data=Path(item['source']).read_bytes();target['entries'].append({'name':name,**blob(data),'source':item['id']})
+        total+=len(data);published&=item['rights']!='local-only';sources.append({k:item[k]for k in ['id','rights','url']})
+        ignored[:]=[x for x in ignored if not(x['mod']==item['id']and Path(x['file']).name.lower()==name)]
     report={'scope':'data-only; no code/script/IDE/IPL/audio recipe inferred','sources':sources,'conflicts':conflicts,'ignored':ignored,
             'unchanged_owner_files_excluded':unchanged,'replacement_bytes':total,'redistributable':published,
             'source_profile_sha256':hashlib.sha256(args.profile.read_bytes()).hexdigest()}
@@ -90,9 +102,17 @@ def main():
             # Diff whole lines: no unchanged official table is put in the pack.
             left=old.splitlines(keepends=True);right=data.splitlines(keepends=True);offsets=[0]
             for line in left:offsets.append(offsets[-1]+len(line))
-            edits=[]
-            for op,a,b,c,d in difflib.SequenceMatcher(a=left,b=right,autojunk=False).get_opcodes():
-                if op!='equal':edits.append({'offset':offsets[a],'delete':offsets[b]-offsets[a],**blob(b''.join(right[c:d]))})
+            edits=[];retained=[]
+            # An author's LF conversion is not a reason to redistribute every
+            # unchanged official row. Preserve the owner's equal lines verbatim.
+            logical=lambda lines:[line.rstrip(b'\r\n')for line in lines]
+            for op,a,b,c,d in difflib.SequenceMatcher(a=logical(left),b=logical(right),autojunk=False).get_opcodes():
+                if op=='equal':retained.extend(left[a:b])
+                else:
+                    inserted=b''.join(right[c:d]);retained.append(inserted)
+                    edits.append({'offset':offsets[a],'delete':offsets[b]-offsets[a],**blob(inserted)})
+            if not edits:continue
+            data=b''.join(retained)
             entry={'target':str(target),'mode':'splice','base':{'size':len(old),'blake3':blake3.blake3(old).hexdigest()},'splices':edits,
                    'result_size':len(data),'result_blake3':blake3.blake3(data).hexdigest(),'source':item['id']}
         elif item['mode']=='copy':

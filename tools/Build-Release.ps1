@@ -103,6 +103,25 @@ if ($VisualPayload) {
         $expected += 'LOCAL-CONTENT.md'
     }
 }
+$sourceCommit = 'unversioned-source'
+if (Test-Path -LiteralPath (Join-Path $root '.git')) { $sourceCommit = (& git -C $root rev-parse HEAD) }
+$content = [ordered]@{
+    schema = 1
+    version = $Version
+    profile = $(if ($LocalPersonalContent) { 'local_personal_candidate_not_for_upload' } else { 'redistributable_core_candidate' })
+    source_commit = $sourceCommit
+    completeness = 'scoped_candidate_not_complete_requested_modpack'
+    included = @('Native Delirium SA adapter and shared ISO importer','Ultimate ASI Loader 10.0.2','SilentPatch SA 34.1',
+        'Own PS2 colour/time cycle and native post-effect configuration','Own borderless/right-stick/suspension integration','Own owner-backed streaming budget and asset composer')
+    excluded = @('GTA V HUD/minimap/weapon wheel','DLSS','test probes','game executables','ISO/cache/save files','development tools')
+    native_frame_limit_preserved = $true
+}
+if ($VisualPayload) {
+    $content.visual_manifest_sha256 = (Get-FileHash -LiteralPath (Join-Path $visualRoot 'manifest.json')).Hash.ToLowerInvariant()
+    $content.visual_sources = (Get-Content -LiteralPath (Join-Path $visualRoot 'provenance.json') -Raw | ConvertFrom-Json).sources
+}
+$content | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runtime.FullName 'SAStandalone-CONTENTS.json') -Encoding UTF8
+$expected += 'SAStandalone-CONTENTS.json'
 $actual = @(Get-ChildItem -LiteralPath $runtime.FullName -Recurse -File | ForEach-Object {
     $_.FullName.Substring($runtime.FullName.Length + 1).Replace('\','/')
 })
