@@ -14,4 +14,4 @@ En **scripts/SAStandalone.ini**, usa `Ps2TimeCycle=0` para restaurar la iluminac
 
 ## Desinstalación
 
-Cierra el juego y retira **scripts/SAStandalone.asi**, **scripts/SAStandalone.ini**, **scripts/sa_delirium_bootstrap.dll**, **SAStandalone.log**, **SAStandalone-LEEME.md**, **SAStandalone-CREDITOS.md** y **SAStandalone-licenses**. Retira **DeliriumSA-local-v1** si quieres borrar la caché generada. Retira **dinput8.dll** si venía de este RAR y ningún otro mod lo usa. Si sustituiste un cargador existente, restaura su copia.
+Cierra el juego y retira **scripts/SAStandalone.asi**, **scripts/SAStandalone.ini**, **scripts/sa_delirium_bootstrap.dll**, **SAStandalone.log**, **SAStandalone-LEEME.md**, **SAStandalone-CREDITOS.md** y **SAStandalone-licenses**. Retira **DeliriumSA-local-v2** si quieres borrar la caché generada; las previas antiguas usaban **DeliriumSA-local-v1**. Retira **dinput8.dll** si venía de este RAR y ningún otro mod lo usa. Si sustituiste un cargador existente, restaura su copia.

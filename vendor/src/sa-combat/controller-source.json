@@ -1,0 +1,13 @@
+{
+  "source": "research\\niko-port-20261101\\380c8cb7d49a\\source\\rust\\crates\\gta4-viewer\\src\\meleetask.rs",
+  "commit": "380c8cb7d49a9b0c941d0ce8ffb58a0963e4c21e",
+  "sha256": "ee5073fa9923bcc30fd61dbd5c23f7077d64ad3fec1d1b7b6195bb8c67066d2d",
+  "adaptations": [
+    "Host-independent Data/WeaponView/math imports; stable SA pool identity replaces Bevy Entity",
+    "Authored swept samples use fitted SA capsules/oriented boxes; first entering surface supplies the struck part, contact point and normal; separating overlap is rejected before damage; sample radius remains capped to the fitted striker thickness",
+    "Explicit actor identity retained; upstream now supplies both opponent sides",
+    "Player lock-on with a valid target enters stance without an attack button edge",
+    "Data returns clip and per-result flags separately, avoiding key alias collisions",
+    "Slow-mo remains an output; host must own it explicitly"
+  ]
+}

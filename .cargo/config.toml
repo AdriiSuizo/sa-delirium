@@ -1,0 +1,3 @@
+# The drag-and-drop runtime must not require a separate VC++ installation.
+[target.i686-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

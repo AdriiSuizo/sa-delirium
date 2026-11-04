@@ -1,7 +1,6 @@
 param(
     [Parameter(Mandatory=$true)][string]$Version,
     [string]$LoaderArchive,
-    [string]$DeliriumCheckout,
     [string]$Rar = (Join-Path $env:ProgramFiles 'WinRAR/Rar.exe')
 )
 $ErrorActionPreference = 'Stop'
@@ -29,15 +28,18 @@ if (!$vs -or $LASTEXITCODE -ne 0) { throw 'Install Visual Studio Build Tools wit
 $dev = Join-Path $vs 'Common7/Tools/VsDevCmd.bat'
 & (Join-Path $PSScriptRoot 'Compile.cmd') $stage.FullName $dev
 if ($LASTEXITCODE -ne 0) { throw 'Win32 compile failed' }
-$sdkArgs = @()
-if ($DeliriumCheckout) { $sdkArgs = @('--checkout', (Resolve-Path -LiteralPath $DeliriumCheckout).Path) }
-& python (Join-Path $PSScriptRoot 'Prepare-DeliriumSdk.py') @sdkArgs
-if ($LASTEXITCODE -ne 0) { throw 'Pinned Delirium source preparation failed' }
+& python (Join-Path $PSScriptRoot 'Verify-Vendor.py')
+if ($LASTEXITCODE -ne 0) { throw 'Retained adapted source verification failed' }
 $targetDir = Join-Path $root 'build/bootstrap-target'
 $manifest = Join-Path $root 'bootstrap/Cargo.toml'
-& cargo build --manifest-path $manifest --lib --locked --release --target i686-pc-windows-msvc --target-dir $targetDir
-if ($LASTEXITCODE -ne 0) { throw 'Win32 Delirium bootstrap build failed' }
+Push-Location -LiteralPath $root
+try {
+    & cargo build --manifest-path $manifest --lib --locked --release --target i686-pc-windows-msvc --target-dir $targetDir
+    if ($LASTEXITCODE -ne 0) { throw 'Win32 Delirium bootstrap build failed' }
+} finally { Pop-Location }
 $bootstrap = Join-Path $targetDir 'i686-pc-windows-msvc/release/sa_delirium_bootstrap.dll'
+& python (Join-Path $PSScriptRoot 'Verify-Runtime.py') $bootstrap
+if ($LASTEXITCODE -ne 0) { throw 'Runtime needs unbundled libraries' }
 Copy-Item -LiteralPath $loader[0].FullName -Destination (Join-Path $runtime.FullName 'dinput8.dll')
 Copy-Item -LiteralPath (Join-Path $stage.FullName 'SAStandalone.asi') -Destination $scripts.FullName
 Copy-Item -LiteralPath $bootstrap -Destination $scripts.FullName

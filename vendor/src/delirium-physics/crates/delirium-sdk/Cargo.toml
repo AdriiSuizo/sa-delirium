@@ -1,0 +1,26 @@
+[package]
+name = "delirium-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "delirium_physics"
+crate-type = ["cdylib", "rlib"]
+
+# The SA DLL is a host executable's allocator boundary. The Playroom already
+# selects MiMalloc in its binary; cdylib consumers do not inherit that choice.
+[features]
+default = ["sa-host-allocator"]
+sa-host-allocator = ["dep:mimalloc"]
+
+[target.'cfg(all(target_os = "windows", target_pointer_width = "32"))'.dependencies]
+mimalloc = { version = "=0.1.52", default-features = false, optional = true }
+
+[dependencies]
+delirium = { path = "../delirium" }
+delirium-data = { path = "../delirium-data" }
+sa-combat = { path = "../../../sa-combat" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

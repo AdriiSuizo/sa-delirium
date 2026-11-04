@@ -1,0 +1,96 @@
+{
+  "commit": "380c8cb7d49a9b0c941d0ce8ffb58a0963e4c21e",
+  "source_access": "read-only Git objects, owned snapshot",
+  "modules": [
+    {
+      "module": "onfoot",
+      "source_sha256": "a886cb181cdbd2d29e754f45719a048b2a013313296ef6a678c5e67150c7aeea",
+      "imported_sha256": "9bf7a51171c1670d81ade35d06da4d9d5d32de67849a8600d10d29cbc6bd30be",
+      "extracted": false
+    },
+    {
+      "module": "animblend",
+      "source_sha256": "02669adab80e671802eca432deb8e77f8361336a6abed9bd3636ef6acbb196ac",
+      "imported_sha256": "4abd7c7315fd9845478cc33ba6c57a1230d00f93beffbd16c9132db70ab118e6",
+      "extracted": false
+    },
+    {
+      "module": "movestart",
+      "source_sha256": "97d5fafa03c0be45f67fde67b0332897dde7f34cd8e64ec487383ade219fcfc2",
+      "imported_sha256": "6e4759621c91156b9ef3c8c953b9b0468cee799b484457604353dcf67867973d",
+      "extracted": false
+    },
+    {
+      "module": "movestop",
+      "source_sha256": "3a53c6b2c82d8f5138d444ef11f7dc95b4e44772d6de14db3de074379aa73399",
+      "imported_sha256": "a385accb3a298de38e143bda5aa2403d27fd5052dd3f8d3af2ed6046c13b0370",
+      "extracted": false
+    },
+    {
+      "module": "moveturn",
+      "source_sha256": "23c1c7c2dec0fc7ccfaf9bf3abcf1f8adc34161df3d6e39e6ed4bf067ac91ea6",
+      "imported_sha256": "78dac16c1ac5b0acfd56abac0dbd0aebd3f73ded7a142096cbda2f1c7e18d5b9",
+      "extracted": false
+    },
+    {
+      "module": "moveset",
+      "source_sha256": "ab2614bcf82df1c2f67b43190001db9d338cbb7e5b37586c75b9c761efcce5d7",
+      "imported_sha256": "ab2614bcf82df1c2f67b43190001db9d338cbb7e5b37586c75b9c761efcce5d7",
+      "extracted": false
+    },
+    {
+      "module": "slope",
+      "source_sha256": "99015407f46b05c24f69a29c3ef93a194515dc3638c16906d31e09696705e828",
+      "imported_sha256": "84b04db301be3b54e6af312d835e5bb7c6b8cff361aac556042273bf1b4f98ec",
+      "extracted": false
+    },
+    {
+      "module": "strafe",
+      "source_sha256": "55586521e90253be60ec0f320185aac2be0f322f4769d8dfe8dddb69dc656ad2",
+      "imported_sha256": "0a15f20bf0b70638e03fba9c91406f42bda35668aac549e37c4779b52bf91fc1",
+      "extracted": false
+    },
+    {
+      "module": "actiontable",
+      "source_sha256": "4692efea98853cd774ee5dcd556fcc3949551b8c448c64009b2a8ba727235480",
+      "imported_sha256": "4692efea98853cd774ee5dcd556fcc3949551b8c448c64009b2a8ba727235480",
+      "extracted": false
+    },
+    {
+      "module": "mathrt",
+      "source_sha256": "f8cccf52b9f701873cdbffbae67f27b1d6267c4157c8ed2e2188c5032c9b3387",
+      "imported_sha256": "f8cccf52b9f701873cdbffbae67f27b1d6267c4157c8ed2e2188c5032c9b3387",
+      "extracted": false
+    },
+    {
+      "module": "xenon",
+      "source_sha256": "c298de2493c0034ae74368de0b7fd507ed1638c73efc59c35566cc918418352a",
+      "imported_sha256": "c298de2493c0034ae74368de0b7fd507ed1638c73efc59c35566cc918418352a",
+      "extracted": false
+    },
+    {
+      "module": "staticcount",
+      "source_sha256": "457a20dcd78362f0e74c104cbe6044f8abe32d41449e94ea578a09e27713f41a",
+      "imported_sha256": "0c18fcec27960c31f00bb7f3234bc8e20ac36b1ae6f8efb7e0f27e849a2bc5c9",
+      "extracted": true
+    },
+    {
+      "module": "ik",
+      "source_sha256": "e6e2b72c76651aabb4b6dbe222dbcdc5033e966699a4aba0dc9a2327c8b03dc1",
+      "imported_sha256": "5e8b4bd1d3b47f074bafa2213a58c6d50c0c54547ee98d897b7d33d5f1823ce6",
+      "extracted": true
+    },
+    {
+      "module": "pedgroups",
+      "source_sha256": "477c1decd5401240b992efd1044f7525e79c8e429df6124d4e4a03a4555575e5",
+      "imported_sha256": "6215a59af28154b2516c2e2712f8a19d9f5764b3ebb89f495df875e4b10ce6d9",
+      "extracted": true
+    },
+    {
+      "module": "fall",
+      "source_sha256": "2d654439c9ed35dc3b1ac70b53cce8e4d5c80bf156076be04b48406d73854133",
+      "imported_sha256": "3c082255248cf374e6834b33f075f8f74f9ed3323fc59165afd246adcaaf0e8f",
+      "extracted": true
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "status": "scoped_native_port_validation_not_finished_modpack",
+  "recorded_utc": "2026-11-04T06:28:58.312299+00:00",
+  "upstream": {
+    "delirium_main": "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4",
+    "sloppers_main": "5900dacd35920cc7f2264126f8807e9ab0b51031",
+    "source_projects_read_only": true
+  },
+  "new_fix": {
+    "origin": "Delirium v0.6.0 b1c6b1e8826d6ba675b1c77f5673adfa9bb58756",
+    "failing_before": "fitted_character_uses_its_measured_pivots_with_authored_rigid_drives",
+    "core_tests": 93,
+    "sdk_tests": 68,
+    "stable_development_game_changed": false
+  },
+  "native_cases": [
+    {
+      "case": "slot2-20261104-072238",
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "SAStandalone.asi": "84995e52715f04d54012d6094e5894ac25e538e9fec66a7527ccc47f7856120c",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "efd79173050973282c7c344a2bfc27b6bfcf6c1b3bac2143dd9ef1a888a91edd",
+        "sa_delirium_bootstrap.dll": "7ef6183b66ca54e1255b6dd6a8c08478b20e50f486e9624319488d1dd6614395"
+      },
+      "cache_sha256": {
+        "fred-build.txt": "cf9d300315a91ce317ecc978339a9a1d08174e269fdbcd965a930545ecacc171",
+        "fred.xrt": "508e1deb34413c115a48ed118f86e3cf9544f3001ac310b0cb84eaf646c25c76",
+        "iv-program.bin": "4bb514b6935d1e647fd38ae495018ef26f86dd2fde24ff91515896653554b194",
+        "taskparams.txt": "7194df40e0ff109f449f261f9088b5a47995eccb312d3b75f5c93268b32661b5"
+      },
+      "checks": {
+        "runner_succeeded": true,
+        "survived_observation": true,
+        "prefs_unchanged": true,
+        "desktop_unchanged": true,
+        "checkpoint_loaded_inside_house": true,
+        "native_cycles_advance": true,
+        "save_restored": true,
+        "stock_script_restored": true,
+        "native_rig_fitted": true,
+        "native_world_floor": true,
+        "native_world_simulation_completed": true,
+        "no_nonfinite_simulation": true,
+        "physical_palette_applied": true,
+        "same_dll_bootstrap_ready": true,
+        "expected_first_run_status": true
+      },
+      "visual_review": {
+        "status": "scoped_visual_review",
+        "image_sha256": "4b9b87be4bbb865c356240f2e75f5b1e739c82d58b7d9dd809acde0f56d81525",
+        "observed": [
+          "Full fitted CJ body visible lying on the real interior floor",
+          "Head, torso and limbs visually coherent in this final frame"
+        ],
+        "scope": "Translated render fixture; native actor root, AI, damage and recovery are not replaced. No whole-game acceptance."
+      },
+      "desktop_and_saves_restored": true
+    },
+    {
+      "case": "slot2-20261104-072445",
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "SAStandalone.asi": "84995e52715f04d54012d6094e5894ac25e538e9fec66a7527ccc47f7856120c",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "efd79173050973282c7c344a2bfc27b6bfcf6c1b3bac2143dd9ef1a888a91edd",
+        "sa_delirium_bootstrap.dll": "7ef6183b66ca54e1255b6dd6a8c08478b20e50f486e9624319488d1dd6614395"
+      },
+      "cache_sha256": {
+        "fred-build.txt": "cf9d300315a91ce317ecc978339a9a1d08174e269fdbcd965a930545ecacc171",
+        "fred.xrt": "508e1deb34413c115a48ed118f86e3cf9544f3001ac310b0cb84eaf646c25c76",
+        "iv-program.bin": "4bb514b6935d1e647fd38ae495018ef26f86dd2fde24ff91515896653554b194",
+        "taskparams.txt": "7194df40e0ff109f449f261f9088b5a47995eccb312d3b75f5c93268b32661b5"
+      },
+      "checks": {
+        "runner_succeeded": true,
+        "survived_observation": true,
+        "prefs_unchanged": true,
+        "desktop_unchanged": true,
+        "checkpoint_loaded_inside_house": true,
+        "native_cycles_advance": true,
+        "save_restored": true,
+        "stock_script_restored": true,
+        "native_rig_fitted": true,
+        "native_world_floor": true,
+        "native_world_simulation_completed": true,
+        "no_nonfinite_simulation": true,
+        "physical_palette_applied": true,
+        "same_dll_bootstrap_ready": true,
+        "expected_first_run_status": true
+      },
+      "visual_review": {
+        "status": "scoped_visual_review",
+        "image_sha256": "447b09edf464cb0eed1ae21adb883e74a6a55a61b30924e74ef29a9e3deba40e",
+        "observed": [
+          "Full fitted CJ body visible lying on the real interior floor",
+          "Head, torso and limbs visually coherent in this final frame"
+        ],
+        "scope": "Translated render fixture; native actor root, AI, damage and recovery are not replaced. No whole-game acceptance."
+      },
+      "desktop_and_saves_restored": true
+    }
+  ],
+  "same_dll_bootstrap_and_solver": true,
+  "independent_program_env_used": false,
+  "import_headless": {
+    "fresh_owned_iso_passed": true,
+    "fresh_process_cache_without_iso_or_xex_key_passed": true,
+    "trajectory": "3ffc3c3f42db97c8",
+    "canonical_body_sha256": "cf9d300315a91ce317ecc978339a9a1d08174e269fdbcd965a930545ecacc171"
+  },
+  "runtime_unbundled_vc_libraries": false,
+  "legacy_checkpoint_source_sha256": "ea0146eafb76dd337e197766a18aa353fa555e6585e95e5d5dd9b300271acc66",
+  "native_checkpoint_sha256": "13aad3b49215cbc6a27c5d2a01097e0163867dee4b1ca6ed3f5d0d01ebe3a36e",
+  "retained_failures": [
+    "First SDK test run: missing native torso capture; fixed by explicit real-capture path, no skipped assertion",
+    "Bootstrap test first compile referenced newer standalone SDK exports; replaced by existing adapted catch_fall API as already proven in the lab",
+    "Initial import fixture was the older reduced ISO test image; correctly rejected; owned retail link used afterward",
+    "First shared-core game run aborted in harness because it expected cache_ready during first import, before selecting a save; not a game crash",
+    "Earlier render frames hide most of body under camera; scoped review fixture translates the physical seed two metres forward on real geometry"
+  ],
+  "limits": [
+    "This is an opt-in translated render/solver fixture, not live damage/AI/recovery ownership",
+    "Full Steam adapter, vehicle interactions and visual/QoL modpack remain pending",
+    "Cold first import without both Internet and an XEX-key cache is not solved",
+    "No new RAR generated; alpha.4 remains incomplete",
+    "Private repository only; no public release"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "commit": "380c8cb7d49a9b0c941d0ce8ffb58a0963e4c21e",
+  "source_sha256": "7c5eb14650d28eef41721c441cd2b80aed1abcf2b96f723657fef389d0f72efd",
+  "generated_sha256": "a8ab64d572ceada8448722504a9fcdee7db11912aab568a22b204b94d6afe6b1",
+  "functions": [
+    "set_of",
+    "stops_of",
+    "set_flags",
+    "pick",
+    "stop",
+    "turn_new",
+    "turn",
+    "spot",
+    "start_new",
+    "start",
+    "gait_ratio",
+    "gait_step",
+    "gait_left",
+    "turn_column",
+    "Stamina::run",
+    "Stamina::recover",
+    "Stamina::recover_in_vehicle"
+  ],
+  "host_substitutions": [
+    "gta4_data namespace to pinned lsc4_combat",
+    "ladder turn speed to original on-foot TURN_SPEED; ladders remain SA-owned"
+  ],
+  "scope": "Original on-foot gait/start/stop/turn and run-pressure/stamina rules; SA host integration and pose sampling are separate",
+  "original_tests": [
+    "holding_the_run_button_runs_and_tapping_sprints",
+    "sprint_spends_stamina_then_he_runs_until_it_recovers",
+    "in_a_vehicle_stamina_refills_at_the_still_rate"
+  ]
+}

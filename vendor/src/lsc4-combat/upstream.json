@@ -1,0 +1,114 @@
+{
+  "source": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4",
+  "commit": "00b29670c01030581355b65f97eff90ba51fc3a3",
+  "source_access": "read-only Git objects",
+  "modules": [
+    {
+      "path": "rust/crates/gta4-data/src/melee.rs",
+      "sha256": "78703314eab42368882692f2bcf5d986c0bfb8e72c3b9543249e49cbc0dbdaba"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/melee_task.rs",
+      "sha256": "b81bec8f5a72c1180d8871aefabc628e12a8d26fda2fc3e641fcf3e9ba7e8bca"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/actiontable.rs",
+      "sha256": "d2b1e375c62bf3e7bd783cb8d492cc262d30fc55fec79aedad27e5495a19ee6c"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/controls.rs",
+      "sha256": "34afaef301318e88a48ad114be8f09c35cc6ca713c8b23dceeb6f50cde3ae5c7"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/csv.rs",
+      "sha256": "18d2de1ee463e8713b6aa100ea766b3f0e6cf83e795f4bbb32ae5e137a4b1b0b"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/meleeanims.rs",
+      "sha256": "331fa0e88d8363e85b1d006e5575034784755035687e286bbd7fabe63043c140"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/animgrp.rs",
+      "sha256": "bb2ec55890f213a03db408f24b3acb64b7f600a4dba4f9979cb4348d4fa26baf"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/pedpersonality.rs",
+      "sha256": "584c347b048509c8ac0fc1e9ede0ba874cf5c7a7b19cfef0f594cbe68d13c8f7"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/rng.rs",
+      "sha256": "d34b1050ac1eb03195d1536fd491826d04f094207c9554a2bbfbd409d738f3da"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/crt.rs",
+      "sha256": "8abc59287f0979b4ce8c52ad316db08d26f8a50258a6bc6ba9fd2eb4bbc91a7f"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/textfmt.rs",
+      "sha256": "ddf504a661c4deb526f5d32a9746d35d75180c2ea9106829be2cfe7798dd7057"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/textlines.rs",
+      "sha256": "4a1ee2332d2eae6681284eabaa29aa8a1b5e6140f0f5b174784fba3e46463c03"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/pad.rs",
+      "sha256": "d7378bcd5c0cc1b4f8f99bc3a245d0392a11552ff355fc8db1f897ecc81959cc"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/xenon.rs",
+      "sha256": "a9c3d4e64c3b18227da602130ba19e6eb8b86722353af63ba1085cdccedc66bd"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/mathrt.rs",
+      "sha256": "b4f787fd4e8e10a0d149eca9041251a0b0c51f052315b29c19347362e5cfcaa0"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/map.rs",
+      "extracted_functions": [
+        "hash_bytes"
+      ],
+      "sha256": "6dbfab24ce0992c0e8bfdf493e1c106a0549d187901edea302c9e41025ba378b"
+    },
+    {
+      "path": "rust/crates/gta4-data/src/aiahead.rs",
+      "extracted_functions": [
+        "vmadd",
+        "vrsq"
+      ],
+      "sha256": "5c2610a46c15e9f945afba22cbc71dddf6169179d4cdf0b48897ab33f64d3510"
+    }
+  ],
+  "imported_files": {
+    "src/melee.rs": "78703314eab42368882692f2bcf5d986c0bfb8e72c3b9543249e49cbc0dbdaba",
+    "src/melee_task.rs": "b81bec8f5a72c1180d8871aefabc628e12a8d26fda2fc3e641fcf3e9ba7e8bca",
+    "src/actiontable.rs": "d2b1e375c62bf3e7bd783cb8d492cc262d30fc55fec79aedad27e5495a19ee6c",
+    "src/controls.rs": "34afaef301318e88a48ad114be8f09c35cc6ca713c8b23dceeb6f50cde3ae5c7",
+    "src/csv.rs": "18d2de1ee463e8713b6aa100ea766b3f0e6cf83e795f4bbb32ae5e137a4b1b0b",
+    "src/meleeanims.rs": "331fa0e88d8363e85b1d006e5575034784755035687e286bbd7fabe63043c140",
+    "src/animgrp.rs": "bb2ec55890f213a03db408f24b3acb64b7f600a4dba4f9979cb4348d4fa26baf",
+    "src/pedpersonality.rs": "584c347b048509c8ac0fc1e9ede0ba874cf5c7a7b19cfef0f594cbe68d13c8f7",
+    "src/rng.rs": "d34b1050ac1eb03195d1536fd491826d04f094207c9554a2bbfbd409d738f3da",
+    "src/crt.rs": "8abc59287f0979b4ce8c52ad316db08d26f8a50258a6bc6ba9fd2eb4bbc91a7f",
+    "src/textfmt.rs": "ddf504a661c4deb526f5d32a9746d35d75180c2ea9106829be2cfe7798dd7057",
+    "src/textlines.rs": "4a1ee2332d2eae6681284eabaa29aa8a1b5e6140f0f5b174784fba3e46463c03",
+    "src/pad.rs": "d7378bcd5c0cc1b4f8f99bc3a245d0392a11552ff355fc8db1f897ecc81959cc",
+    "src/xenon.rs": "a9c3d4e64c3b18227da602130ba19e6eb8b86722353af63ba1085cdccedc66bd",
+    "src/mathrt.rs": "b4f787fd4e8e10a0d149eca9041251a0b0c51f052315b29c19347362e5cfcaa0",
+    "src/map.rs": "a029d211c4a90578060851bd69e8683f60485c87b6e066eaec16951c671cfbdb",
+    "src/aiahead.rs": "58ac6c842454c451b18905937a97c7cefce2f50d3a531a400985c87ddf7e8921",
+    "LICENSE": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "src/lib.rs": "3ad5acc9592cd3e8edc08343d842961ad9495ebcf2fcb67ce10010e9bb841415",
+    "Cargo.toml": "466831b0809cb792395241eb0171b87477e58612b14dabdb605e6db1c3c8d3dd"
+  },
+  "scope": "Original action selection, hit reaction, combo/task, input, and animation metadata rules; not the Bevy viewer or a completed SA combat port.",
+  "additional_imports": [
+    {
+      "source": "research/standing-contacts-20261031/reference/pedbodies.rs",
+      "upstream_checkout_head": "0b0aef3a0",
+      "source_access": "read-only working file, archived hash is authoritative",
+      "destination": "src/pedbodies.rs",
+      "sha256": "7f83b1b4eb1742aaddd8f4606f3096c8f14485a894e30a10da7b0a54d0bdc4e3"
+    }
+  ]
+}

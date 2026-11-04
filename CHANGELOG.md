@@ -1,5 +1,12 @@
 # Historial
 
+## En desarrollo · port nativo de Steam
+
+- Conservado el código del motor y del combate existentes en una copia fuente independiente, compilable para x86 sin el antiguo payload de constantes.
+- Incorporada la corrección de pivotes adaptados de Delirium 0.6.0, con prueba que falla antes del cambio y 93 pruebas del núcleo y 68 del SDK correctas después.
+- Comprobadas en Steam original la lectura del esqueleto de CJ, la importación de la colisión real del interior y una simulación de 240 pasos. Son pruebas delimitadas del laboratorio, no jugabilidad completa ni contenido del RAR alpha.4.
+- Ranura de pruebas convertida de forma reversible a Steam; no requiere sustituir `main.scm` ni tocar la partida original.
+
 ## 0.1.0-alpha.4 · laboratorio
 
 - Modo sin bordes que crea el dispositivo Direct3D en ventana y mantiene el modo del escritorio.

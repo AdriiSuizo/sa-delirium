@@ -5,18 +5,18 @@ edition = "2024"
 license = "GPL-3.0-only"
 publish = false
 
+[workspace]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-delirium = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4" }
-delirium-data = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4" }
-delirium-sdk = { git = "https://github.com/PVCPC/delirium-physics.git", rev = "93eed4d6a0aafa2e84526730ea1f54dab48ac7d4" }
+delirium = { path = "../vendor/src/delirium-physics/crates/delirium" }
+delirium-data = { path = "../vendor/src/delirium-physics/crates/delirium-data" }
+delirium-sdk = { path = "../vendor/src/delirium-physics/crates/delirium-sdk" }
+iso_data = { package = "delirium-data", path = "../vendor/src/delirium-physics/crates/comparison-data" }
 bevy_math = { version = "=0.20.0", default-features = false, features = ["std"] }
 bevy_transform = { version = "=0.20.0", default-features = false, features = ["std"] }
-
-[patch."https://github.com/PVCPC/delirium-physics.git"]
-delirium-data = { path = ".sdk/delirium-data" }
 
 [profile.release]
 opt-level = 2

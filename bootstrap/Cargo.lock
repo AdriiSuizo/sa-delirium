@@ -506,18 +506,18 @@ dependencies = [
 [[package]]
 name = "delirium"
 version = "0.1.0"
-source = "git+https://github.com/PVCPC/delirium-physics.git?rev=93eed4d6a0aafa2e84526730ea1f54dab48ac7d4#93eed4d6a0aafa2e84526730ea1f54dab48ac7d4"
 dependencies = [
  "bevy_math",
  "bevy_tasks",
  "bevy_transform",
- "delirium-data",
+ "delirium-data 0.1.2",
+ "lsc4-combat",
  "tracing",
 ]
 
 [[package]]
 name = "delirium-data"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes",
  "blake3",
@@ -525,12 +525,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "delirium-data"
+version = "0.1.2"
+dependencies = [
+ "aes",
+ "blake3",
+ "delirium-data 0.1.1",
+ "miniz_oxide",
+]
+
+[[package]]
 name = "delirium-sdk"
 version = "0.1.0"
-source = "git+https://github.com/PVCPC/delirium-physics.git?rev=93eed4d6a0aafa2e84526730ea1f54dab48ac7d4#93eed4d6a0aafa2e84526730ea1f54dab48ac7d4"
 dependencies = [
  "delirium",
- "delirium-data",
+ "delirium-data 0.1.2",
+ "mimalloc",
+ "sa-combat",
  "serde",
  "serde_json",
 ]
@@ -811,16 +822,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "log"
 version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
+name = "lsc4-combat"
+version = "0.1.0"
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+
+[[package]]
+name = "mimalloc"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862"
+dependencies = [
+ "libmimalloc-sys",
+]
 
 [[package]]
 name = "miniz_oxide"
@@ -999,13 +1032,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "sa-combat"
+version = "0.1.0"
+dependencies = [
+ "bevy_math",
+ "delirium-data 0.1.2",
+ "lsc4-combat",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "sa-delirium-bootstrap"
 version = "0.1.0"
 dependencies = [
  "bevy_math",
  "bevy_transform",
  "delirium",
- "delirium-data",
+ "delirium-data 0.1.1",
+ "delirium-data 0.1.2",
  "delirium-sdk",
 ]
 

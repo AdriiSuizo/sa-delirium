@@ -1,9 +1,15 @@
 /build/
 /dist/
 /bootstrap/target/
+**/target/
+*.obj
+*.lib
+*.exp
 /bootstrap/.sdk/
 /DeliriumSA-local-v1/
 /DeliriumSA-local-v1.tmp-*/
+/DeliriumSA-local-v2/
+/DeliriumSA-local-v2.tmp-*/
 *.iso
 /.cache/
 *.user

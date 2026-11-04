@@ -1,0 +1,32 @@
+{
+  "read_only_source": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4",
+  "head": "0b0aef3a031dd4d23aa0f99d99e82c2d4063bb36",
+  "sources": [
+    {
+      "path": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4\\rust\\crates\\gta4-data\\src\\combat.rs",
+      "sha256": "60322719d2171beee8383230ea3eb5a31dd4a95569ebe9b465b2f8e61c9bee1c"
+    },
+    {
+      "path": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4\\rust\\crates\\gta4-data\\src\\decision.rs",
+      "sha256": "80c1ab9543f85e5d0f2be00a0c1568829dfdf6e2e008763a4af8502800227719"
+    },
+    {
+      "path": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4\\rust\\crates\\gta4-data\\src\\visibility.rs",
+      "sha256": "370b75b2a39938def93a18bd28f73375924be57f5211517147dd73f6c0383318"
+    },
+    {
+      "path": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4\\rust\\crates\\gta4-data\\src\\aisteer.rs",
+      "sha256": "26304e5f6027e3fc9600f03bf9cef08ccd714d540160fbb0ba1a473b71dc7ba9"
+    },
+    {
+      "path": "C:\\Users\\vieir\\Desktop\\LSC4 REPO CARPETA\\large-steal-car-4\\rust\\crates\\gta4-data\\src\\weapons.rs",
+      "sha256": "93219a74428109203d84fa0b7ddb447a8fb517e318b1a72b1675c87af83b95e4"
+    },
+    {
+      "path": "C:\\Program Files (x86)\\Steam\\steamapps\\content\\app_12210\\depot_12211\\GTAIV\\common\\data\\decision\\Combat\\M_NO_NO.cmb",
+      "sha256": "68a9d74f2577761a2923a39bd1970eb2e4c6381a9ae4814745771b305f94d9b8",
+      "owned_path": "C:\\Users\\vieir\\Desktop\\Repo\\GTA SA\\tools\\mod-staging\\npc-decisions-20261101\\decision\\M_NO_NO.cmb"
+    }
+  ],
+  "scope": "Original non-cop Combat control and default combat decisions. Original source lists its own missing police/cover/event rules. Host adapter is separately owned."
+}

@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use bevy_math::{Quat, Vec3};
-use bevy_transform::components::Transform;
 use delirium::ragdoll::Rig;
 use delirium_data::{
-    archive_key::ArchiveKey, disc::Disc, img, kv, model, resource, rpf, skeleton, xex,
+    archive_key::ArchiveKey, disc::Disc, img, kv, model, resource, rpf, skeleton,
 };
+use iso_data::xex;
+#[path = "../compatibility/canonical_body.rs"]
+mod canonical_body;
 use delirium_physics as sdk;
 use std::ffi::CString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool,Ordering};
+static RUNTIME_READY:AtomicBool=AtomicBool::new(false);
 
 const PROGRAM: &str = "iv-program.bin";
 const CHARACTER: &str = "fred.xrt";
 const TASKS: &str = "taskparams.txt";
 const BODY: &str = "fred-build.txt";
-const CACHE: &str = "DeliriumSA-local-v1";
+// Alpha.4's bind-body cache remains recoverable. The adapted runtime needs
+// the canonical idle body; never silently accept the older body's 21 parts.
+const CACHE: &str = "DeliriumSA-local-v2";
 const PARTS: i32 = 21;
 const MISSING_ISO: &str = "Pon la ISO de GTA IV de Xbox 360 junto a gta-sa.exe para el primer arranque";
 
@@ -70,7 +76,7 @@ fn character_build(disc: &Disc, key: &ArchiveKey) -> Result<String, String> {
     if rig.build.parts.len() != PARTS as usize {
         return Err("Número de segmentos incompatible".into());
     }
-    Ok(rig.dump(&bind, Transform::IDENTITY))
+    canonical_body::build(disc,key,rig).map_err(|error|error.to_string())
 }
 
 fn sdk_file(path: &Path) -> Result<CString, String> {
@@ -87,12 +93,14 @@ fn sdk_check(code: i32, operation: &str) -> Result<(), String> {
 }
 
 fn activate(cache: &Path) -> Result<(), String> {
-    let program = sdk_file(&cache.join(PROGRAM))?;
+    RUNTIME_READY.store(false,Ordering::Release);
     let character = sdk_file(&cache.join(CHARACTER))?;
     let tasks = sdk_file(&cache.join(TASKS))?;
     let body = sdk_file(&cache.join(BODY))?;
     unsafe {
-        sdk_check(sdk::nm_unlock(program.as_ptr()), "nm_unlock")?;
+        if !kv::unlock_program(&fs::read(cache.join(PROGRAM)).map_err(|e|e.to_string())?) {
+            return Err("El motor adaptado rechazó el programa de la caché".into());
+        }
         sdk_check(sdk::nm_init(character.as_ptr()), "nm_init")?;
         sdk_check(
             sdk::nm_load_task_params(tasks.as_ptr()),
@@ -108,7 +116,15 @@ fn activate(cache: &Path) -> Result<(), String> {
             return Err("El SDK rechazó el número de segmentos".into());
         }
     }
+    RUNTIME_READY.store(true,Ordering::Release);
     Ok(())
+}
+
+/// Native adapters may consume SDK exports only after the first-run worker
+/// has completed character/task initialization in this same DLL instance.
+#[unsafe(no_mangle)]
+pub extern "C" fn sa_delirium_runtime_ready()->i32{
+    i32::from(RUNTIME_READY.load(Ordering::Acquire))
 }
 
 fn iso_path(root: &Path) -> Result<PathBuf, String> {
@@ -135,7 +151,7 @@ fn import(root: &Path, cache: &Path) -> Result<(), String> {
     let disc = Disc::open(&iso_path(root)?)?;
     let xex_bytes = disc_file(&disc, "default.xex", 32 << 20)?;
     let program = xex::XexImage::parse_with_key(&xex_bytes, &xex::fetched_key()?)?.image;
-    if !kv::unlock(&program) {
+    if !kv::unlock_program(&program) {
         return Err(
             "Esta edición de la ISO no coincide con el ejecutable admitido por Delirium".into(),
         );
@@ -235,6 +251,17 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires an owned ISO hardlink in an isolated test root"]
+    fn imports_owned_iso_then_runs_without_it() {
+        let root=PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        assert!(!root.join(CACHE).exists());
+        assert_eq!(prepare(&root).unwrap(),"imported_iso");
+        fs::rename(root.join("owned.iso"),root.join("owned.iso.parked")).unwrap();
+        assert_eq!(prepare(&root).unwrap(),"cache_ready");
+        runs_an_initialized_delirium_agent();
+    }
+
+    #[test]
     #[ignore = "requires a cache generated locally from a supported owned disc"]
     fn runs_an_initialized_delirium_agent() {
         use std::hash::{DefaultHasher, Hasher};
@@ -261,12 +288,10 @@ mod tests {
                     rotation.as_mut_ptr()
                 ) >= 0
             );
-            assert!(sdk::nm_agent_task_fall_down(agent, world, 0.0) >= 0);
-            let mut diagnostics = [0; 1024];
-            assert!(sdk::nm_agent_check(agent, diagnostics.as_mut_ptr(), 1024) >= 0);
-            let diagnostics = std::ffi::CStr::from_ptr(diagnostics.as_ptr()).to_string_lossy();
-            assert!(!diagnostics.contains("no behaviours"), "{diagnostics}");
-            assert!(!diagnostics.contains("no task params"), "{diagnostics}");
+            // Exercise the existing adapted SDK's real task API. The newer
+            // standalone SDK's task_fall_down/check exports are not its ABI.
+            assert_eq!(sdk::nm_agent_task_catch_fall(agent,std::ptr::null()),0);
+            assert_eq!(sdk::nm_agent_is_catching_fall(agent),1);
             let mut trajectory = DefaultHasher::new();
             let mut pose = [0.0f32; PARTS as usize * 7];
             for _ in 0..120 {

@@ -1,0 +1,17 @@
+[package]
+name = "sa-combat"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+publish = false
+
+[workspace]
+
+[dependencies]
+lsc4-combat = { path = "../lsc4-combat" }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+delirium-data = { path = "../delirium-physics/crates/delirium-data" }
+bevy_math = { version = "=0.20.0", default-features = false, features = ["std"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
