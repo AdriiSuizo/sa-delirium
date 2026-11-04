@@ -13,6 +13,8 @@
 namespace fs = std::filesystem;
 using AddVirtualFile = bool(WINAPI*)(const wchar_t*, const unsigned char*, std::size_t, int);
 bool installSteamColour(const fs::path& log);
+bool installSteamGamepad(const fs::path& log);
+bool installSteamBorderless(const fs::path& log);
 
 static std::string read(const fs::path& path, std::size_t limit) {
     std::ifstream in(path, std::ios::binary | std::ios::ate);
@@ -102,6 +104,10 @@ static void initialize() {
     if (!supported(exe)) { log << "unsupported_executable\n"; return; }
     prepareDelirium(root, log);
     const auto config = root / L"scripts" / L"SAStandalone.ini";
+    if (GetPrivateProfileIntW(L"Display", L"Borderless", 1, config.c_str()) == 1)
+        log << (installSteamBorderless(root / L"SAStandalone.log") ? "borderless_hook_installed\n" : "borderless_hook_unavailable\n");
+    if (GetPrivateProfileIntW(L"Controls", L"RightStickCamera", 1, config.c_str()) == 1)
+        log << (installSteamGamepad(root / L"SAStandalone.log") ? "xinput_camera_hook_installed\n" : "xinput_camera_hook_unavailable\n");
     if (GetPrivateProfileIntW(L"AirPitch", L"Experimental", 0, config.c_str()) == 1) {
         log << (installSteamAirPitch() ? "experimental_air_pitch_installed\n" : "experimental_air_pitch_unavailable\n");
     }

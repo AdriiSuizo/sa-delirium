@@ -20,6 +20,14 @@ ULONGLONG started{};
 unsigned padCalls{}, carCalls{}, playerCarCalls{};
 unsigned pedCalls{}, playerPedCalls{};
 bool civilPoseSeen{}, playerPoseSeen{};
+bool cameraFixture{};
+ULONGLONG lastCameraSample{};
+
+int cameraAxis(ULONGLONG elapsed) {
+    if (elapsed >= 28000 && elapsed < 30000) return 23000;
+    if (elapsed >= 31500 && elapsed < 33500) return -23000;
+    return 0;
+}
 
 template <typename T>
 T field(const std::byte* object, std::size_t offset) {
@@ -45,6 +53,15 @@ void __fastcall observePedPreRender(void* actor, void*) {
     auto& seen = player ? playerPoseSeen : civilPoseSeen;
     auto& calls = player ? playerPedCalls : pedCalls;
     ++calls;
+    const auto elapsed = GetTickCount64() - started;
+    if (player && cameraFixture && elapsed >= 26500 && elapsed - lastCameraSample >= 120) {
+        const auto* view = image + 0x7fc448 + 0x974;
+        std::fprintf(trace, "camera %llu input=%d mouse=%d raw=%.4f yaw=%.5f\n", elapsed,
+            cameraAxis(elapsed), field<unsigned char>(image, 0x7fc063),
+            field<float>(image, 0x918b10), std::atan2(field<float>(view, 4), field<float>(view, 0)));
+        std::fflush(trace);
+        lastCameraSample = elapsed;
+    }
     if (seen) return;
 
     const auto clump = field<void*>(ped, 0x18);
@@ -98,9 +115,10 @@ DWORD WINAPI labPad(DWORD user, XINPUT_STATE* state) {
     *state = {};
     state->dwPacketNumber = poll;
     // Start a fresh game from the default menu selection. No save commands.
-    if (elapsed >= 1000 && elapsed < 38000 && elapsed % 1200 < 240) {
+    if (elapsed >= 1000 && elapsed < 38000 && elapsed % 1200 < 240 && (!cameraFixture || !playerPoseSeen)) {
         state->Gamepad.wButtons = XINPUT_GAMEPAD_A;
     }
+    if (cameraFixture) state->Gamepad.sThumbRX = static_cast<SHORT>(cameraAxis(elapsed));
     return ERROR_SUCCESS;
 }
 } // namespace
@@ -109,6 +127,7 @@ extern "C" __declspec(dllexport) void InitializeASI() {
     wchar_t enabled[4]{};
     if (GetEnvironmentVariableW(L"SA_STEAM_VEHICLE_PROBE", enabled, 4) != 1 || enabled[0] != L'1') return;
     if (trace) return;
+    cameraFixture = GetEnvironmentVariableW(L"SA_STEAM_CAMERA_PROBE", enabled, 4) == 1 && enabled[0] == L'1';
     if (fopen_s(&trace, "steam-vehicle-probe.log", "w") != 0) return;
     started = GetTickCount64();
     image = reinterpret_cast<const std::byte*>(GetModuleHandleW(nullptr));
