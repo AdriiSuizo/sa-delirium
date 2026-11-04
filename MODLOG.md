@@ -1,5 +1,10 @@
 # Registro técnico
 
+## Inicio y mando en la instalación real de Steam
+
+- D3D9 se importa en RVA `0x4a0374`. La corrección preserva la llamada anterior y convierte la creación y los resets del dispositivo a ventana con el modo de escritorio. Se validó la instalación real desde el cliente de Steam con 2560 × 1440 antes y después.
+- La consulta XInput de la ruta nativa está en RVA `0x37c982` y usa la importación visible para Steam Input. Se observó que la cámara conserva el modo ratón mientras recibe los dos ejes analógicos. La adaptación selecciona temporalmente el camino nativo de stick durante la actualización de cámara, respetando los demás consumidores de entrada. Las direcciones se validan para el ejecutable Steam 459558.
+
 ## Filtro de color de Steam
 
 - El lector de iluminación de Steam está en RVA `0x1d8f70`. Los datos originales incluyen `data/timecycp.dat`. El cargador virtual presenta ese archivo como entrada de `timecyc.dat` en memoria. La primera tabla alfa comprobada está en RVA `0x80d7a8`.

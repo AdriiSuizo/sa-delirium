@@ -2,7 +2,7 @@
 
 Previa técnica privada para GTA San Andreas clásico de Steam, build 459558, con ejecutable original de 32 bits **gta-sa.exe**. Incluye el importador de Delirium, un filtro de color PS2 con la tabla de iluminación del propio juego y el ajuste de suspensión. En esta previa, los peatones de Steam todavía no usan el motor de Delirium.
 
-En alpha.3, deja `AirPitch.Experimental=0`. El control aéreo requiere pruebas de conducción y viene desactivado.
+En alpha.4, el juego abre en ventana sin bordes al tamaño del escritorio y la cámara usa el stick derecho de un mando XInput activo. Puedes desactivar cada ajuste en `scripts/SAStandalone.ini` con `Borderless=0` o `RightStickCamera=0`. El control aéreo experimental sigue desactivado.
 
 1. Cierra el juego.
 2. En Steam abre la carpeta de instalación desde **Administrar → Explorar archivos locales**.

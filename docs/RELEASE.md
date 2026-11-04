@@ -2,7 +2,7 @@
 
 Se necesita PowerShell, Visual Studio Build Tools con C++ x86, Rust con el objetivo `i686-pc-windows-msvc`, Python, Git y Rar.exe de WinRAR. Desde la raíz del repositorio:
 
-    powershell -ExecutionPolicy Bypass -File tools/Build-Release.ps1 -Version 0.1.0-alpha.3
+    powershell -ExecutionPolicy Bypass -File tools/Build-Release.ps1 -Version 0.1.0-alpha.4
 
 El script compila el ASI y el preparador del SDK fijado, verifica por SHA-256 el cargador, empaqueta solo la lista permitida y comprueba el RAR. El resultado se guarda en **dist**. Se puede pasar **-LoaderArchive** con una copia local del mismo archivo oficial y **-DeliriumCheckout** con una copia Git de la revisión fijada del SDK.
 

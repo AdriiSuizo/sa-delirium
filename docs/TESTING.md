@@ -29,3 +29,9 @@ El método compartido está en RVA `0x204f20`. Se verificó la entrada 17 de las
 - Se comparó la escena inicial a las 06:36 en dos arranques a 1280 × 720. El perfil PS2 registró la primera pasada de color. El control con `Ps2TimeCycle=0` usó el posprocesado nativo. Las capturas muestran el cambio en el cielo y en la iluminación del entorno con el HUD original.
 - Steam duplica y guarda en un byte los canales alfa del posprocesado. Las primeras ocho muestras de alfa fueron 254 en ambos modos. La diferencia visual comprobada procede del filtro, con la tabla local como entrada.
 - La fixture XInput y los observadores son de laboratorio. Quedan por probar el mando físico, el rendimiento en juego y el port de peatones de Delirium.
+
+## Alpha.4 · arranque real desde Steam
+
+- Se comprobó la instalación real con el cliente de Steam y el AppID 12120. El proceso abrió `gta-sa.exe` en la biblioteca de Steam y leyó la caché del usuario. El dispositivo D3D9 registró 2560 × 1440 en ventana. El escritorio conservó esa resolución y el archivo de preferencias mantuvo su huella.
+- En una copia aislada con el mismo ejecutable, la fixture XInput movió el stick derecho con el juego en modo ratón. El giro pasó de 3,10 a 1,21 radianes durante el tramo positivo. Tras centrar el stick, la vista se estabilizó. La comparación desactivada con el mismo modo sin bordes no alcanzó la ventana de medición. Una prueba anterior del ejecutable sin el arreglo sí registró entrada positiva y varios fotogramas con la vista inmóvil.
+- La entrada física del usuario sigue pendiente de prueba en juego. La fixture y su ASI quedan fuera del RAR.

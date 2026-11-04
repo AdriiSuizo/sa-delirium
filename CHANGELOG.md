@@ -1,5 +1,11 @@
 # Historial
 
+## 0.1.0-alpha.4 · laboratorio
+
+- Modo sin bordes que crea el dispositivo Direct3D en ventana y mantiene el modo del escritorio.
+- La cámara nativa recibe el stick derecho XInput durante la entrada analógica aunque esté seleccionado el modo de ratón. Se conservan las preferencias originales fuera del procesamiento de cámara.
+- Se mantiene el límite nativo de fotogramas. Los fixes de temporización de la copia de desarrollo necesitan adaptación a Steam antes de cambiar ese límite.
+
 ## 0.1.0-alpha.3 · laboratorio
 
 - El RAR incorpora el preparador x86 de Delirium y su licencia. La ventana del primer arranque permite reintentar después de colocar la ISO.

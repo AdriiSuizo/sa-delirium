@@ -7,6 +7,7 @@
 | SAStandalone | Aplica amortiguación adicional en las filas de coches de los datos nativos que el jugador ya tiene instalados. | Código de esta rama. Véase LICENSE.md. |
 | Ciclo de iluminación y color PS2 | Presenta el `timecycp.dat` de la instalación local al lector de Steam y aplica la modulación en la pasada nativa de posprocesado. | Código propio y datos del juego leídos en el equipo del jugador. |
 | Preparador de Delirium 0.6.0 | Valida la ISO de Xbox 360 y prepara la caché de Delirium en la instalación del jugador. | GPLv3 con el permiso adicional de Delirium. Código y construcción en `bootstrap` y `tools/Prepare-DeliriumSdk.py`. |
+| Ventana sin bordes y cámara XInput | Usa el escritorio actual para el dispositivo D3D9 y activa la ruta de cámara de mando de Steam al mover el stick derecho. | Código propio. |
 | Ultimate ASI Loader 10.0.2 Win32 | Carga el ASI y sirve la vista en memoria de handling.cfg. | MIT, ThirteenAG y colaboradores. [Release original](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/tag/v10.0.2) |
 
 El empaquetador usa una lista cerrada de tres binarios, un INI y los textos de instalación, créditos y licencias. El juego aporta sus datos en cada arranque.
@@ -23,7 +24,8 @@ El empaquetador usa una lista cerrada de tres binarios, un INI y los textos de i
 | FxsFuncs, NextGen Effects y Enhance ParticleTXD | Pendientes la compatibilidad de hooks, el cargador de scripts y la procedencia de recursos. |
 | Improved Lamps, Brightened, LV Neon, Parallax y Jefferson | Pendientes los reemplazos de modelos, las capas de mapa y sus licencias. |
 | GTA IV Textures/HQ Roads, GTA IV Rubbish, packs de armas y skins | Revisión pendiente de los archivos derivados de juegos y de la licencia de cada aporte original. |
-| GTA V HUD, rueda de armas y DLSS | Fuera de la selección de distribución. |
+| Rueda de armas de GTA V y DLSS | Fuera de la selección de distribución. |
+| Resto de la interfaz activa de desarrollo | Pendiente separar mapa y HUD de la rueda de armas, acreditar permisos y probar las opciones de interfaz en Steam. |
 
 ## Port completo
 

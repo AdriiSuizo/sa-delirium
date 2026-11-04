@@ -4,6 +4,10 @@ El flujo de la futura versión jugable usa una ISO compatible de GTA IV para Xbo
 
 El importador lee la ISO sin escribirla. Genera una caché local de cuatro archivos y solo le da su nombre definitivo después de que el SDK haya abierto los datos. La caché contiene datos de la copia del jugador. Consérvala localmente y exclúyela de repositorios y archivos de distribución. Para reconstruirla, cierra el juego, aparta esa carpeta y vuelve a colocar la ISO junto al ejecutable.
 
+## Equipo sin conexión
+
+El primer descifrado de una ISO cifrada requiere la clave XEX que usa el SDK. El SDK busca su copia local en `%APPDATA%/delirium/xex.key`. Si falta, intenta obtenerla de la fuente fijada por Delirium. El RAR contiene el importador y las licencias. Para preparar un equipo sin Internet, se puede generar antes la caché con la ISO del jugador y llevar esa caché por separado. Los arranques desde la caché validada prescinden de la red y de la clave.
+
 ## Compatibilidad comprobada
 
 El SDK fijado es Delirium 0.6.0, revisión `93eed4d6a0aafa2e84526730ea1f54dab48ac7d4`. La huella BLAKE3 del ejecutable Xbox 360 de referencia es `5d164b473a0ed043502e4fbb1af8dafc68f64e87b27d22aefe64dba3bd9a0a00`. La edición comercial Europa/Asia ensayada tiene la huella `e87cf5277aa90de585b1af9b4e85d422ea2a2331419146aefdef2c7877e29964`.
