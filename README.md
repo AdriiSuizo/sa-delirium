@@ -1,23 +1,64 @@
-# SA Standalone
+# SA Delirium
 
-IntegraciÃ³n privada de Delirium para GTA San Andreas clÃ¡sico de Steam, con el ejecutable original. El adaptador nativo conserva nuestras fÃ­sicas y combate existentes y comparte un Ãºnico motor con el importador. La cachÃ© v3 se genera desde la ISO de GTA IV de Xbox 360 del jugador y su instalaciÃ³n de SA; el primer arranque ya se ha comprobado sin Internet ni cachÃ© previa.
+El mod de desarrollo, con un asistente para instalarlo y abrirlo desde el botón
+**Jugar** de San Andreas clásico en Steam. Conserva las físicas, combate,
+movimientos, controles y el contenido de la copia de desarrollo. Retira el
+minimapa y la rueda de armas del paquete GTA V HUD; conserva GTA V Weapons.
 
-El adaptador enlazado pasÃ³ una prueba de Steam con daÃ±o no letal, recuperaciÃ³n, muerte y disparo al mismo cadÃ¡ver fÃ­sico. Las pruebas de combate, vehÃ­culos y del modpack completo siguen abiertas. **El RAR histÃ³rico alpha.4 todavÃ­a es una previa incompleta**; no confundir sus archivos con las capacidades de las fuentes actuales. VÃ©ase [el adaptador nativo](native/README.md).
+## Instalar
 
-La rama de laboratorio incluye un prototipo de control aÃ©reo desactivado por defecto. VÃ©ase la [verificaciÃ³n de Steam](docs/TESTING.md) para distinguir las pruebas de arranque de la conducciÃ³n pendiente.
+Descarga **SA-Delirium-Setup.exe** o el RAR de la
+[última entrega](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.2.0-dev-import.1).
+Abre el asistente, revisa las rutas detectadas y pulsa **Comprobar → Instalar**.
+Después usa **Jugar** en Steam. No hay que copiar archivos a mano.
 
-- [InstalaciÃ³n y desinstalaciÃ³n](docs/INSTALL.md)
-- [ImportaciÃ³n desde la ISO](docs/ISO-BOOTSTRAP.md)
-- [CompilaciÃ³n y Releases](docs/RELEASE.md)
-- [Proveniencia y dependencias](docs/DEPENDENCIES.md)
-- [Pruebas](docs/TESTING.md)
-- [Historial](CHANGELOG.md)
-- [CrÃ©ditos](CREDITS.md) y [texto para YouTube](docs/YOUTUBE.md)
+Necesitas Windows 10/11 con .NET Framework 4.8, San Andreas clásico de Steam
+(AppID 12120) y **la copia local de desarrollo correspondiente a esta entrega**.
+El asistente incluye nuestro adaptador y motor de Delirium; importa desde esa
+copia los archivos del juego y el resto de los mods, sin redistribuirlos.
+Esta entrega no descarga ni reconstruye desde cero el modpack en otro PC.
 
-## Gameplay y guÃ­a
+El asistente busca las bibliotecas de Steam y el acceso directo del escritorio.
+Si falta una ruta, permite elegirla con **Examinar**. Copia unos 20,7 GiB y
+comprueba los archivos con SHA-256. [Instrucciones completas](installer/LEEME.txt).
 
-Espacios reservados para aÃ±adir el vÃ­deo de gameplay y la guÃ­a rÃ¡pida.
+## Qué conserva
 
-La candidata **local dev.5** ya incluye el adaptador real y SilentPatch. Se extrajo sobre una base limpia de 416 archivos originales: primer importado offline y segundo arranque sin ISO pasaron las pruebas delimitadas de actor. No es aún el modpack gráfico completo. [Recibos y límites](docs/native-gameplay-validation.json).
+El índice contiene 39 componentes solicitados del catálogo, incluidos Urbanize,
+modos gráficos, mapas y vegetación, efectos, texturas, skins, armas y sonidos,
+trainer, controles, ajustes de FPS y las físicas existentes. También conserva
+los archivos jugables encontrados fuera del catálogo. Se excluyen el paquete
+GTA V HUD y los registros, capturas y sondas de pruebas.
 
-El constructor también admite paquetes visuales de datos mediante una receta explícita y genera sus IMG desde los originales del usuario. La candidata `dev.6.local` añade 733 reemplazos locales de skins/armas para validar esa conexión; no es el modpack completo ni un paquete autorizado para redistribución. Véase [contenido local](docs/LOCAL-CONTENT.md).
+La instalación crea una copia independiente en la carpeta **SA** dentro de la
+instalación de Steam. El ejecutable original se respalda y un lanzador propio
+inicia el juego de desarrollo, esperando a que termine para mantener su duración
+en Steam. Los plugins del port experimental R2 quedan fuera de ese proceso.
+La versión interna cambia a la que utiliza desarrollo; esta entrega no utiliza
+el ejecutable original R2 para ejecutar el juego.
+
+Por defecto se copian las partidas y ajustes a ese perfil independiente.
+El origen y las partidas de Documentos permanecen intactos. **Restaurar Steam**
+recupera el ejecutable anterior y conserva el perfil retirado y sus partidas
+en el respaldo. La instalación rechaza bibliotecas con rutas que excedan el
+límite nativo de los nombres de partida de SA 1.0.
+
+## Fuentes, compilación y pruebas
+
+- [Asistente y lanzador](installer/), [compilación](tools/Build-Installer.ps1),
+  [empaquetado](tools/Package-Installer.py).
+- [Contrato de contenido](installer/profile-index.json) y
+  [petición confirmada](installer/REQUEST.txt).
+- [Pruebas del instalador](tests/InstallerTests.cs) y
+  [verificación del juego](tests/Verify-DevelopmentInstall.py).
+- [Revisión de forks y upstream](installer/fork-update-review.json).
+- [Créditos](CREDITS.md), [licencia GPLv3](LICENSE.md) y avisos en `licenses/`.
+
+La entrega acompaña las fuentes correspondientes a los binarios de desarrollo.
+Los ejecutables de juegos, recursos extraídos, partidas y paquetes externos
+no se publican. Desarrollo asistido por Codex.
+
+El port anterior al ejecutable original de Steam se conserva como investigación
+separada: [estado histórico R2](docs/NATIVE-R2-HISTORY.md),
+[adaptador nativo](native/README.md). Los RAR `dev.8.local` y el laboratorio
+gráfico ampliado pertenecen a ese trabajo anterior.

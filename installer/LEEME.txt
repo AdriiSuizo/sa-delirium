@@ -1,0 +1,48 @@
+SA Delirium - versión de desarrollo en Steam
+0.2.0-dev-import.1
+
+1. Cierra GTA San Andreas.
+2. Abre SA-Delirium-Setup.exe.
+3. Comprueba las dos carpetas detectadas. Usa Examinar si falta alguna.
+4. Pulsa Comprobar y después Instalar.
+5. Abre San Andreas con el botón Jugar de Steam.
+
+REQUISITOS
+Windows 10/11 con .NET Framework 4.8; San Andreas clásico de Steam, AppID 12120;
+y la copia local de desarrollo correspondiente a esta entrega. El asistente
+incluye nuestro adaptador Delirium y su motor, y copia el resto desde esa fuente.
+No es un descargador para montar el modpack desde cero en otro ordenador.
+
+El instalador busca Steam en el registro y en sus bibliotecas, y la copia de
+desarrollo en los accesos directos del escritorio. Si no encuentra una ruta,
+la pide con el botón Examinar. No necesitas buscar de nuevo la ISO si los
+recursos de Delirium ya están preparados en la copia de desarrollo.
+
+CONTENIDO
+Se mantienen modelos, texturas, efectos, mapas, Urbanize, controles, trainer,
+físicas de vehículos, movimientos, combate, renderer y prioridades de origen.
+La única retirada jugable es V_HUD_by_DK22Pac: minimapa y rueda de armas de GTA V.
+GTA V Weapons se conserva. No se importan capturas, volcados ni registros viejos.
+Se copian unos 20,7 GiB; deja al menos 1 GiB adicional libre.
+
+PARTIDAS Y RESPALDO
+Por defecto copia las partidas y ajustes a un perfil independiente, dentro de
+la subcarpeta SA de la instalación de Steam. Conserva intactos el origen y las
+partidas de Documentos. El ejecutable original de Steam se guarda en
+SA-Delirium-backups antes de instalar el lanzador.
+
+Para volver a la instalación anterior, abre este mismo asistente, elige la
+carpeta de Steam y pulsa Restaurar Steam. Conserva el perfil retirado y sus
+partidas dentro del respaldo. No borra el progreso que hayas hecho allí.
+
+Si ya hay una instalación de esta entrega, restaura primero. El instalador no
+pisa una instalación desconocida. Steam puede restaurar su ejecutable mediante
+Verificar integridad; en tal caso el perfil SA se conserva.
+
+FUENTES Y CRÉDITOS
+https://github.com/AdriiSuizo/sa-delirium
+Repositorio privado: inicia sesión con una cuenta que tenga acceso.
+El código y las fuentes correspondientes acompañan la entrega en GitHub.
+Licencia del código propio y Delirium: GNU GPL v3. Conserva los avisos adjuntos.
+Desarrollo asistido por Codex. Los datos de los juegos y los paquetes externos
+no forman parte de este RAR; se leen de tus archivos locales.

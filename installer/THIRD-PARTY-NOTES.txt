@@ -1,0 +1,12 @@
+The Steam discovery design follows the documented libraryfolders.vdf and
+appmanifest approach reviewed in rehan-remade/universal-modder at
+9811709d950979f1b5012dddf10b7ec122d7e95e (um/scan.py).
+The C# implementation and parser in this installer are newly written.
+
+Long path handling follows Microsoft's Win32 extended-path documentation:
+https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+
+No third-party binaries, game executables, game assets, decompiled code,
+ISO content, keys or personal saves are embedded in the installer.
+Imported local content retains its original credits/license documents.
+See the repository's CREDITS.md and licenses for the project's existing mod.

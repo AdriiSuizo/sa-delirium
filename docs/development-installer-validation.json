@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "release": "v0.2.0-dev-import.1",
+  "distribution": "own_core_and_installer_imports_owner_local_development",
+  "rar_sha256": "7959101277821d62c5fc80ce73930ca14bb262882e7aeba8db7cd7d9621372b3",
+  "installer_sha256": "527f4605ca95ee27993fed8573a8d86665349a1b442d4b829de869a92d8be475",
+  "launcher_sha256": "e4af63de646489b2e1f8bbdb70ccf54342448c483ae42fc6af6477f0b486a368",
+  "profile_files": 4752,
+  "profile_bytes": 22181864175,
+  "catalog_components": 40,
+  "requested_components_with_files": 39,
+  "excluded_gameplay": [
+    "GTA V HUD by DK22Pac"
+  ],
+  "installer_assertions": 41,
+  "literal_rar_extraction_installed_actual_steam": true,
+  "steam_entry_point": "gta-sa.exe -> own launcher -> SA/gta_sa.exe; original executable backed up",
+  "steam_normal_startup": {
+    "status": "scoped_pass",
+    "bridge": false,
+    "steam_client_applaunch": 12120,
+    "adapter_initialized": true
+  },
+  "actual_installed_gameplay": {
+    "status": "scoped_pass",
+    "bridge_used_only_for_test": true,
+    "save_preserved": true,
+    "game_frames_advanced": true,
+    "game_time_advanced": true,
+    "physics": {
+      "physics_steps": 127,
+      "bone_writes": 9152,
+      "errors": 0,
+      "world_triangles": 24609,
+      "upright_recoveries": 1,
+      "apply_bones": true
+    }
+  },
+  "test_bridge_removed": true,
+  "protected_development_core_and_both_checkpoints_unchanged": true,
+  "failures_retained": [
+    "Initial long staged path exception: automatic rollback restored Steam; fixed extended-path handling and tested explicitly.",
+    "Initial long gameplay directory produced a native save load error; same fixture loads after shortening to SA. 104-byte native save-path guard added.",
+    "First actual gameplay harness sent a command before the first-run renderer/main-thread bridge was ready; recorded as failed and repeated with explicit readiness."
+  ],
+  "limits": [
+    "Requires the matching local development copy for original game files and third-party content; not a complete fresh-machine downloader.",
+    "Scoped startup, checkpoint and combat/physical response checks; not full-game mission, hardware controller or universal mod stability certification.",
+    "Actual Steam uses the development-compatible executable behind the wrapper; it does not run the original Steam R2 game executable.",
+    "Development physics/gameplay defects are preserved; the installer does not claim to fix all existing integration work."
+  ]
+}

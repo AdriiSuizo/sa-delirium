@@ -1,0 +1,167 @@
+{
+  "checked_utc": "2026-11-04T22:14:20.395Z",
+  "records": [
+    {
+      "name": "universal-modder",
+      "parent": "rehan-remade/universal-modder",
+      "parent_branch": "main",
+      "fork_head": "898cea1a0f1557b7feaf135516d446886e16b482",
+      "parent_commits": [
+        {
+          "sha": "9811709d950979f1b5012dddf10b7ec122d7e95e",
+          "date": "2026-10-30T02:28:42Z",
+          "message": "skills: start with REA when its MCP server is connected (#462)"
+        },
+        {
+          "sha": "7d217171ab7335f2c64b231a84d7f5a2e699cb6b",
+          "date": "2026-10-30T02:27:23Z",
+          "message": "kb: Pactblade - a custom vocation on VSB (Dragon's Dogma 2): recoloured effects, own sound banks, binds, warps, crash rules (#423)"
+        },
+        {
+          "sha": "086e64a5f6ef2e0cda2ee62a52896c49c5b20cce",
+          "date": "2026-10-30T02:26:27Z",
+          "message": "kb: Linux KDE Plasma 6 Wayland click-through and ARGB transparency fix (With Your Coworker) (#447)"
+        }
+      ]
+    },
+    {
+      "name": "rea",
+      "parent": "morluto/rea",
+      "parent_branch": "main",
+      "fork_head": "6543405252d7c740c87a3bb433cf666187af41fa",
+      "parent_commits": [
+        {
+          "sha": "71f680d7c1aa7a45ba0325fe87b104744b0c105f",
+          "date": "2026-11-04T20:30:52Z",
+          "message": "feat(mcp): page retained instruction references (#8594)"
+        },
+        {
+          "sha": "1951cdc98038fe16cb6c1981c3a14bca936d13b8",
+          "date": "2026-11-04T20:26:19Z",
+          "message": "fix(mcp): expose bounded parameter type view (#8782)"
+        },
+        {
+          "sha": "9ef70696dd3eda7d6be73c169672a0ab14b027bb",
+          "date": "2026-11-04T20:03:43Z",
+          "message": "fix(ghidra): expose bit-field base type identity (#8602)"
+        }
+      ]
+    },
+    {
+      "name": "plugin-sdk-sa",
+      "parent": "Dryxio/plugin-sdk-sa",
+      "parent_branch": "master",
+      "fork_head": "b55e89b336a81448c1aa1a5b188431c9845ebaa9",
+      "parent_commits": [
+        {
+          "sha": "b55e89b336a81448c1aa1a5b188431c9845ebaa9",
+          "date": "2026-09-09T14:44:31Z",
+          "message": "docs: update repository URLs after project renames"
+        },
+        {
+          "sha": "8191167d025ca31010a1a0951c7c13c4ed62608f",
+          "date": "2026-09-08T11:47:17Z",
+          "message": "Port upstream SA wrapper fixes"
+        },
+        {
+          "sha": "96b7a557790134916425f30e5e77f055494ad289",
+          "date": "2026-09-08T11:47:17Z",
+          "message": "Fix SA model collision and LOD flags"
+        }
+      ]
+    },
+    {
+      "name": "cleo-ai",
+      "parent": "Dryxio/cleo-ai",
+      "parent_branch": "main",
+      "fork_head": "35e60c3f7037e39dcb73d415dca16e657125f398",
+      "parent_commits": [
+        {
+          "sha": "35e60c3f7037e39dcb73d415dca16e657125f398",
+          "date": "2026-09-09T17:48:36Z",
+          "message": "docs: clarify local AI agent requirements before setup"
+        },
+        {
+          "sha": "7fc63db5b073247b0f56fc3908510ba2b7f208d5",
+          "date": "2026-09-09T14:35:45Z",
+          "message": "docs: introduce clearer project display names"
+        },
+        {
+          "sha": "75ef4bbe7c9d215c582e06c0f9236218ad8b5fa8",
+          "date": "2026-09-09T10:04:52Z",
+          "message": "docs: make AI-assisted setup the primary getting-started path"
+        }
+      ]
+    },
+    {
+      "name": "delirium-physics",
+      "parent": "Irrational-Soup/delirium-physics",
+      "parent_branch": "main",
+      "fork_head": "56c2c9974c87d0bb117a3f7bc2c1c0916b5c5ab5",
+      "parent_commits": [
+        {
+          "sha": "551c0497bb960d20e44592deb49b22fce18d84a9",
+          "date": "2026-10-18T03:25:02Z",
+          "message": "0.1.3: say up front you need your own GTA IV for Xbox 360"
+        },
+        {
+          "sha": "f29be85267bace6b20e07cd26e62c3baa697d043",
+          "date": "2026-10-18T03:18:49Z",
+          "message": "0.1.2: super punch (Hero's landed punches go off like a grenade), melee fixes, room filming tools, taxi cabin collision, object hits"
+        },
+        {
+          "sha": "5fc55aaae08b6b7388b26f28d6587848c7835a91",
+          "date": "2026-10-18T02:54:03Z",
+          "message": "README: world, moves and weapons GIFs beside the wave"
+        }
+      ]
+    },
+    {
+      "name": "ghidra-mcp",
+      "parent": "bethington/ghidra-mcp",
+      "parent_branch": "dev",
+      "fork_head": "9cc29c0f1efb6c63a7d6898c9a23aff39397f992",
+      "parent_commits": [
+        {
+          "sha": "61a1fbc8ad1078c64a4fa99e05dfbe2d092f82f0",
+          "date": "2026-10-31T08:54:38Z",
+          "message": "fix(tree): a memory-map change re-decompiles what it reaches, not the whole tree"
+        },
+        {
+          "sha": "bbe642b712bb309382a81cb7bc389544b3f4640c",
+          "date": "2026-10-31T08:54:38Z",
+          "message": "fix(tree): a new revision of the program reaches its tree"
+        },
+        {
+          "sha": "f86152842c81d774afe16d172a50d17bc418a8d7",
+          "date": "2026-10-28T10:23:02Z",
+          "message": "Add facade MCP surface (ghidra_status/connect/search/describe/call) for Copilot-style client (#527)"
+        }
+      ]
+    },
+    {
+      "name": "gta-flow",
+      "parent": "Dryxio/gta-flow",
+      "parent_branch": "main",
+      "fork_head": "c3d9ad40c0facfbe7351a134ba3601e49be8d6be",
+      "parent_commits": [
+        {
+          "sha": "c3d9ad40c0facfbe7351a134ba3601e49be8d6be",
+          "date": "2026-09-09T14:44:19Z",
+          "message": "docs: update repository URLs after project renames"
+        },
+        {
+          "sha": "4af56d58763a6f5304298edd150dd76811fd8240",
+          "date": "2026-09-09T14:35:41Z",
+          "message": "docs: introduce clearer project display names"
+        },
+        {
+          "sha": "6ca1e1ce41348dca884b92b4e10a8050c14a12b9",
+          "date": "2026-09-09T10:04:49Z",
+          "message": "docs: make AI-assisted setup the primary getting-started path"
+        }
+      ]
+    }
+  ],
+  "decision": "Preserve installed development gameplay binaries; use reviewed Universal Modder Steam-library discovery design. No tool upgrades or physics source replacements needed for this installer."
+}

@@ -1,0 +1,28 @@
+Objetivo confirmado por el usuario el 2026-11-04
+
+Referencia: el acceso directo del escritorio gta_sa - Shortcut, cuya carpeta
+de trabajo es el game de este proyecto. Conservar su contenido y comportamiento;
+retirar solo scripts/V_HUD_by_DK22Pac.asi y su carpeta de recursos, responsables
+del minimapa y de la rueda de armas de GTA V. Conservar GTA V Weapons.
+
+El usuario acepta cambiar la versión interna si eso conserva los mods y permite
+usar el botón Jugar de Steam. Ya no es requisito mantener ejecutándose el binario
+Steam R2: no seguir el port incompleto como si fuera esta misma entrega.
+
+Entrega: mod y asistente de instalación en el GitHub privado existente, EXE y RAR.
+Detectar Steam y la copia local de origen; pedir lo que falte. Conservar partidas,
+perfil de desarrollo y respaldo del ejecutable de Steam. Probar primero en copia
+aislada y después mediante el lanzamiento real de Steam. Publicación autorizada
+por la petición expresa; no cambiar la visibilidad del repositorio.
+
+Ruta seleccionada: importar la copia completa desde archivos locales a una
+subcarpeta SA dentro de la instalación real de Steam. Sustituir solo
+el punto de entrada gta-sa.exe por un lanzador propio que mantiene vivo el
+proceso y espera al juego original de desarrollo. No mezclar ASIs R2 y 1.0.
+No parchear ni redistribuir ejecutables o datos de los juegos. El instalador
+publicable contiene código propio e índice de archivos; pide una fuente local
+que coincida. Esto no equivale todavía a un descargador del modpack completo
+instalable desde cero en cualquier PC. Hacer visible ese requisito.
+
+Trabajo previo: todos los cambios del port Steam R2 y lab-world-native9 se
+conservan, sin usarlos como aceptación de la instalación nueva.
