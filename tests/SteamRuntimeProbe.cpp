@@ -33,6 +33,16 @@ std::atomic_bool rigEnabled{},worldEnabled{},simulationEnabled{},renderSimulatio
 bool rigTried{},worldTried{},simulationTried{},simulationValid=true;
 bool bootstrapCore{};
 std::atomic_bool gameplayProbe{};
+std::atomic_bool meleeProbe{};
+std::atomic_bool roadProbe{};
+unsigned roadStage{};
+ULONGLONG roadClock{},lastRoadSample{};
+void* roadCar{};
+void* roadPed{};
+int roadPedRef=-1,roadCarRef=-1;
+void* roadBike{};
+int roadBikeRef=-1,roadBikeModel{};
+float roadSpeed=15.f;
 unsigned gameplayStage{};
 ULONGLONG gameplayClock{};
 void* gameplayPed{};
@@ -112,8 +122,78 @@ bool readable(const void* pointer,size_t length){
     const auto at=reinterpret_cast<uintptr_t>(pointer),end=at+length;
     return end>=at&&end<=reinterpret_cast<uintptr_t>(memory.BaseAddress)+memory.RegionSize;
 }
+void observeRoad(){
+    if(!roadProbe||processCalls<150)return;
+    auto*player=field<std::byte*>(image,0x8100d0);
+    if(!readable(player,0x7c4))return;
+    const auto now=GetTickCount64();
+    if(!roadStage){
+        if(field<unsigned char>(player,0x2f)!=3)return;
+        // Verified owner-native entry points, main-thread scene setup only.
+        // CPed::Teleport takes CVector BY VALUE, plus the unused reset bool
+        // (native RET16). No saved checkpoint or script is modified.
+        const V scene{2430.f,-1658.f,20.f};
+        *reinterpret_cast<int*>(image+0x7ffbe4)=0;
+        player[0x2f]=std::byte{0};
+        reinterpret_cast<void(__cdecl*)(const V&)>(image+0xff50)(scene);
+        bool found=false;void*entity=nullptr;
+        const float ground=reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(image+0x182a50)
+            (scene.x,scene.y,scene.z,&found,&entity);
+        if(!found||!std::isfinite(ground)){std::fprintf(trace,"native_road setup_failed=ground\n");roadProbe=false;return;}
+        reinterpret_cast<void(__thiscall*)(void*,V,bool)>(image+0x1fff30)(player,V{scene.x,scene.y,ground+1.f},false);
+        roadClock=now;roadStage=1;
+        std::fprintf(trace,"native_road scene_loaded=1 ground=%.5f save_written=0\n",ground);std::fflush(trace);return;
+    }
+    if(roadStage==1&&now-roadClock>=3000){
+        const auto*pm=field<const M*>(player,0x14);if(!readable(pm,sizeof(M)))return;
+        using Request=void(__cdecl*)(int,int);using Load=void(__cdecl*)(bool);
+        reinterpret_cast<Request>(image+0x8b00)(7,2);reinterpret_cast<Request>(image+0x8b00)(400,2);
+        if(roadBikeModel){reinterpret_cast<Request>(image+0x8b00)(roadBikeModel,2);reinterpret_cast<Request>(image+0x8b00)(284,2);}
+        reinterpret_cast<Load>(image+0xfc00)(false);
+        const V pedestrian=pm->pos+V{1.7f,6.f,0};
+        if(roadBikeModel){
+            roadBike=reinterpret_cast<void*(__cdecl*)(int,V,bool)>(image+0x34170)(roadBikeModel,pedestrian+V{0,0,-1.f},false);
+            if(!readable(roadBike,0xa18)){std::fprintf(trace,"native_road setup_failed=bike\n");roadProbe=false;return;}
+            roadPed=reinterpret_cast<void*(__cdecl*)(void*,bool,int,int,bool,bool)>(image+0x231570)(roadBike,true,0,-1,true,false);
+        }else roadPed=reinterpret_cast<void*(__cdecl*)(int,unsigned,const V&,bool)>(image+0x2301e0)(4,7,pedestrian,true);
+        const float distance=roadSpeed<=4.f?4.f:8.f;
+        const V origin=pedestrian+V{0,-distance,-1.f};
+        roadCar=reinterpret_cast<void*(__cdecl*)(int,V,bool)>(image+0x34170)(400,origin,false);
+        if(!readable(roadPed,0x7c4)||!readable(roadCar,0xa18)){std::fprintf(trace,"native_road setup_failed=spawn\n");roadProbe=false;return;}
+        const auto reference=[](void*object,std::size_t poolRva,std::ptrdiff_t stride){
+            const auto*pool=field<const std::byte*>(image,poolRva);if(!readable(pool,12))return -1;
+            const auto*objects=field<const std::byte*>(pool,0);const auto*flags=field<const unsigned char*>(pool,4);
+            const auto delta=static_cast<std::byte*>(object)-objects;
+            if(delta<0||delta%stride||delta/stride>=field<int>(pool,8))return -1;
+            return int(delta/stride)*256+flags[delta/stride];
+        };
+        roadPedRef=reference(roadPed,0x8018a8,0x7c4);roadCarRef=reference(roadCar,0x8018ac,0xa18);
+        if(roadBike)roadBikeRef=reference(roadBike,0x8018ac,0xa18);
+        if(roadPedRef<0||roadCarRef<0){std::fprintf(trace,"native_road setup_failed=generation\n");roadProbe=false;return;}
+        // ONE initial native velocity. No repeated position/velocity prescription,
+        // impulse on the ped, injected damage, knock-off event or ragdoll seed.
+        *reinterpret_cast<V*>(static_cast<std::byte*>(roadCar)+0x44)=V{0,roadSpeed/50.f,0};
+        roadClock=now;roadStage=2;
+        std::fprintf(trace,"native_road spawned=1 car_model=400 ped_model=%d bike_model=%d bike_ref=%d initial_speed=%.3f ped_ref=%d car_ref=%d single_velocity_seed=1 scripted_ped_force=0\n",
+            field<short>(roadPed,0x22),roadBikeModel,roadBikeRef,roadSpeed,roadPedRef,roadCarRef);
+    }
+    if(roadStage<2||now-lastRoadSample<50)return;lastRoadSample=now;
+    for(const auto&item:std::array<std::pair<std::size_t,int>,3>{{{0x8018a8,roadPedRef},{0x8018ac,roadCarRef},{0x8018ac,roadBikeRef}}}){
+        if(item.second<0)continue;
+        const auto*pool=field<const std::byte*>(image,item.first);const auto*flags=field<const unsigned char*>(pool,4);
+        if(!readable(flags+(unsigned(item.second)>>8),1)||flags[unsigned(item.second)>>8]!=(item.second&255)){
+            std::fprintf(trace,"native_road generation_lost=1 ref=%d\n",item.second);roadProbe=false;return;
+        }
+    }
+    const auto*pm=field<const M*>(roadPed,0x14);const auto*cm=field<const M*>(roadCar,0x14);
+    if(!readable(pm,sizeof(M))||!readable(cm,sizeof(M)))return;
+    const auto pv=field<V>(roadPed,0x44)*50.f,cv=field<V>(roadCar,0x44)*50.f;
+    std::fprintf(trace,"native_road sample elapsed=%llu px=%.5f py=%.5f pz=%.5f pvx=%.5f pvy=%.5f pvz=%.5f cx=%.5f cy=%.5f cz=%.5f cvx=%.5f cvy=%.5f cvz=%.5f health=%.3f in_vehicle=%u finite=%u\n",
+        now-roadClock,pm->pos.x,pm->pos.y,pm->pos.z,pv.x,pv.y,pv.z,cm->pos.x,cm->pos.y,cm->pos.z,cv.x,cv.y,cv.z,
+        field<float>(roadPed,0x540),(field<unsigned>(roadPed,0x46c)>>8)&1,finite(pm->pos)&&finite(cm->pos)&&finite(pv)&&finite(cv));std::fflush(trace);
+}
 void observeGameplay(){
-    if(!gameplayProbe||processCalls<150)return;
+    if((!gameplayProbe&&!meleeProbe)||processCalls<150)return;
     auto*player=field<std::byte*>(image,0x8100d0);
     if(!readable(player,0x7c4)||field<unsigned char>(player,0x2f)!=3)return;
     auto*playerMatrix=field<M*>(player,0x14);if(!readable(playerMatrix,sizeof(M)))return;
@@ -123,6 +203,9 @@ void observeGameplay(){
         using Spawn=void*(__cdecl*)(int,unsigned,const V&,bool);
         reinterpret_cast<Request>(image+0x8b00)(7,2);
         reinterpret_cast<Load>(image+0xfc00)(false);
+        const auto* stream=image+0x55c8a0+7*0x14;
+        std::fprintf(trace,"native_visual_stream model=7 sector=%u sectors=%u img=%u loaded=%u\n",
+            field<unsigned>(stream,8),field<unsigned>(stream,12),field<unsigned char>(stream,7),field<unsigned char>(stream,16));
         const V position=playerMatrix->pos+V{1.7f,0,0};
         gameplayPed=reinterpret_cast<Spawn>(image+0x2301e0)(4,7,position,true);
         if(!readable(gameplayPed,0x7c4)){std::fprintf(trace,"native_gameplay spawn_failed=1\n");gameplayProbe=false;return;}
@@ -135,6 +218,18 @@ void observeGameplay(){
         gameplayRef=int(offset/0x7c4)*256+flags[offset/0x7c4];
         gameplayClock=now;gameplayStage=1;
         std::fprintf(trace,"native_gameplay spawned=1 ref=%d model=7 area=3 scripted_pose=0\n",gameplayRef);
+        if(meleeProbe){
+            // Native aggression task only: subsequent pursuit, attacks, contact,
+            // reactions and damage belong to the production combat integration.
+            const auto intelligence=field<std::byte*>(gameplayPed,0x47c);
+            void*task=reinterpret_cast<void*(__cdecl*)(unsigned)>(image+0x239c00)(0x38);
+            if(!task||!readable(intelligence,0x30)){std::fprintf(trace,"native_melee setup_failed=task\n");meleeProbe=false;return;}
+            reinterpret_cast<void*(__thiscall*)(void*,void*,int,int,int,int,unsigned char)>(image+0x240c70)
+                (task,player,6000,0,0,0,1);
+            reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(image+0x2add10)(intelligence+4,task,3,false);
+            gameplayStage=10;
+            std::fprintf(trace,"native_melee task_assigned=1 ref=%d target_player=1 time_ms=6000 scripted_damage=0 scripted_contact=0\n",gameplayRef);
+        }
     }
     const auto*pool=field<const std::byte*>(image,0x8018a8);
     const auto*flags=field<const unsigned char*>(pool,4);
@@ -197,6 +292,7 @@ void __cdecl observeProcess(){
     InterlockedIncrement(&processCalls);
     const float delta=field<float>(image,0x80fd50);
     advanceSimulation(delta);
+    observeRoad();
     const auto now=GetTickCount64();if(now-lastSample<250)return;lastSample=now;
     observeGameplay();
     const auto* pool=field<const std::byte*>(image,0x8018a8);
@@ -303,6 +399,18 @@ DWORD WINAPI setup(void*){
     renderSimulationEnabled=GetEnvironmentVariableA("SA_STEAM_RENDER_SIMULATION",enabledRig,4)==1&&enabledRig[0]=='1';
     capturePhysics=GetEnvironmentVariableA("SA_STEAM_CAPTURE_PHYSICS",enabledRig,4)==1&&enabledRig[0]=='1';
     gameplayProbe=GetEnvironmentVariableA("SA_STEAM_GAMEPLAY_PROBE",enabledRig,4)==1&&enabledRig[0]=='1';
+    meleeProbe=GetEnvironmentVariableA("SA_STEAM_MELEE_PROBE",enabledRig,4)==1&&enabledRig[0]=='1';
+    if(meleeProbe&&(gameplayProbe||simulationEnabled||renderSimulationEnabled))return 13;
+    roadProbe=GetEnvironmentVariableA("SA_STEAM_ROAD_PROBE",enabledRig,4)==1&&enabledRig[0]=='1';
+    if(roadProbe){
+        if(gameplayProbe||meleeProbe||simulationEnabled||renderSimulationEnabled)return 10;
+        char speed[16]{};GetEnvironmentVariableA("SA_STEAM_ROAD_SPEED",speed,16);
+        if(!std::strcmp(speed,"4"))roadSpeed=4.f;else if(!std::strcmp(speed,"8"))roadSpeed=8.f;
+        else if(!std::strcmp(speed,"25"))roadSpeed=25.f;else if(speed[0]&&std::strcmp(speed,"15"))return 11;
+        char kind[16]{};GetEnvironmentVariableA("SA_STEAM_ROAD_KIND",kind,16);
+        if(!std::strcmp(kind,"bike"))roadBikeModel=523;else if(!std::strcmp(kind,"bmx"))roadBikeModel=481;
+        else if(kind[0]&&std::strcmp(kind,"ped"))return 12;
+    }
     if(gameplayProbe&&(simulationEnabled||renderSimulationEnabled))return 9; // No overlapping fixture authority.
     if(rigEnabled){
         char character[MAX_PATH]{},body[MAX_PATH]{};

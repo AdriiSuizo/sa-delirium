@@ -10,6 +10,7 @@ mod canonical_body;
 mod combat_resources;
 mod sa_gym_resources;
 mod xenia_xex_key;
+mod visual_assets;
 use delirium_physics as sdk;
 use std::ffi::CString;
 use std::fs;
@@ -279,6 +280,20 @@ pub unsafe extern "C" fn sa_delirium_prepare(
         output.add(len).write(0);
     }
     code
+}
+
+/// Prepare only authored visual replacements against the owner's original files.
+/// The caller registers the emitted physical paths with Ultimate ASI Loader.
+#[cfg(windows)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn sa_delirium_prepare_visuals(path:*const u16,length:usize,output:*mut u8,capacity:usize)->i32{
+    use std::os::windows::ffi::OsStringExt;
+    if path.is_null()||length==0||output.is_null()||capacity==0{return -1;}
+    let root=PathBuf::from(std::ffi::OsString::from_wide(unsafe{std::slice::from_raw_parts(path,length)}));
+    let result=std::panic::catch_unwind(||visual_assets::prepare(&root)).unwrap_or_else(|_|Err("Visual preparation interrupted".into()));
+    let (code,message)=match result{Ok(s)=>(0,s),Err(e)=>(-1,e)};
+    let len=message.len().min(capacity-1);
+    unsafe{std::ptr::copy_nonoverlapping(message.as_ptr(),output,len);output.add(len).write(0);}code
 }
 
 #[cfg(test)]

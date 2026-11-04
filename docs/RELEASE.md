@@ -11,3 +11,11 @@ El ejemplo indica un número de candidata, no acredita que esté generada o acep
 El número se indica de forma explícita. Para reproducir alpha.1, usa su revisión `502a5c4`; para alpha.4, `89e8e0d`. Conserva los artefactos anteriores en vez de sobrescribirlos.
 
 Actualiza el historial antes de generar otra versión y comprueba la extracción en una copia limpia. Adjunta el RAR y su SHA-256 a un borrador privado. La publicación pública requiere aprobación expresa del propietario.
+
+## Data-only visual recipes
+
+`tools/Prepare-VisualPayload.py --game <original-Steam-root> --profile <local-profile.json> --output <new-SAStandalone-assets>` prepares explicit priority-selected replacements and provenance. It never copies a base IMG. `tools/Verify-VisualPayload.py <payload>` rejects unreferenced files, path traversal, wrong sizes/hashes and executable payloads. Python/blake3 are build-time tools only.
+
+A local profile supplies `archives` and `mods` (`id`, `path`, `priority`, `rights`, `url`, optional `extensions`/`archive`). Unknown/ambiguous model routes must be reviewed; loose models do not imply IDE/IPL/scripts are enabled.
+
+The normal builder's optional `-VisualPayload` accepts redistributable content only. `-LocalPersonalContent` additionally requires a version containing `local` and includes a local-use notice. Never upload that local archive as a release. RAR uses a UTF-16 list file so large payloads do not hit Windows' command-line length limit.

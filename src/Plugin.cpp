@@ -15,6 +15,7 @@ using AddVirtualFile = bool(WINAPI*)(const wchar_t*, const unsigned char*, std::
 bool installSteamColour(const fs::path& log);
 bool installSteamGamepad(const fs::path& log);
 bool installSteamBorderless(const fs::path& log);
+bool prepareVisualAssets(const fs::path& root, std::ostream& log);
 
 static std::string read(const fs::path& path, std::size_t limit) {
     std::ifstream in(path, std::ios::binary | std::ios::ate);
@@ -102,6 +103,11 @@ static void initialize() {
     const auto root = exe.parent_path();
     std::ofstream log(root / L"SAStandalone.log", std::ios::trunc);
     if (!supported(exe)) { log << "unsupported_executable\n"; return; }
+    if (!prepareVisualAssets(root, log)) {
+        log << "visual_pack_failed_not_registered\n" << std::flush;
+        MessageBoxW(nullptr,L"No se pudo preparar el paquete visual. Consulta SAStandalone.log. Los archivos originales se conservan.",
+                    L"Delirium SA · Paquete visual",MB_OK|MB_ICONWARNING);
+    }
     prepareDelirium(root, log);
     const auto config = root / L"scripts" / L"SAStandalone.ini";
     if (GetPrivateProfileIntW(L"Display", L"Borderless", 1, config.c_str()) == 1)

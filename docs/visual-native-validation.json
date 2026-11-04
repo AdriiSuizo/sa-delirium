@@ -1,0 +1,614 @@
+{
+  "status": "scoped_native_visual_and_vehicle_cases_not_complete_modpack",
+  "recorded_utc": "2026-11-04T19:23:22.191562+00:00",
+  "rar": {
+    "file": "SA-Standalone-0.1.0-dev.6.local.rar",
+    "sha256": "ba8fde7e39d515d5d2d1e946a192b7e174f3ab5bd78db4908ef7d18eb0010dfe",
+    "local_only": true,
+    "entries": 733,
+    "includes_RoSA": false,
+    "uploaded": false
+  },
+  "actual_steam_install": {
+    "journal": "steam-install-20261104-194840/receipt.json",
+    "old_mod_files_recoverable": true,
+    "exe_unchanged": true,
+    "test_probe_removed": true
+  },
+  "cases": [
+    {
+      "log": "gameplay-hidden-capture.log",
+      "case": "slot2-20261104-193340",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "full_adapter_ready": true,
+          "full_adapter_actor_simulation": true,
+          "full_adapter_no_reported_errors": true,
+          "native_live_and_lethal_shots": true,
+          "physical_corpse_shot": true,
+          "fixture_actor_finite": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false,
+        "scoped_native_actor_acceptance": true
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "961c99c77af757a039ff78df765a8b1f94d13a27ee7f6eb897239239c7b190e5",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "75388c7d7891c8cf53ff15a6cdbf238f96af668efead890fcc41d402ecf375bc",
+        "sa_delirium_bootstrap.dll": "59aa4cb8fbeb0e4367ed464a38e5f99a2e8febc513805a8c4f124739d1ee82bc"
+      },
+      "saves_unchanged": true,
+      "scene": null,
+      "actor": {
+        "activations": 2,
+        "physics_steps": 2752,
+        "bone_writes": 34560,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": []
+    },
+    {
+      "log": "dev6-rar-cold-retry.log",
+      "case": "slot2-20261104-194434",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "full_adapter_ready": true,
+          "full_adapter_actor_simulation": true,
+          "full_adapter_no_reported_errors": true,
+          "native_live_and_lethal_shots": true,
+          "physical_corpse_shot": true,
+          "fixture_actor_finite": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false,
+        "scoped_native_actor_acceptance": true
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "75388c7d7891c8cf53ff15a6cdbf238f96af668efead890fcc41d402ecf375bc",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": null,
+      "actor": {
+        "activations": 2,
+        "physics_steps": 1882,
+        "bone_writes": 24608,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": []
+    },
+    {
+      "log": "dev6-rar-warm.log",
+      "case": "slot2-20261104-194659",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "full_adapter_ready": true,
+          "full_adapter_actor_simulation": true,
+          "full_adapter_no_reported_errors": true,
+          "native_live_and_lethal_shots": true,
+          "physical_corpse_shot": true,
+          "fixture_actor_finite": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false,
+        "scoped_native_actor_acceptance": true
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "75388c7d7891c8cf53ff15a6cdbf238f96af668efead890fcc41d402ecf375bc",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": null,
+      "actor": {
+        "activations": 2,
+        "physics_steps": 3033,
+        "bone_writes": 37408,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": []
+    },
+    {
+      "log": "installed-exe-warm.log",
+      "case": "slot2-20261104-195354",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "full_adapter_ready": true,
+          "full_adapter_actor_simulation": true,
+          "full_adapter_no_reported_errors": true,
+          "native_live_and_lethal_shots": true,
+          "physical_corpse_shot": true,
+          "fixture_actor_finite": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false,
+        "scoped_native_actor_acceptance": true
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "75388c7d7891c8cf53ff15a6cdbf238f96af668efead890fcc41d402ecf375bc",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": null,
+      "actor": {
+        "activations": 2,
+        "physics_steps": 2829,
+        "bone_writes": 34848,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": []
+    },
+    {
+      "log": "dev6-road15.log",
+      "case": "slot2-20261104-200032",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "99dcb0c0896b4d957b041fca992efb28218e2f378ceba0dce4153359084468db",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": "native_road spawned=1 car_model=400 ped_model=7 initial_speed=15.000 ped_ref=1281 car_ref=3329 single_velocity_seed=1 scripted_ped_force=0",
+      "actor": {
+        "activations": 1,
+        "physics_steps": 2764,
+        "bone_writes": 30176,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [
+        {
+          "pid": 41352,
+          "time_ms": 354154,
+          "event": "accepted_vehicle_contact",
+          "ref": 1281,
+          "model": 7,
+          "detail": "vehicle_ref=3329 closing_mps=13.756864 native_health=100.000000"
+        }
+      ],
+      "combat_contact_count": 0,
+      "bike_fall_motion": []
+    },
+    {
+      "log": "dev6-road25.log",
+      "case": "slot2-20261104-200257",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "native_outdoor_scene": true,
+          "native_car_and_ped_created": true,
+          "road_no_invalid_transform": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "99dcb0c0896b4d957b041fca992efb28218e2f378ceba0dce4153359084468db",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": "native_road spawned=1 car_model=400 ped_model=7 initial_speed=25.000 ped_ref=1537 car_ref=4097 single_velocity_seed=1 scripted_ped_force=0",
+      "actor": {
+        "activations": 1,
+        "physics_steps": 2760,
+        "bone_writes": 30176,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [
+        {
+          "pid": 1584,
+          "time_ms": 353984,
+          "event": "accepted_vehicle_contact",
+          "ref": 1537,
+          "model": 7,
+          "detail": "vehicle_ref=4097 closing_mps=24.140270 native_health=100.000000"
+        }
+      ],
+      "combat_contact_count": 0,
+      "bike_fall_motion": []
+    },
+    {
+      "log": "dev6-road4.log",
+      "case": "slot2-20261104-200540",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "native_outdoor_scene": true,
+          "native_car_and_ped_created": true,
+          "road_no_invalid_transform": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "99dcb0c0896b4d957b041fca992efb28218e2f378ceba0dce4153359084468db",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": "native_road spawned=1 car_model=400 ped_model=7 initial_speed=4.000 ped_ref=769 car_ref=1025 single_velocity_seed=1 scripted_ped_force=0",
+      "actor": {
+        "activations": 0,
+        "physics_steps": 0,
+        "bone_writes": 0,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": [],
+      "scope": "miss: no activation/contact; scene survival only"
+    },
+    {
+      "log": "dev6-bike-rear15.log",
+      "case": "slot2-20261104-200848",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "native_outdoor_scene": true,
+          "native_car_and_ped_created": true,
+          "road_no_invalid_transform": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "afcac586f1c11ebcf2083ab7aadc37bab4a08b716633be488151af0673f0c141",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": "native_road spawned=1 car_model=400 ped_model=284 bike_model=523 bike_ref=3329 initial_speed=15.000 ped_ref=1793 car_ref=3585 single_velocity_seed=1 scripted_ped_force=0",
+      "actor": {
+        "activations": 0,
+        "physics_steps": 0,
+        "bone_writes": 0,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": [],
+      "scope": "rider remained mounted; no physical handoff tested"
+    },
+    {
+      "log": "dev6-bike-rear25.log",
+      "case": "slot2-20261104-201202",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true,
+          "native_outdoor_scene": true,
+          "native_car_and_ped_created": true,
+          "road_no_invalid_transform": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "a7271f8a917d635dbb6d6162ce936acc763edb99b3e3b380c69ded6d85612d1b",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": "native_road spawned=1 car_model=400 ped_model=284 bike_model=523 bike_ref=1793 initial_speed=25.000 ped_ref=1025 car_ref=2049 single_velocity_seed=1 scripted_ped_force=0",
+      "actor": {
+        "activations": 1,
+        "physics_steps": 1961,
+        "bone_writes": 39232,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 0,
+      "bike_fall_motion": [
+        {
+          "pid": 19336,
+          "time_ms": 376224,
+          "event": "bike_fall_motion",
+          "ref": 1025,
+          "model": 284,
+          "detail": "peak_com_rise=1.332197 peak_up_speed=2.830344"
+        }
+      ]
+    },
+    {
+      "log": "dev6-native-melee.log",
+      "case": "slot2-20261104-201351",
+      "validation": {
+        "status": "passed_scoped_observation",
+        "checks": {
+          "runner_succeeded": true,
+          "survived_observation": true,
+          "prefs_unchanged": true,
+          "desktop_unchanged": true,
+          "checkpoint_loaded_inside_house": true,
+          "native_cycles_advance": true,
+          "save_restored": true,
+          "stock_script_restored": true,
+          "native_rig_fitted": true,
+          "native_world_floor": true,
+          "same_dll_bootstrap_ready": true,
+          "expected_first_run_status": true,
+          "native_combat_bank_accepted": true
+        },
+        "legacy_scm_diagnostic": false,
+        "clean_steam_acceptance": false,
+        "gameplay_physics_acceptance": false
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "DeliriumSA.asi": "a9339a167aa05f5b0a382b40d5393c5cb0671aa83d8d550dfc7a732ae646eee6",
+        "SAStandalone.asi": "2de4db371906a951a9e1fc14821c9d53525a4f834c25eee70ea5443e3f498d77",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "a7271f8a917d635dbb6d6162ce936acc763edb99b3e3b380c69ded6d85612d1b",
+        "sa_delirium_bootstrap.dll": "ef57ad307ce060b43d063fbcc11777160276059a4df9373e5956fe154874f20e"
+      },
+      "saves_unchanged": true,
+      "scene": null,
+      "actor": {
+        "activations": 0,
+        "physics_steps": 0,
+        "bone_writes": 0,
+        "errors": 0,
+        "physics_frame_misses": 0,
+        "native_recoveries": null
+      },
+      "vehicle_contacts": [],
+      "combat_contact_count": 21,
+      "bike_fall_motion": []
+    }
+  ],
+  "unaccepted_cases": [
+    "slot2-20261104-192748: fixture rig env missing; main menu only",
+    "slot2-20261104-193029: capture helper triggered pause before final shot",
+    "slot2-20261104-195026: Steam-client route inherited no test env; startup only, runner report prefix wrong"
+  ],
+  "open": [
+    "complete visual/map/audio/effects/QoL pack",
+    "Steam high-FPS fixes; native limiter retained",
+    "complete controller hardware coverage",
+    "all bike/BMX/armed melee/player input regressions",
+    "byte-splice visual files tested by unit test, not yet in RAR/game",
+    "historical clean door exit remains unreproduced"
+  ],
+  "read_only_references_preserved": true,
+  "private_github_verified": true
+}

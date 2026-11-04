@@ -1,50 +1,64 @@
-# Proveniencia y dependencias
+# Components and current scope
 
-## En la previa
+The original Steam executable remains unchanged. The distribution target is
+classic Steam build 459558 (`gta-sa.exe`, SHA-256 beginning `15e3cfed`). These
+statuses describe tested artifacts, not everything present in development.
 
-| Componente | FunciÃ³n | Licencia y origen |
+| Component | Current candidate | Origin / license |
 | --- | --- | --- |
-| SAStandalone | Aplica amortiguaciÃ³n adicional en las filas de coches de los datos nativos que el jugador ya tiene instalados. | CÃ³digo de esta rama. VÃ©ase LICENSE.md. |
-| Ciclo de iluminaciÃ³n y color PS2 | Presenta el `timecycp.dat` de la instalaciÃ³n local al lector de Steam y aplica la modulaciÃ³n en la pasada nativa de posprocesado. | CÃ³digo propio y datos del juego leÃ­dos en el equipo del jugador. |
-| Preparador de Delirium | Valida la ISO de Xbox 360 y prepara la cachÃ© canÃ³nica para el motor adaptado existente. La rama nueva comparte una sola DLL y cachÃ© v3: incluye el banco de movimiento/combate y genera localmente las tÃ©cnicas de los gimnasios desde el SA instalado. | GPLv3 y avisos de Delirium. CÃ³digo en `bootstrap` y `vendor`, huellas en `tools/Verify-Vendor.py`. Alpha.4 conserva el preparador anterior. |
-| Ventana sin bordes y cÃ¡mara XInput | Usa el escritorio actual para el dispositivo D3D9 y activa la ruta de cÃ¡mara de mando de Steam al mover el stick derecho. | CÃ³digo propio. |
-| Ultimate ASI Loader 10.0.2 Win32 | Carga el ASI y sirve la vista en memoria de handling.cfg. | MIT, ThirteenAG y colaboradores. [Release original](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/tag/v10.0.2) |
+| Existing Delirium engine and SA adapter | Native Steam bindings, shared core, ASLR-safe; real NPC damage/recovery/corpse cases pass | Delirium GPL-3.0, MinHook BSD; complete notices and retained sources |
+| IV movement/combat resources | First-run ISO import, 418 clips including locally generated SA gym techniques | Read from the owner's games; never included in source or RAR |
+| Offline XEX format support | No network or shared key cache needed | Public Xenia support code, BSD-3-Clause |
+| Ultimate ASI Loader 10.0.2 | Bundled; loader plus memory and physical-path VFS | ThirteenAG and contributors, MIT |
+| SilentPatch SA 34.1 | Bundled official binary and INI; original Steam supported paths | Silent / CookiePLMonster, MIT |
+| PS2 time cycle and colour | Own native integration; uses installed `timecycp.dat` | Own code; no game table distributed |
+| Borderless window and right-stick camera | Own native integration; preferences/desktop preserved in scoped tests | Own code; physical controller coverage still incomplete |
+| Vehicle suspension | Own data overlay; SA steering/engine/brakes retained | Own code, original handling data read locally |
+| Visual archive integration | Own streaming IMG composer and existing UAL path API; no old Mod Loader ASI | Own code; source provenance recorded per payload |
 
-El empaquetador usa una lista cerrada de tres binarios, un INI y los textos de instalaciÃ³n, crÃ©ditos y licencias. El juego aporta sus datos en cada arranque.
+## Visual payloads
 
-## SelecciÃ³n visual para la futura versiÃ³n
+`dev.5` is a core-only candidate. `dev.6.local` additionally exercises a local
+personal data payload: 733 model/texture replacements from HD Skin Pack 299 and
+NeXtGen Remaster Weapons. It is **not the complete visual modpack**. Forty other
+model/texture files need explicit archive/map routing; weapon WAVs are not yet
+integrated. No unsupported scripts or ASIs are copied just to make an inventory
+look complete.
 
-| Grupo | Estado en Steam |
+The local builder records source, priority, conflicts, ignored paths and rights
+in `SAStandalone-assets/provenance.json`. It excludes entries identical to the
+owner's original resource. The runtime composes a separate IMG on the owner's
+machine; originals remain unchanged. Generated archives/cache contain local game
+data and must not be uploaded. The local-only payload is excluded from GitHub.
+`Build-Release.ps1` rejects it unless explicitly building a `.local` personal
+candidate. This does not confer redistribution rights.
+
+| Requested group | Remaining connection |
 | --- | --- |
-| PS2 Time Cycle | Activado en alpha.3 con la tabla de la instalaciÃ³n del jugador. |
-| SkyGfx Extended | Alpha.3 implementa su propio filtro de color sin desenfoque. Quedan pendientes radiosidad y pipelines de edificios y vehÃ­culos, asÃ­ como acreditar la redistribuciÃ³n del binario de terceros. [Fuente](https://www.mixmods.com.br/2024/03/sa-skygfx/) |
-| RoSA Evolved y Proper Player Retex | La publicaciÃ³n de RoSA prohÃ­be volver a subir el paquete. Para distribuir texturas dentro del RAR hacen falta equivalentes propios o con licencia verificable. [Licencia publicada por la autora](https://www.mixmods.com.br/2023/07/rosa-project-evolved-remaster-texturas-hd/) |
-| Project2DFX | CÃ³digo MIT. Su implementaciÃ³n de SA usa direcciones fijas de otro ejecutable. Las luces lejanas requieren un port y una prueba en el Steam original. [CÃ³digo del plugin](https://github.com/ThirteenAG/III.VC.SA.IV.Project2DFX/blob/master/source/SALodLights/dllmain.cpp) |
-| BSOR, LOD Vegetation y NextGen Grass | Pendientes los shaders de viento, el cargador compatible y la licencia de cada paquete. |
-| FxsFuncs, NextGen Effects y Enhance ParticleTXD | Pendientes la compatibilidad de hooks, el cargador de scripts y la procedencia de recursos. |
-| Improved Lamps, Brightened, LV Neon, Parallax y Jefferson | Pendientes los reemplazos de modelos, las capas de mapa y sus licencias. |
-| GTA IV Textures/HQ Roads, GTA IV Rubbish, packs de armas y skins | RevisiÃ³n pendiente de los archivos derivados de juegos y de la licencia de cada aporte original. |
-| Rueda de armas de GTA V y DLSS | Fuera de la selecciÃ³n de distribuciÃ³n. |
-| Resto de la interfaz activa de desarrollo | Pendiente separar mapa y HUD de la rueda de armas, acreditar permisos y probar las opciones de interfaz en Steam. |
+| RoSA Evolved / Proper Player Retex | Included license files explicitly forbid modpacks. Local import only; no assets included in a distributable RAR. Large archive splitting/host limits also need validation. |
+| SkyGfx Extended | Own colour/timecycle implemented; complete radiosity and building/vehicle pipelines not yet ported. |
+| BSOR / LOD Vegetation / NextGen Grass | Data/map composition, wind shader and permissions need validation. |
+| Improved Lamps / Brightened / Jefferson / LV Neon / Parallax | Models, TXD parent relations, IDE/IPL/COL layers and effect/script connections remain. |
+| GTA IV Textures / HQ Roads / Rubbish | Asset provenance and map/script connections remain; no extracted IV assets distributed. |
+| NextGen Effects / Enhance ParticleTXD / FxsFuncs | Particle/effect resources plus a compatible native/script implementation remain. |
+| Weapon sounds | SA audio bank import/overlay remains. Visual models alone do not enable sounds. |
+| Project2DFX | MIT source available; old fixed-address SA plugin is not a Steam R2 port. |
+| Urbanize / CLEO | Existing CLEO5 `GV_STEAM` table targets the older Steam executable, not this R2 image. Do not install it on the strength of its version name. |
+| Framerate Vigilante | MIT source inspected; 85 fixed addresses need native review before carrying its high-FPS fixes. Native Steam frame limit currently retained. |
+| GInput / trainer / advanced aiming / other QoL | Own right-stick path is active; complete hardware input and these systems still need explicit verification/port. |
+| GTA V HUD, minimap and weapon wheel / DLSS / inactive experiments | Excluded by request. |
 
-## Port completo
+## Evidence and limits
 
-| Grupo | SituaciÃ³n de distribuciÃ³n |
-| --- | --- |
-| Adaptador y motor Delirium | El adaptador de desarrollo comprueba la imagen 0x1177000 y usa direcciones de esa revisiÃ³n. Steam build 459558 tiene imagen 0x985000. Hace falta identificar ABI, sitios de hooks y ciclo nativo de Steam antes de activar esos sistemas. Delirium Physics es GPLv3. Una distribuciÃ³n del motor modificado necesita su correspondiente cÃ³digo fuente y avisos. |
-| Datos requeridos por el motor | El preparador importa el programa, el personaje y los parÃ¡metros desde la ISO del jugador. El cuerpo de 21 segmentos se genera en esa instalaciÃ³n. Los datos importados permanecen en su cachÃ© local. |
-| Combate, locomociÃ³n y decisiones | Fuentes existentes en `vendor`. La cachÃ© v3 importa de la ISO 17 diccionarios y las tablas/decisiones necesarias, y genera doce tÃ©cnicas desde el SA instalado. Los 418 clips totales, el esqueleto y las tablas coinciden con el banco de desarrollo; las decisiones solo cambian de saltos de lÃ­nea. Se verificÃ³ tambiÃ©n `nm_combat_load/enable` en los dos arranques de Steam. Sigue pendiente conectar la propiedad de actores, daÃ±o, IA y vehÃ­culos: cargar el banco no acredita esa jugabilidad. |
-| Izzy's Lively Vehicle Physics | El ASI actual es externo. La suspensiÃ³n de esta previa se implementa en cÃ³digo propio y conserva la direcciÃ³n, motor, frenos y neumÃ¡ticos originales. Balanceo dinÃ¡mico, efectos de choque, suspensiÃ³n daÃ±ada, motos, puertas y control en el aire requieren port o sustituciÃ³n independiente. |
-| Correcciones y controles | SilentPatch, Framerate Vigilante, GInput, Windowed Mode, Widescreen Fix, limit adjuster, PortableGTA y Advanced Aiming Mod siguen en desarrollo. Las piezas necesarias para el port completo requieren auditorÃ­a de licencias, conflicto de hooks y verificaciÃ³n individual en Steam. |
-| Urbanize, CLEO y FxsFuncs | Sigue pendiente la separaciÃ³n de rutinas de peatones y efectos del contenido y cargadores externos de desarrollo. |
-| Texturas, modelos, sonidos, HUD y trainer | Se excluyen de esta previa. Incluye la familia RoSA, BSOR, NextGen, mejoras de mapa y partÃ­culas, packs de armas, vehÃ­culos y peatones, HUD y trainer. |
+`native-gameplay-validation.json` records core cases. Visual archive validation
+is separate: the host must read the generated IMG and its actual directory/model,
+then the same actor must pass real physics, recovery and corpse damage. A loaded
+DLL, VFS registration or pretty screenshot is not enough. Native vehicle/melee
+regressions, complete input coverage and the full requested pack remain open.
 
-Las copias de Steam y de desarrollo son referencias de prueba locales. La previa no contiene ejecutables originales ni adaptados, partidas, archivos de GTA IV, animaciones del juego ni mods del montaje de desarrollo.
-
-## Comprobaciones de candidatos
-
-- [Delirium Physics 0.6.0](https://github.com/PVCPC/delirium-physics/tree/v0.6.0) obtiene las constantes del programa de GTA IV. El preparador conserva ese requisito mediante la ISO del jugador y valida la cachÃ© con `nm_unlock`, `nm_init` y `nm_load_task_params`.
-- [SilentPatchSA Build 34.1](https://github.com/CookiePLMonster/SilentPatch/releases/tag/1.1-BUILD34.1-SA) ofrece compatibilidad parcial con el ejecutable de Steam de diciembre de 2014. El ZIP del laboratorio coincide con el digest oficial. La fuente y el recurso lunar se publican en el repositorio MIT del autor. EstÃ¡ en el laboratorio, todavÃ­a fuera de alpha.4; queda integrar su licencia y probar el paquete final. No atribuirle compatibilidad de partidas con scripts distintos: la ranura de pruebas se convierte por separado al formato nativo de Steam.
-- La prueba del cabeceo aÃ©reo de alpha.2 usa cÃ³digo propio, una tabla virtual comprobada y el contador nativo de las cuatro ruedas. EstÃ¡ desactivada por defecto mientras falta la conducciÃ³n. El binario de Izzy sigue fuera del paquete.
-
-La importación offline actual usa soporte público de formato XEX de Xenia, BSD-3-Clause, con aviso completo y revisión fijada. No necesita una clave en APPDATA ni una descarga en el primer arranque. `licenses/Rust-Dependencies.txt` conserva los avisos de los 129 paquetes activos del grafo Win32 bloqueado. Los recursos de las ISOs se generan solo en el equipo del propietario.
+Sources consulted: [Delirium](https://github.com/PVCPC/delirium-physics),
+[UAL VFS API](https://github.com/ThirteenAG/Ultimate-ASI-Loader/blob/v10.0.2/source/loader/vfs/api.cpp),
+[SilentPatch](https://github.com/CookiePLMonster/SilentPatch),
+[Mod Loader](https://github.com/thelink2012/modloader),
+[CLEO5 version table](https://github.com/cleolibrary/CLEO5/blob/master/source/CGameVersionManager.cpp),
+[Framerate Vigilante](https://github.com/GTAmodding/FramerateVigilante).

@@ -19,3 +19,5 @@ La rama de laboratorio incluye un prototipo de control aÃ©reo desactivado por 
 Espacios reservados para aÃ±adir el vÃ­deo de gameplay y la guÃ­a rÃ¡pida.
 
 La candidata **local dev.5** ya incluye el adaptador real y SilentPatch. Se extrajo sobre una base limpia de 416 archivos originales: primer importado offline y segundo arranque sin ISO pasaron las pruebas delimitadas de actor. No es aún el modpack gráfico completo. [Recibos y límites](docs/native-gameplay-validation.json).
+
+El constructor también admite paquetes visuales de datos mediante una receta explícita y genera sus IMG desde los originales del usuario. La candidata `dev.6.local` añade 733 reemplazos locales de skins/armas para validar esa conexión; no es el modpack completo ni un paquete autorizado para redistribución. Véase [contenido local](docs/LOCAL-CONTENT.md).

@@ -25,3 +25,11 @@
 *.ifp
 *.img
 *.b
+*.dff
+*.txd
+*.col
+/SAStandalone-assets/
+/SAStandalone-asset-cache/
+/SAStandalone-assets-active.*
+__pycache__/
+*.pyc

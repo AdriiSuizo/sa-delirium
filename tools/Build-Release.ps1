@@ -2,6 +2,8 @@ param(
     [Parameter(Mandatory=$true)][string]$Version,
     [string]$LoaderArchive,
     [string]$SilentPatchArchive,
+    [string]$VisualPayload,
+    [switch]$LocalPersonalContent,
     [string]$Rar = (Join-Path $env:ProgramFiles 'WinRAR/Rar.exe')
 )
 $ErrorActionPreference = 'Stop'
@@ -14,6 +16,7 @@ $stage = New-Item -ItemType Directory -Path (Join-Path $root ('build/' + [Guid]:
 $runtime = New-Item -ItemType Directory -Path (Join-Path $stage.FullName 'payload')
 $scripts = New-Item -ItemType Directory -Path (Join-Path $runtime.FullName 'scripts')
 $licenses = New-Item -ItemType Directory -Path (Join-Path $runtime.FullName 'SAStandalone-licenses')
+if ($LocalPersonalContent -and !$VisualPayload) { throw 'LocalPersonalContent requires an explicit visual payload' }
 if (!$LoaderArchive) {
     $LoaderArchive = Join-Path $stage.FullName 'loader.zip'
     Invoke-WebRequest -Uri 'https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/v10.0.2/Ultimate-ASI-Loader.zip' -OutFile $LoaderArchive
@@ -82,6 +85,24 @@ $expected = @(
     'scripts/DeliriumSA.asi','DeliriumSA.ini','scripts/SilentPatchSA.asi','scripts/SilentPatchSA.ini',
     'SAStandalone-licenses/Xenia-BSD-3-Clause.txt','SAStandalone-licenses/SilentPatch-MIT.txt','SAStandalone-licenses/MinHook-BSD.txt','SAStandalone-licenses/Rust-Dependencies.txt'
 )
+if ($VisualPayload) {
+    $visualRoot = (Resolve-Path -LiteralPath $VisualPayload).Path
+    & python (Join-Path $PSScriptRoot 'Verify-VisualPayload.py') $visualRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Visual payload is invalid' }
+    $visualManifest = Get-Content -LiteralPath (Join-Path $visualRoot 'manifest.json') -Raw | ConvertFrom-Json
+    if ($visualManifest.redistributable -ne $true -and !$LocalPersonalContent) {
+        throw 'This payload is local-only. It cannot be included in a distributable release.'
+    }
+    if ($LocalPersonalContent -and $Version -notmatch 'local') { throw 'A personal-content archive must have local in its version' }
+    Copy-Item -LiteralPath $visualRoot -Destination (Join-Path $runtime.FullName 'SAStandalone-assets') -Recurse
+    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $runtime.FullName 'SAStandalone-assets') -Recurse -File) {
+        $expected += $file.FullName.Substring($runtime.FullName.Length + 1).Replace('\','/')
+    }
+    if ($LocalPersonalContent) {
+        Copy-Item -LiteralPath (Join-Path $root 'docs/LOCAL-CONTENT.md') -Destination (Join-Path $runtime.FullName 'LOCAL-CONTENT.md')
+        $expected += 'LOCAL-CONTENT.md'
+    }
+}
 $actual = @(Get-ChildItem -LiteralPath $runtime.FullName -Recurse -File | ForEach-Object {
     $_.FullName.Substring($runtime.FullName.Length + 1).Replace('\','/')
 })
@@ -90,7 +111,11 @@ $archive = Join-Path $dist.FullName "SA-Standalone-$Version.rar"
 if (Test-Path -LiteralPath $archive) { throw "Archive already exists. Choose a new version or move the old artifact: $archive" }
 Push-Location -LiteralPath $runtime.FullName
 try {
-    & $rarExe a -ma5 -m5 -idq $archive @expected
+    # A visual payload exceeds Windows' process command-line limit. RAR reads
+    # this UTF-16 list, preserving spaces/non-ASCII names without shell quoting.
+    $list = Join-Path $stage.FullName 'payload-files.txt'
+    $expected | ForEach-Object { '"' + $_ + '"' } | Set-Content -LiteralPath $list -Encoding Unicode
+    & $rarExe a -ma5 -m5 -idq -scul $archive ('@' + $list)
     if ($LASTEXITCODE -ne 0) { throw 'RAR creation failed' }
     & $rarExe t -idq $archive
     if ($LASTEXITCODE -ne 0) { throw 'RAR integrity check failed' }
