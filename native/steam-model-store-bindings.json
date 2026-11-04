@@ -1,0 +1,72 @@
+{
+  "status": "reviewed_with_scoped_native_startup_and_cleanup_evidence",
+  "steam_sha256": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+  "original_counter": "0xb936d0",
+  "size": 36,
+  "original_capacity": 70,
+  "native_model_table_capacity": 20000,
+  "native_constructor": "0x4cf610",
+  "native_vtable": "0x8a57b4",
+  "native_add": "0x4d0850",
+  "references": [
+    {
+      "operand_va": "0x4d060f",
+      "instruction_va": "0x4d060d",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "abcc2416e65fc43744a019e57b97416522fafa8d918283365d326883aeaa7dbe",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0616",
+      "instruction_va": "0x4d0615",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "3c32bd190a33dc907b721dccbb8d1fe67ef10632680d5903a63e46bfc3811be5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d062d",
+      "instruction_va": "0x4d062b",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "1444864e5fa6ea280cbc658ed6538eb54875e4a5f6b8d5af6e6b346af4103c15",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d07d5",
+      "instruction_va": "0x4d07d3",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "c493bc647eb008798d1388dd28126cd743e88754669a7125a43f6fe49e371d8a",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0ab1",
+      "instruction_va": "0x4d0aaf",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "143527801ec68911fb60f1645eb9f1ed42ff71b0ea87b0d61a25c211ae098444",
+      "reviewed": true
+    }
+  ],
+  "crt_references_left_unchanged": [
+    "0x899b5f",
+    "0x899b6f",
+    "0x89d41a"
+  ],
+  "original_add_operands_left_in_unused_native_body": [
+    "0x4d0854",
+    "0x4d0860",
+    "0x4d0865"
+  ],
+  "reference_project": {
+    "repo": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster",
+    "commit": "e454bfaf7edf4d293e533401b0a03330cde80906",
+    "license": "MIT"
+  },
+  "evidence": "native counter=71, null vtable at original capacity70, 0xc0000005 preferred4d086b; reproduced with new streaming/posteffects disabled",
+  "manual_lab_case": "slot2-20261104-211822",
+  "manual_host_sha256": "b23de121aed09d73b49d92e0aba671a8d6c7ab6124cd696fb046a1dce557e26c",
+  "scope": "manual post-dev7 host revision; next packaged build still requires extraction tests"
+}

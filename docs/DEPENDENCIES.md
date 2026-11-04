@@ -14,7 +14,10 @@ statuses describe tested artifacts, not everything present in development.
 | PS2 time cycle and colour | Own native integration; uses installed `timecycp.dat` | Own code; no game table distributed |
 | Borderless window and right-stick camera | Own native integration; preferences/desktop preserved in scoped tests | Own code; physical controller coverage still incomplete |
 | Vehicle suspension | Own data overlay; SA steering/engine/brakes retained | Own code, original handling data read locally |
+| Native damageable-model storage | Steam backend follows Open Limit Adjuster lifecycle; original constructor, stable model addresses and native cleanup. Case211822 creates74 and cleans every RW resource on normal exit | Open Limit Adjuster reference, MIT; scoped backend source and notice included |
 | Visual archive integration | Own streaming IMG composer and existing UAL path API; no old Mod Loader ASI | Own code; source provenance recorded per payload |
+
+The streaming INI is read before Init2 resets its budget. The native backend configures the verified initializer once; it does not rewrite a live budget every frame. Case211822 confirms512MiB and native post-effect activation. The unmodified executable remains non-LAA.
 
 ## Visual payloads
 
@@ -62,3 +65,5 @@ Sources consulted: [Delirium](https://github.com/PVCPC/delirium-physics),
 [Mod Loader](https://github.com/thelink2012/modloader),
 [CLEO5 version table](https://github.com/cleolibrary/CLEO5/blob/master/source/CGameVersionManager.cpp),
 [Framerate Vigilante](https://github.com/GTAmodding/FramerateVigilante).
+
+The failed dev.7.local artifact is quarantined: its added damageable lamp models overflowed the stock70-entry store. The manual post-artifact correction passed startup, native TXD/model routing, road physics and normal model cleanup. The next packaged revision must repeat those checks before acceptance.

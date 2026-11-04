@@ -1,40 +1,40 @@
-# VerificaciÃ³n de la previa
+# VerificaciÃƒÂ³n de la previa
 
-- CompilaciÃ³n x86 y pruebas de la transformaciÃ³n con datos sintÃ©ticos. Cobertura de filas de coche, exclusiÃ³n de motos y tipos compartidos, comentarios, lÃ­mites y entrada invÃ¡lida.
-- Prueba de integridad del RAR y comprobaciÃ³n de rutas internas exactas. Se extrajo el RAR en una copia de la instalaciÃ³n de Steam build 459558. El ejecutable original conservÃ³ su SHA-256 y los archivos del juego se contrastaron con el origen.
-- Arranque de la copia de Steam con y sin el cargador del paquete. Se confirmÃ³ la ventana del juego despuÃ©s de seleccionar el modo de vÃ­deo nativo en la instancia de laboratorio.
-- La comparaciÃ³n leyÃ³ el gestor de handling del proceso de Steam. En LANDSTAL y BRAVURA se comprobÃ³ amortiguaciÃ³n de 0,0800 en el control y 0,0864 con el RAR. Se mantuvo la fuerza original de cada muelle. El ASI registrÃ³ 136 filas. VÃ©ase [steam-validation.json](steam-validation.json).
+- CompilaciÃƒÂ³n x86 y pruebas de la transformaciÃƒÂ³n con datos sintÃƒÂ©ticos. Cobertura de filas de coche, exclusiÃƒÂ³n de motos y tipos compartidos, comentarios, lÃƒÂ­mites y entrada invÃƒÂ¡lida.
+- Prueba de integridad del RAR y comprobaciÃƒÂ³n de rutas internas exactas. Se extrajo el RAR en una copia de la instalaciÃƒÂ³n de Steam build 459558. El ejecutable original conservÃƒÂ³ su SHA-256 y los archivos del juego se contrastaron con el origen.
+- Arranque de la copia de Steam con y sin el cargador del paquete. Se confirmÃƒÂ³ la ventana del juego despuÃƒÂ©s de seleccionar el modo de vÃƒÂ­deo nativo en la instancia de laboratorio.
+- La comparaciÃƒÂ³n leyÃƒÂ³ el gestor de handling del proceso de Steam. En LANDSTAL y BRAVURA se comprobÃƒÂ³ amortiguaciÃƒÂ³n de 0,0800 en el control y 0,0864 con el RAR. Se mantuvo la fuerza original de cada muelle. El ASI registrÃƒÂ³ 136 filas. VÃƒÂ©ase [steam-validation.json](steam-validation.json).
 
-El ensayo comprueba carga del paquete y de los valores de suspensiÃ³n. Quedan por probar la conducciÃ³n en una partida nueva y la validaciÃ³n de cada futuro subsistema del port. Esta previa tiene alcance limitado a la suspensiÃ³n.
+El ensayo comprueba carga del paquete y de los valores de suspensiÃƒÂ³n. Quedan por probar la conducciÃƒÂ³n en una partida nueva y la validaciÃƒÂ³n de cada futuro subsistema del port. Esta previa tiene alcance limitado a la suspensiÃƒÂ³n.
 
-## Alpha.2 Â· laboratorio
+## Alpha.2 Ã‚Â· laboratorio
 
-- CompilaciÃ³n x86 y pruebas de amortiguaciÃ³n y cabeceo. Las aserciones cubren cuatro casos de apoyo, aceleraciÃ³n y frenada, vehÃ­culo volcado, entrada invÃ¡lida, conservaciÃ³n de ejes ajenos al cabeceo y equivalencia de pasos con igual tiempo total.
-- Se volviÃ³ a extraer el RAR desde cero sobre una copia de Steam. Coincidieron los hashes de los 416 archivos originales. El RAR tiene siete archivos, sin mods de desarrollo ni la sonda de pruebas.
-- Se arrancÃ³ ese RAR con la configuraciÃ³n incluida y, en una segunda sesiÃ³n, con el cabeceo habilitado temporalmente. Solo la segunda instalÃ³ el hook. Se leyÃ³ la misma amortiguaciÃ³n y fuerza de los muelles en el gestor nativo de ambos procesos. El INI se restaurÃ³ tras las pruebas.
-- En otra sesiÃ³n con una sonda, el juego aceptÃ³ entrada XInput de laboratorio y procesÃ³ al menos 600 actualizaciones nativas de coches durante el comienzo de una partida. Se observaron coches con cuatro ruedas en contacto, de las cuales dos eran motrices. La sonda no registrÃ³ a CJ conduciendo. En la repeticiÃ³n, la captura de ventana agotÃ³ el plazo y no hubo muestras de entrada o de vehÃ­culos. Estos casos no validan control aÃ©reo, aterrizajes ni conducciÃ³n.
+- CompilaciÃƒÂ³n x86 y pruebas de amortiguaciÃƒÂ³n y cabeceo. Las aserciones cubren cuatro casos de apoyo, aceleraciÃƒÂ³n y frenada, vehÃƒÂ­culo volcado, entrada invÃƒÂ¡lida, conservaciÃƒÂ³n de ejes ajenos al cabeceo y equivalencia de pasos con igual tiempo total.
+- Se volviÃƒÂ³ a extraer el RAR desde cero sobre una copia de Steam. Coincidieron los hashes de los 416 archivos originales. El RAR tiene siete archivos, sin mods de desarrollo ni la sonda de pruebas.
+- Se arrancÃƒÂ³ ese RAR con la configuraciÃƒÂ³n incluida y, en una segunda sesiÃƒÂ³n, con el cabeceo habilitado temporalmente. Solo la segunda instalÃƒÂ³ el hook. Se leyÃƒÂ³ la misma amortiguaciÃƒÂ³n y fuerza de los muelles en el gestor nativo de ambos procesos. El INI se restaurÃƒÂ³ tras las pruebas.
+- En otra sesiÃƒÂ³n con una sonda, el juego aceptÃƒÂ³ entrada XInput de laboratorio y procesÃƒÂ³ al menos 600 actualizaciones nativas de coches durante el comienzo de una partida. Se observaron coches con cuatro ruedas en contacto, de las cuales dos eran motrices. La sonda no registrÃƒÂ³ a CJ conduciendo. En la repeticiÃƒÂ³n, la captura de ventana agotÃƒÂ³ el plazo y no hubo muestras de entrada o de vehÃƒÂ­culos. Estos casos no validan control aÃƒÂ©reo, aterrizajes ni conducciÃƒÂ³n.
 
-El RAR de alpha.2 es un artefacto de laboratorio. El borrador de distribuciÃ³n permanece en alpha.1. VÃ©ase [steam-alpha2-validation.json](steam-alpha2-validation.json) para las comprobaciones realizadas.
+El RAR de alpha.2 es un artefacto de laboratorio. El borrador de distribuciÃƒÂ³n permanece en alpha.1. VÃƒÂ©ase [steam-alpha2-validation.json](steam-alpha2-validation.json) para las comprobaciones realizadas.
 
 ## Lectura de peatones en Steam
 
-La sonda de laboratorio intercalÃ³ `CPed::PreRender` despuÃ©s de su trabajo nativo. LeyÃ³ un civil y a CJ con jerarquÃ­as RenderWare de 32 nodos y matrices finitas. Se localizaron pelvis y cabeza por etiqueta en cada jerarquÃ­a. Esta prueba no aplica una pose fÃ­sica ni comprueba reacciones de juego.
+La sonda de laboratorio intercalÃƒÂ³ `CPed::PreRender` despuÃƒÂ©s de su trabajo nativo. LeyÃƒÂ³ un civil y a CJ con jerarquÃƒÂ­as RenderWare de 32 nodos y matrices finitas. Se localizaron pelvis y cabeza por etiqueta en cada jerarquÃƒÂ­a. Esta prueba no aplica una pose fÃƒÂ­sica ni comprueba reacciones de juego.
 
-El mÃ©todo compartido estÃ¡ en RVA `0x204f20`. Se verificÃ³ la entrada 17 de las tablas de civil y jugador y se comprobÃ³ el puntero original antes de instalar la sonda. La identificaciÃ³n parte de los mÃ©todos y tablas documentados en [gta-reversed](https://github.com/gta-reversed/gta-reversed/tree/master/source/game_sa/Entity/Ped).
+El mÃƒÂ©todo compartido estÃƒÂ¡ en RVA `0x204f20`. Se verificÃƒÂ³ la entrada 17 de las tablas de civil y jugador y se comprobÃƒÂ³ el puntero original antes de instalar la sonda. La identificaciÃƒÂ³n parte de los mÃƒÂ©todos y tablas documentados en [gta-reversed](https://github.com/gta-reversed/gta-reversed/tree/master/source/game_sa/Entity/Ped).
 
-## Alpha.3 Â· importador y color PS2
+## Alpha.3 Ã‚Â· importador y color PS2
 
-- La copia limpia se obtuvo de Steam build 459558. Se compararon los hashes de los archivos originales despuÃ©s de extraer y arrancar el RAR.
-- Sin cachÃ© ni ISO, se observÃ³ la ventana de primera instalaciÃ³n. Cancelar dejÃ³ continuar el juego. Reintentar despuÃ©s de colocar la ISO de GTA IV Europa/Asia preparÃ³ la cachÃ©. El siguiente proceso abriÃ³ esa cachÃ© con la ISO fuera de la raÃ­z.
-- Se comparÃ³ la escena inicial a las 06:36 en dos arranques a 1280 Ã— 720. El perfil PS2 registrÃ³ la primera pasada de color. El control con `Ps2TimeCycle=0` usÃ³ el posprocesado nativo. Las capturas muestran el cambio en el cielo y en la iluminaciÃ³n del entorno con el HUD original.
+- La copia limpia se obtuvo de Steam build 459558. Se compararon los hashes de los archivos originales despuÃƒÂ©s de extraer y arrancar el RAR.
+- Sin cachÃƒÂ© ni ISO, se observÃƒÂ³ la ventana de primera instalaciÃƒÂ³n. Cancelar dejÃƒÂ³ continuar el juego. Reintentar despuÃƒÂ©s de colocar la ISO de GTA IV Europa/Asia preparÃƒÂ³ la cachÃƒÂ©. El siguiente proceso abriÃƒÂ³ esa cachÃƒÂ© con la ISO fuera de la raÃƒÂ­z.
+- Se comparÃƒÂ³ la escena inicial a las 06:36 en dos arranques a 1280 Ãƒâ€” 720. El perfil PS2 registrÃƒÂ³ la primera pasada de color. El control con `Ps2TimeCycle=0` usÃƒÂ³ el posprocesado nativo. Las capturas muestran el cambio en el cielo y en la iluminaciÃƒÂ³n del entorno con el HUD original.
 - Steam duplica y guarda en un byte los canales alfa del posprocesado. Las primeras ocho muestras de alfa fueron 254 en ambos modos. La diferencia visual comprobada procede del filtro, con la tabla local como entrada.
-- La fixture XInput y los observadores son de laboratorio. Quedan por probar el mando fÃ­sico, el rendimiento en juego y el port de peatones de Delirium.
+- La fixture XInput y los observadores son de laboratorio. Quedan por probar el mando fÃƒÂ­sico, el rendimiento en juego y el port de peatones de Delirium.
 
-## Alpha.4 Â· arranque real desde Steam
+## Alpha.4 Ã‚Â· arranque real desde Steam
 
-- Se comprobÃ³ la instalaciÃ³n real con el cliente de Steam y el AppID 12120. El proceso abriÃ³ `gta-sa.exe` en la biblioteca de Steam y leyÃ³ la cachÃ© del usuario. El dispositivo D3D9 registrÃ³ 2560 Ã— 1440 en ventana. El escritorio conservÃ³ esa resoluciÃ³n y el archivo de preferencias mantuvo su huella.
-- En una copia aislada con el mismo ejecutable, la fixture XInput moviÃ³ el stick derecho con el juego en modo ratÃ³n. El giro pasÃ³ de 3,10 a 1,21 radianes durante el tramo positivo. Tras centrar el stick, la vista se estabilizÃ³. La comparaciÃ³n desactivada con el mismo modo sin bordes no alcanzÃ³ la ventana de mediciÃ³n. Una prueba anterior del ejecutable sin el arreglo sÃ­ registrÃ³ entrada positiva y varios fotogramas con la vista inmÃ³vil.
-- La entrada fÃ­sica del usuario sigue pendiente de prueba en juego. La fixture y su ASI quedan fuera del RAR.
+- Se comprobÃƒÂ³ la instalaciÃƒÂ³n real con el cliente de Steam y el AppID 12120. El proceso abriÃƒÂ³ `gta-sa.exe` en la biblioteca de Steam y leyÃƒÂ³ la cachÃƒÂ© del usuario. El dispositivo D3D9 registrÃƒÂ³ 2560 Ãƒâ€” 1440 en ventana. El escritorio conservÃƒÂ³ esa resoluciÃƒÂ³n y el archivo de preferencias mantuvo su huella.
+- En una copia aislada con el mismo ejecutable, la fixture XInput moviÃƒÂ³ el stick derecho con el juego en modo ratÃƒÂ³n. El giro pasÃƒÂ³ de 3,10 a 1,21 radianes durante el tramo positivo. Tras centrar el stick, la vista se estabilizÃƒÂ³. La comparaciÃƒÂ³n desactivada con el mismo modo sin bordes no alcanzÃƒÂ³ la ventana de mediciÃƒÂ³n. Una prueba anterior del ejecutable sin el arreglo sÃƒÂ­ registrÃƒÂ³ entrada positiva y varios fotogramas con la vista inmÃƒÂ³vil.
+- La entrada fÃƒÂ­sica del usuario sigue pendiente de prueba en juego. La fixture y su ASI quedan fuera del RAR.
 
 
 ## Native Steam candidate: visual and gameplay regressions
@@ -75,3 +75,24 @@ stream records are observed in tests. New streaming/post-effect and sparse lamp
 table integration must be tested on the next candidate before acceptance; adding
 this documentation is not a pass. No >4 GiB IMG or LAA claim is made. Development
 and external reference projects remain unchanged.
+
+
+## Proved lamp dependency and native lifecycle
+
+Candidate7 originally crashed at preferred4D086B with count71/null vtable. The
+same failure occurred with new memory/post-effects disabled. DamageAtomicModels
+has a fixed70-entry store; the development profile had OLA's unlimited store.
+
+`native/steam-model-store-bindings.json` records the reviewed Steam backend,
+constructor4CF610 and the five lifecycle references. CRT originals stay intact.
+The backend constructs real native objects, invokes their native Init and lets
+the relocated native Shutdown walk the same allocation. Case211822 loaded74;
+normal WM_CLOSE produced count0 and zero remaining RW objects. This is actual
+cleanup evidence, not just allocation success. Private development/Steam's good
+candidate6 were kept intact while the failed package was diagnosed.
+
+The same case confirms the new zenlamps dictionary is read from its generated
+sector and assigned to model1297. It also confirms512MiB after Init2's reset,
+using the configured initializer rather than a per-frame budget write. Native
+post-effect flag1 is observed; this does not establish full SkyGfx pipeline parity.
+The case used a manual host replacement after RAR7, so do not label RAR7 accepted.

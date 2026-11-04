@@ -71,7 +71,7 @@ Copy-Item -LiteralPath (Join-Path $root 'CREDITS.md') -Destination (Join-Path $r
 Copy-Item -LiteralPath (Join-Path $root 'licenses/Ultimate-ASI-Loader.txt') -Destination $licenses.FullName
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE.md') -Destination $licenses.FullName
 Copy-Item -LiteralPath (Join-Path $root 'bootstrap/COPYING') -Destination (Join-Path $licenses.FullName 'Delirium-GPL-3.0.txt')
-foreach ($notice in 'Xenia-BSD-3-Clause.txt','SilentPatch-MIT.txt','Rust-Dependencies.txt') { Copy-Item -LiteralPath (Join-Path $root ('licenses/' + $notice)) -Destination $licenses.FullName }
+foreach ($notice in 'Xenia-BSD-3-Clause.txt','SilentPatch-MIT.txt','Rust-Dependencies.txt','OpenLimitAdjuster-MIT.txt') { Copy-Item -LiteralPath (Join-Path $root ('licenses/' + $notice)) -Destination $licenses.FullName }
 Copy-Item -LiteralPath (Join-Path $root 'vendor/third-party/minhook/LICENSE.txt') -Destination (Join-Path $licenses.FullName 'MinHook-BSD.txt')
 foreach ($binary in 'DeliriumSA.asi','SilentPatchSA.asi','SAStandalone.asi') {
     & python (Join-Path $PSScriptRoot 'Verify-Runtime.py') (Join-Path $scripts.FullName $binary) --bundled sa_delirium_bootstrap.dll
@@ -83,7 +83,7 @@ $expected = @(
     'SAStandalone-licenses/Ultimate-ASI-Loader.txt','SAStandalone-licenses/LICENSE.md',
     'SAStandalone-licenses/Delirium-GPL-3.0.txt',
     'scripts/DeliriumSA.asi','DeliriumSA.ini','scripts/SilentPatchSA.asi','scripts/SilentPatchSA.ini',
-    'SAStandalone-licenses/Xenia-BSD-3-Clause.txt','SAStandalone-licenses/SilentPatch-MIT.txt','SAStandalone-licenses/MinHook-BSD.txt','SAStandalone-licenses/Rust-Dependencies.txt'
+    'SAStandalone-licenses/Xenia-BSD-3-Clause.txt','SAStandalone-licenses/SilentPatch-MIT.txt','SAStandalone-licenses/MinHook-BSD.txt','SAStandalone-licenses/Rust-Dependencies.txt','SAStandalone-licenses/OpenLimitAdjuster-MIT.txt'
 )
 if ($VisualPayload) {
     $visualRoot = (Resolve-Path -LiteralPath $VisualPayload).Path
@@ -116,6 +116,7 @@ $content = [ordered]@{
     excluded = @('GTA V HUD/minimap/weapon wheel','DLSS','test probes','game executables','ISO/cache/save files','development tools')
     native_frame_limit_preserved = $true
 }
+$content.included += 'Native Steam damageable-model storage backend following Open Limit Adjuster (MIT); only enabled for IDE overlays'
 if ($VisualPayload) {
     $content.visual_manifest_sha256 = (Get-FileHash -LiteralPath (Join-Path $visualRoot 'manifest.json')).Hash.ToLowerInvariant()
     $content.visual_sources = (Get-Content -LiteralPath (Join-Path $visualRoot 'provenance.json') -Raw | ConvertFrom-Json).sources

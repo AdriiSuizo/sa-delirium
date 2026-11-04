@@ -7,6 +7,38 @@
 #include <sstream>
 #include <string>
 #include <map>
+#include <cstring>
+#include "../vendor/src/sa-delirium/CodePatch.hpp"
+#include "../native/SteamHostIdentity.hpp"
+
+namespace {
+bool configureBudgetInitializer(unsigned bytes){
+    auto*image=reinterpret_cast<std::byte*>(GetModuleHandleW(nullptr));
+    auto*instruction=image+0x1d3ac5;
+    // CStreaming::Init2 deliberately resets stream.ini's earlier memory value.
+    // Configure that exact initializer, once, rather than rewriting a live
+    // budget every frame or replaying unrelated vehicle/effect settings.
+    if(!sa_steam_host_identity::supported()||
+       instruction[0]!=std::byte{0xc7}||instruction[1]!=std::byte{0x05}||
+       *reinterpret_cast<uintptr_t*>(instruction+2)!=uintptr_t(image+0x514074)||
+       *reinterpret_cast<unsigned*>(instruction+6)!=50u*1024*1024)return false;
+    bool changed=false;
+    {
+        FrozenThreads freeze(std::array<CodeRange,1>{{{uintptr_t(instruction),uintptr_t(instruction+10)}}});
+        if(freeze.ok()&&instruction[0]==std::byte{0xc7}&&instruction[1]==std::byte{0x05}&&
+           *reinterpret_cast<uintptr_t*>(instruction+2)==uintptr_t(image+0x514074)&&
+           *reinterpret_cast<unsigned*>(instruction+6)==50u*1024*1024){
+            DWORD protection{};
+            if(VirtualProtect(instruction,10,PAGE_EXECUTE_READWRITE,&protection)){
+                const unsigned before=50u*1024*1024;std::memcpy(instruction+6,&bytes,4);
+                changed=FlushInstructionCache(GetCurrentProcess(),instruction,10)!=0;
+                if(!changed){std::memcpy(instruction+6,&before,4);FlushInstructionCache(GetCurrentProcess(),instruction,10);}
+                DWORD ignored{};VirtualProtect(instruction,10,protection,&ignored);
+            }
+        }
+    }return changed;
+}
+}
 
 bool installSteamStreaming(const std::filesystem::path& root,std::ostream& log){
     using Add=bool(WINAPI*)(const wchar_t*,const unsigned char*,std::size_t,int);
@@ -42,6 +74,9 @@ bool installSteamStreaming(const std::filesystem::path& root,std::ostream& log){
     // Radiosity is understood by the native reader but absent in stock data.
     for(const auto&[key,value]:values)output<<key<<'\t'<<value<<'\n';
     static std::string overlay;overlay=output.str();
+    if(memory&&!configureBudgetInitializer(unsigned(memory)*1024*1024)){
+        log<<"streaming_budget_initializer_unavailable\n";return false;
+    }
     const bool registered=add((root/L"stream.ini").c_str(),reinterpret_cast<const unsigned char*>(overlay.data()),overlay.size(),5);
     log<<"streaming_ini_overlay registered="<<registered<<" memory_mib="<<memory
        <<" ps2_posteffects="<<ps2<<" original_unchanged=1\n";

@@ -18,6 +18,26 @@
 namespace {
 std::byte* image{};
 FILE* trace{};
+HANDLE crashTrace=INVALID_HANDLE_VALUE;
+LONG CALLBACK observeCrash(EXCEPTION_POINTERS* exception){
+    if(!exception||crashTrace==INVALID_HANDLE_VALUE)return EXCEPTION_CONTINUE_SEARCH;
+    const auto code=exception->ExceptionRecord->ExceptionCode;
+    if(code!=EXCEPTION_ACCESS_VIOLATION&&code!=EXCEPTION_STACK_OVERFLOW)return EXCEPTION_CONTINUE_SEARCH;
+    const auto*c=exception->ContextRecord;char line[512];DWORD written{};
+    const int n=sprintf_s(line,"exception code=%08lx ip=%08lx rva=%08lx eax=%08lx ecx=%08lx edx=%08lx esp=%08lx ebp=%08lx atomic_count=%u address=%08lx\r\n",
+        code,c->Eip,c->Eip-DWORD(reinterpret_cast<uintptr_t>(image)),c->Eax,c->Ecx,c->Edx,c->Esp,c->Ebp,
+        *reinterpret_cast<const unsigned*>(image+0x7936d0),DWORD(exception->ExceptionRecord->ExceptionInformation[1]));
+    if(n>0)WriteFile(crashTrace,line,DWORD(n),&written,nullptr);
+    DWORD frame=c->Ebp;
+    for(unsigned i=0;i<12&&frame;i++){
+        DWORD values[6]{};SIZE_T got{};
+        if(!ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<const void*>(frame),values,sizeof values,&got)||got!=sizeof values)break;
+        const int size=sprintf_s(line,"frame index=%u ebp=%08lx return=%08lx rva=%08lx args=%08lx,%08lx,%08lx,%08lx\r\n",i,frame,values[1],values[1]-DWORD(reinterpret_cast<uintptr_t>(image)),values[2],values[3],values[4],values[5]);
+        if(size>0)WriteFile(crashTrace,line,DWORD(size),&written,nullptr);
+        if(values[0]<=frame||values[0]-frame>0x10000)break;frame=values[0];
+    }
+    FlushFileBuffers(crashTrace);return EXCEPTION_CONTINUE_SEARCH;
+}
 ULONGLONG started{},lastSample{};
 volatile LONG processCalls{};
 using Process=void(__cdecl*)();
@@ -498,6 +518,12 @@ extern "C" __declspec(dllexport) void InitializeASI(){
     wcscpy_s(end+1,MAX_PATH-size_t(end+1-executable),L"steam-runtime-probe.log");
     if(_wfopen_s(&trace,executable,L"w"))return;
     image=reinterpret_cast<std::byte*>(GetModuleHandleW(nullptr));
+    char crashSetting[4]{};
+    if(GetEnvironmentVariableA("SA_STEAM_CRASH_OBSERVER",crashSetting,4)==1&&crashSetting[0]=='1'){
+        wcscpy_s(end+1,MAX_PATH-size_t(end+1-executable),L"steam-crash-probe.log");
+        crashTrace=CreateFileW(executable,GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
+        if(crashTrace!=INVALID_HANDLE_VALUE)AddVectoredExceptionHandler(1,observeCrash);
+    }
     const auto* dos=reinterpret_cast<const IMAGE_DOS_HEADER*>(image);
     const auto* nt=reinterpret_cast<const IMAGE_NT_HEADERS*>(image+dos->e_lfanew);
     std::fprintf(trace,"probe_entry pid=%lu setting=%lu value=%d image=%08x\n",GetCurrentProcessId(),setting,int(enabled[0]),nt->OptionalHeader.SizeOfImage);

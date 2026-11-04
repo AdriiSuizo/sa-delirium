@@ -9,6 +9,7 @@
 - **Xenia**, de Ben Vanik y colaboradores. La constante pública de soporte XEX permite importar sin Internet; procede de `xex_module.cc`, revisión `95a5c3ee250f80c3b9d139658649d9ffb6db3eec`, bajo BSD de tres cláusulas. [Fuente](https://github.com/xenia-project/xenia/blob/95a5c3ee250f80c3b9d139658649d9ffb6db3eec/src/xenia/cpu/xex_module.cc); aviso completo en `licenses/Xenia-BSD-3-Clause.txt`. Los programas y activos de GTA IV siguen procediendo de la ISO del jugador.
 - **SilentPatchSA 34.1**, de Silent/CookiePLMonster y colaboradores, bajo MIT. [Proyecto](https://github.com/CookiePLMonster/SilentPatch/releases/tag/1.1-BUILD34.1-SA); licencia conservada en `licenses/SilentPatch-MIT.txt`.
 - **plugin-sdk**, de DK22Pac y GTA Community. Referencia de estructuras y formatos. [Proyecto](https://github.com/DK22Pac/plugin-sdk)
+- **Open Limit Adjuster**, de ThirteenAG, LINK/2012 y colaboradores, MIT. El backend Steam de almacenamiento de modelos sigue su contrato de construcción, direcciones estables y limpieza nativa; no se copia el ASI de otra versión del juego. Referencia fijada `e454bfaf7edf4d293e533401b0a03330cde80906`; aviso en `licenses/OpenLimitAdjuster-MIT.txt`. [Fuente](https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/blob/e454bfaf7edf4d293e533401b0a03330cde80906/source/ModelStores.cpp).
 - **SkyGfx**, de aap y colaboradores. Referencia técnica de la modulación de color PS2. [Proyecto](https://github.com/aap/skygfx)
 
 Desarrollo asistido por Codex. GTA San Andreas y GTA IV pertenecen a sus titulares.
