@@ -7,12 +7,24 @@ use delirium_data::{
 use iso_data::xex;
 #[path = "../compatibility/canonical_body.rs"]
 mod canonical_body;
+mod combat_resources;
+mod sa_gym_resources;
+mod xenia_xex_key;
 use delirium_physics as sdk;
 use std::ffi::CString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool,Ordering};
+use std::sync::{Mutex,Condvar};
 static RUNTIME_READY:AtomicBool=AtomicBool::new(false);
+static RUNTIME_GATE:(Mutex<()>,Condvar)=(Mutex::new(()),Condvar::new());
+
+fn publish_ready(value:bool)->Result<(),String>{
+    let _guard=RUNTIME_GATE.0.lock().map_err(|_|"La sincronización de arranque se interrumpió")?;
+    RUNTIME_READY.store(value,Ordering::Release);
+    if value{RUNTIME_GATE.1.notify_all();}
+    Ok(())
+}
 
 const PROGRAM: &str = "iv-program.bin";
 const CHARACTER: &str = "fred.xrt";
@@ -20,7 +32,7 @@ const TASKS: &str = "taskparams.txt";
 const BODY: &str = "fred-build.txt";
 // Alpha.4's bind-body cache remains recoverable. The adapted runtime needs
 // the canonical idle body; never silently accept the older body's 21 parts.
-const CACHE: &str = "DeliriumSA-local-v2";
+const CACHE: &str = "DeliriumSA-local-v3";
 const PARTS: i32 = 21;
 const MISSING_ISO: &str = "Pon la ISO de GTA IV de Xbox 360 junto a gta-sa.exe para el primer arranque";
 
@@ -93,14 +105,17 @@ fn sdk_check(code: i32, operation: &str) -> Result<(), String> {
 }
 
 fn activate(cache: &Path) -> Result<(), String> {
-    RUNTIME_READY.store(false,Ordering::Release);
+    publish_ready(false)?;
+    // Clip event decoding reads the original program's constants. On a fresh
+    // cache-only process they are not initialized by the importer beforehand.
+    if !kv::unlock_program(&fs::read(cache.join(PROGRAM)).map_err(|e|e.to_string())?) {
+        return Err("El motor adaptado rechazó el programa de la caché".into());
+    }
+    combat_resources::check(&cache.join("combat"))?;
     let character = sdk_file(&cache.join(CHARACTER))?;
     let tasks = sdk_file(&cache.join(TASKS))?;
     let body = sdk_file(&cache.join(BODY))?;
     unsafe {
-        if !kv::unlock_program(&fs::read(cache.join(PROGRAM)).map_err(|e|e.to_string())?) {
-            return Err("El motor adaptado rechazó el programa de la caché".into());
-        }
         sdk_check(sdk::nm_init(character.as_ptr()), "nm_init")?;
         sdk_check(
             sdk::nm_load_task_params(tasks.as_ptr()),
@@ -116,7 +131,6 @@ fn activate(cache: &Path) -> Result<(), String> {
             return Err("El SDK rechazó el número de segmentos".into());
         }
     }
-    RUNTIME_READY.store(true,Ordering::Release);
     Ok(())
 }
 
@@ -125,6 +139,17 @@ fn activate(cache: &Path) -> Result<(), String> {
 #[unsafe(no_mangle)]
 pub extern "C" fn sa_delirium_runtime_ready()->i32{
     i32::from(RUNTIME_READY.load(Ordering::Acquire))
+}
+
+/// The ASI's worker can sleep until the first-run import is committed. A prompt
+/// to copy a multi-GB ISO must not exhaust a one-shot startup deadline and leave
+/// the gameplay module permanently inactive after the player clicks Retry.
+#[unsafe(no_mangle)]
+pub extern "C" fn sa_delirium_wait_ready(timeout_ms:u32)->i32{
+    let Ok(guard)=RUNTIME_GATE.0.lock()else{return -1};
+    let result=RUNTIME_GATE.1.wait_timeout_while(guard,std::time::Duration::from_millis(u64::from(timeout_ms)),
+        |_|!RUNTIME_READY.load(Ordering::Acquire));
+    match result{Ok(_)=>i32::from(RUNTIME_READY.load(Ordering::Acquire)),Err(_)=>-1}
 }
 
 fn iso_path(root: &Path) -> Result<PathBuf, String> {
@@ -150,7 +175,10 @@ fn iso_path(root: &Path) -> Result<PathBuf, String> {
 fn import(root: &Path, cache: &Path) -> Result<(), String> {
     let disc = Disc::open(&iso_path(root)?)?;
     let xex_bytes = disc_file(&disc, "default.xex", 32 << 20)?;
-    let program = xex::XexImage::parse_with_key(&xex_bytes, &xex::fetched_key()?)?.image;
+    // Xenia's BSD-licensed format constant is bundled with its notice. The
+    // owner's program still comes exclusively from the supplied retail ISO.
+    // First installation must not depend on curl, Internet or a shared cache.
+    let program = xex::XexImage::parse_with_key(&xex_bytes, &xenia_xex_key::RETAIL_KEY)?.image;
     if !kv::unlock_program(&program) {
         return Err(
             "Esta edición de la ISO no coincide con el ejecutable admitido por Delirium".into(),
@@ -186,6 +214,9 @@ fn import(root: &Path, cache: &Path) -> Result<(), String> {
         ] {
             fs::write(staging.join(name), bytes).map_err(|error| format!("{name}: {error}"))?;
         }
+        combat_resources::import(&disc,&key,&staging.join("combat"))?;
+        sa_gym_resources::import(root,&staging.join("combat"))?;
+        combat_resources::seal(&staging.join("combat"))?;
         activate(&staging)?;
         fs::rename(&staging, cache)
             .map_err(|error| format!("No se pudo finalizar la caché: {error}"))
@@ -197,6 +228,7 @@ fn import(root: &Path, cache: &Path) -> Result<(), String> {
 }
 
 pub fn prepare(root: &Path) -> Result<&'static str, String> {
+    publish_ready(false)?;
     if !root.join("gta-sa.exe").is_file() {
         return Err("La carpeta no contiene gta-sa.exe".into());
     }
@@ -204,10 +236,13 @@ pub fn prepare(root: &Path) -> Result<&'static str, String> {
     match cache.try_exists() {
         Ok(true) => {
             activate(&cache)?;
+            publish_ready(true)?;
             Ok("cache_ready")
         }
         Ok(false) => {
             import(root, &cache)?;
+            // Publish only after the complete staging tree has been renamed.
+            publish_ready(true)?;
             Ok("imported_iso")
         }
         Err(error) => Err(error.to_string()),
@@ -249,6 +284,16 @@ pub unsafe extern "C" fn sa_delirium_prepare(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn runtime_ready_gate_can_retry_after_timeout_and_wake_a_waiter(){
+        publish_ready(false).unwrap();assert_eq!(sa_delirium_wait_ready(1),0);
+        let (start,started)=std::sync::mpsc::channel();
+        let waiter=std::thread::spawn(move||{start.send(()).unwrap();sa_delirium_wait_ready(5000)});
+        started.recv().unwrap();publish_ready(true).unwrap();assert_eq!(waiter.join().unwrap(),1);
+        assert_eq!(sa_delirium_wait_ready(0),1);
+        publish_ready(false).unwrap();assert_eq!(sa_delirium_wait_ready(0),0);
+    }
 
     #[test]
     #[ignore = "requires an owned ISO hardlink in an isolated test root"]
@@ -317,6 +362,42 @@ mod tests {
             sdk::nm_agent_destroy(agent);
             sdk::nm_world_destroy(world);
             sdk::nm_build_destroy(build);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires the owner's original development bank and a fresh isolated import"]
+    fn imported_combat_bank_matches_development() {
+        let root=PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        let reference=PathBuf::from(std::env::var_os("SA_DELIRIUM_COMBAT_REFERENCE").unwrap());
+        assert_eq!(prepare(&root).unwrap(),"cache_ready");
+        let imported=root.join(CACHE).join("combat");
+        assert_eq!(combat_resources::validate(&imported).unwrap(),(418,12));
+        for name in combat_resources::DICTIONARIES {
+            let name=format!("{name}.xad");
+            assert_eq!(fs::read(imported.join(&name)).unwrap(),fs::read(reference.join(&name)).unwrap(),"{name}");
+        }
+        for name in ["action_table.csv","MeleeAnims.dat","pedpersonality.dat","sa-contact-ranges.json"] {
+            assert_eq!(fs::read(imported.join(name)).unwrap(),fs::read(reference.join(name)).unwrap(),"{name}");
+        }
+        // PC and console use different line endings; all decision tokens must
+        // still match. Bank::load above additionally runs the real decision parser.
+        for name in ["M_NO_NO.cmb","R_Norm.ped","m_empty.ped"] {
+            let a=fs::read_to_string(imported.join("decision").join(name)).unwrap();
+            let b=fs::read_to_string(reference.join("decision").join(name)).unwrap();
+            assert_eq!(a.split_whitespace().collect::<Vec<_>>(),b.split_whitespace().collect::<Vec<_>>(),"{name}");
+        }
+        for (name,key) in [("skeleton.json","bones"),("sa-gym-clips.json","clips")] {
+            let a:serde_json::Value=serde_json::from_slice(&fs::read(imported.join(name)).unwrap()).unwrap();
+            let b:serde_json::Value=serde_json::from_slice(&fs::read(reference.join(name)).unwrap()).unwrap();
+            assert_eq!(a[key],b[key],"{name}");
+        }
+        // The two C ABI entry points used by the real host must accept the bank.
+        let path=sdk_file(&imported).unwrap();
+        unsafe {
+            let c=sdk::nm_combat_load(path.as_ptr());assert!(!c.is_null());
+            assert_eq!(sdk::nm_combat_enable(c,path.as_ptr()),0);
+            sdk::nm_combat_destroy(c);
         }
     }
 }

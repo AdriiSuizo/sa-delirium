@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "source": "Existing SA anatomy calibration; contains no animation tracks",
+  "clips": {
+    "sa_gym_5/attack1": {
+      "strike_start": 0.06666666666666667,
+      "strike_bone_sa": 34
+    },
+    "sa_gym_5/attack2": {
+      "strike_start": 0.1,
+      "strike_bone_sa": 24
+    },
+    "sa_gym_5/attack3": {
+      "strike_start": 0.26666666666666666,
+      "strike_bone_sa": 34
+    },
+    "sa_gym_6/attack1": {
+      "strike_start": 0.11666666666666667,
+      "strike_bone_sa": 53
+    },
+    "sa_gym_6/attack2": {
+      "strike_start": 0.23333333333333334,
+      "strike_bone_sa": 43
+    },
+    "sa_gym_6/attack3": {
+      "strike_start": 0.26666666666666666,
+      "strike_bone_sa": 53
+    },
+    "sa_gym_7/attack1": {
+      "strike_start": 0.23333333333333334,
+      "strike_bone_sa": 52
+    },
+    "sa_gym_7/attack2": {
+      "strike_start": 0.0
+    },
+    "sa_gym_7/attack3": {
+      "strike_start": 0.0
+    },
+    "sa_gym_7/hit1": {
+      "strike_start": 0.0
+    },
+    "sa_gym_7/hit2": {
+      "strike_start": 0.0
+    },
+    "sa_gym_7/hit3": {
+      "strike_start": 0.0
+    }
+  },
+  "ifps": {
+    "fight_b.ifp": "e1fcaef88fffcb05347909814a7e2c659fafbe369e54e1ad30f9348f9190f056",
+    "fight_c.ifp": "af46622269e0a97f1d6dc790168fadc1c7e9deb02add69e03a2530db7b18d8ae",
+    "fight_d.ifp": "1fd30f71693c8937fa4e3c86de9431388889bae1ac9b6d9f1a9d71702ad9e6ff"
+  }
+}

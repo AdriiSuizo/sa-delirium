@@ -32,6 +32,11 @@ WORD pulseButton{};
 std::atomic_bool rigEnabled{},worldEnabled{},simulationEnabled{},renderSimulationEnabled{},capturePhysics{};
 bool rigTried{},worldTried{},simulationTried{},simulationValid=true;
 bool bootstrapCore{};
+std::atomic_bool gameplayProbe{};
+unsigned gameplayStage{};
+ULONGLONG gameplayClock{};
+void* gameplayPed{};
+int gameplayRef{-1};
 void* inspectedPed{};
 using PreRender=void(__thiscall*)(void*);
 PreRender originalPreRender{};
@@ -107,6 +112,53 @@ bool readable(const void* pointer,size_t length){
     const auto at=reinterpret_cast<uintptr_t>(pointer),end=at+length;
     return end>=at&&end<=reinterpret_cast<uintptr_t>(memory.BaseAddress)+memory.RegionSize;
 }
+void observeGameplay(){
+    if(!gameplayProbe||processCalls<150)return;
+    auto*player=field<std::byte*>(image,0x8100d0);
+    if(!readable(player,0x7c4)||field<unsigned char>(player,0x2f)!=3)return;
+    auto*playerMatrix=field<M*>(player,0x14);if(!readable(playerMatrix,sizeof(M)))return;
+    const auto now=GetTickCount64();
+    if(!gameplayStage){
+        using Request=void(__cdecl*)(int,int);using Load=void(__cdecl*)(bool);
+        using Spawn=void*(__cdecl*)(int,unsigned,const V&,bool);
+        reinterpret_cast<Request>(image+0x8b00)(7,2);
+        reinterpret_cast<Load>(image+0xfc00)(false);
+        const V position=playerMatrix->pos+V{1.7f,0,0};
+        gameplayPed=reinterpret_cast<Spawn>(image+0x2301e0)(4,7,position,true);
+        if(!readable(gameplayPed,0x7c4)){std::fprintf(trace,"native_gameplay spawn_failed=1\n");gameplayProbe=false;return;}
+        // An ordinary native ped in this actual interior. No save is written.
+        static_cast<std::byte*>(gameplayPed)[0x2f]=std::byte{3};
+        const auto*pool=field<const std::byte*>(image,0x8018a8);
+        const auto*objects=field<const std::byte*>(pool,0);const auto*flags=field<const unsigned char*>(pool,4);
+        const auto offset=static_cast<std::byte*>(gameplayPed)-objects;
+        if(offset<0||offset%0x7c4||offset/0x7c4>=field<int>(pool,8)){gameplayProbe=false;return;}
+        gameplayRef=int(offset/0x7c4)*256+flags[offset/0x7c4];
+        gameplayClock=now;gameplayStage=1;
+        std::fprintf(trace,"native_gameplay spawned=1 ref=%d model=7 area=3 scripted_pose=0\n",gameplayRef);
+    }
+    const auto*pool=field<const std::byte*>(image,0x8018a8);
+    const auto*flags=field<const unsigned char*>(pool,4);
+    if(flags[unsigned(gameplayRef)>>8]!=unsigned char(gameplayRef&255)){
+        std::fprintf(trace,"native_gameplay generation_lost=1 ref=%d\n",gameplayRef);gameplayProbe=false;return;
+    }
+    const auto elapsed=now-gameplayClock;
+    using Damage=bool(__cdecl*)(void*,void*,int,int,int,unsigned char);
+    const auto damage=reinterpret_cast<Damage>(image+0x36d6f0);
+    if(gameplayStage==1&&elapsed>=2000){
+        const auto delivered=damage(gameplayPed,player,22,12,3,0);gameplayStage=2;
+        std::fprintf(trace,"native_gameplay shot=nonlethal delivered=%u elapsed=%llu\n",delivered,elapsed);
+    }else if(gameplayStage==2&&elapsed>=12000){
+        const auto delivered=damage(gameplayPed,player,22,500,3,0);gameplayStage=3;
+        std::fprintf(trace,"native_gameplay shot=lethal delivered=%u elapsed=%llu\n",delivered,elapsed);
+    }else if(gameplayStage==3&&elapsed>=16000){
+        const auto delivered=damage(gameplayPed,player,22,12,3,0);gameplayStage=4;
+        std::fprintf(trace,"native_gameplay shot=corpse delivered=%u elapsed=%llu\n",delivered,elapsed);
+    }
+    const auto*matrix=field<const M*>(gameplayPed,0x14);
+    if(readable(matrix,sizeof(M)))std::fprintf(trace,"native_gameplay sample elapsed=%llu stage=%u ref=%d health=%.3f state=%d x=%.5f y=%.5f z=%.5f finite=%u\n",
+        elapsed,gameplayStage,gameplayRef,field<float>(gameplayPed,0x540),field<int>(gameplayPed,0x530),matrix->pos.x,matrix->pos.y,matrix->pos.z,finite(matrix->pos));
+    std::fflush(trace);
+}
 void reportMenu(const char* phase){
     const auto* menu=image+0x833938;
     std::fprintf(trace,"menu %llu phase=%s calls=%ld page=%u entry=%d active=%u unloaded_raw=%u\n",
@@ -146,6 +198,7 @@ void __cdecl observeProcess(){
     const float delta=field<float>(image,0x80fd50);
     advanceSimulation(delta);
     const auto now=GetTickCount64();if(now-lastSample<250)return;lastSample=now;
+    observeGameplay();
     const auto* pool=field<const std::byte*>(image,0x8018a8);
     unsigned occupied=0,finite=0,players=0;int count=0;
     if(readable(pool,20)){
@@ -249,6 +302,8 @@ DWORD WINAPI setup(void*){
     simulationEnabled=GetEnvironmentVariableA("SA_STEAM_SIMULATION_PROBE",enabledRig,4)==1&&enabledRig[0]=='1';
     renderSimulationEnabled=GetEnvironmentVariableA("SA_STEAM_RENDER_SIMULATION",enabledRig,4)==1&&enabledRig[0]=='1';
     capturePhysics=GetEnvironmentVariableA("SA_STEAM_CAPTURE_PHYSICS",enabledRig,4)==1&&enabledRig[0]=='1';
+    gameplayProbe=GetEnvironmentVariableA("SA_STEAM_GAMEPLAY_PROBE",enabledRig,4)==1&&enabledRig[0]=='1';
+    if(gameplayProbe&&(simulationEnabled||renderSimulationEnabled))return 9; // No overlapping fixture authority.
     if(rigEnabled){
         char character[MAX_PATH]{},body[MAX_PATH]{};
         const auto xrt=GetEnvironmentVariableA("SA_STEAM_RIG_XRT",character,MAX_PATH);
@@ -271,6 +326,17 @@ DWORD WINAPI setup(void*){
         std::fprintf(trace,"rig_sdk initialized=%d source_parts=%d\n",initialized,sourceAnatomy?nm_build_part_count(sourceAnatomy.load()):-1);
         std::fflush(trace);
         if(!sourceAnatomy)return 5;
+        char combatPath[MAX_PATH]{};
+        const auto combatLength=GetEnvironmentVariableA("SA_STEAM_COMBAT_ROOT",combatPath,MAX_PATH);
+        if(combatLength){
+            if(combatLength>=MAX_PATH)return 7;
+            auto* combat=nm_combat_load(combatPath);
+            const int enabled=combat?nm_combat_enable(combat,combatPath):-1;
+            std::fprintf(trace,"native_combat_bank loaded=%u enabled=%d gameplay_ownership=0\n",combat!=nullptr,enabled);
+            std::fflush(trace);
+            if(combat)nm_combat_destroy(combat);
+            if(enabled<0)return 8;
+        }
     }
     char setting[4]{};
     if(GetEnvironmentVariableA("SA_STEAM_NATIVE_MENU_STEP",setting,4)==1&&(setting[0]=='1'||setting[0]=='2')){

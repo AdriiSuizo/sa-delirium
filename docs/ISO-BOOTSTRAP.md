@@ -1,12 +1,12 @@
 # Delirium desde una ISO del jugador
 
-El flujo de la futura versión jugable usa una ISO compatible de GTA IV para Xbox 360 junto a `gta-sa.exe` de GTA San Andreas clásico de Steam, build 459558. La primera vez el lector de XEX de Delirium puede necesitar Internet. Cuando el registro diga `delirium_assets_ready imported_iso`, el jugador puede cerrar GTA SA y retirar su ISO. La rama adaptada usa `DeliriumSA-local-v2` y registra `delirium_assets_ready cache_ready` en arranques posteriores. Alpha.4 usaba `local-v1`; esa caché de laboratorio se conserva y no se acepta silenciosamente como cuerpo canónico del motor adaptado.
+La instalación usa una ISO compatible de GTA IV para Xbox 360 junto a `gta-sa.exe` de GTA San Andreas clásico de Steam, build 459558. El preparador actual funciona sin Internet desde el primer arranque. Cuando el registro diga `delirium_assets_ready imported_iso`, puedes cerrar GTA SA y retirar tu ISO. La caché actual es `DeliriumSA-local-v3`; los siguientes arranques registran `delirium_assets_ready cache_ready`. Las cachés v1/v2 se conservan, pero no sustituyen silenciosamente al banco completo de recursos v3.
 
-El importador lee la ISO sin escribirla. Genera una caché local de cuatro archivos y solo le da su nombre definitivo después de que el SDK haya abierto los datos. La caché contiene datos de la copia del jugador. Consérvala localmente y exclúyela de repositorios y archivos de distribución. Para reconstruirla, cierra el juego, aparta esa carpeta y vuelve a colocar la ISO junto al ejecutable.
+El importador lee la ISO sin escribirla. Genera programa, anatomía, parámetros y un banco de combate sellado: 17 diccionarios de IV, tablas/decisiones, esqueleto y doce técnicas generadas de `models/gta3.img` y `data/melee.dat` del SA instalado. Son 418 clips en total. Valida integridad, parsers y motor antes de activar el nombre definitivo y publicar su disponibilidad. Esa caché contiene datos del propietario: consérvala localmente y exclúyela de repositorios y archivos de distribución. Para reconstruirla, cierra el juego, aparta esa carpeta y vuelve a colocar la ISO junto al ejecutable.
 
 ## Equipo sin conexión
 
-El primer descifrado de una ISO cifrada requiere la clave XEX que usa el SDK. El SDK busca su copia local en `%APPDATA%/delirium/xex.key`. Si falta, intenta obtenerla de la fuente fijada por Delirium. El RAR contiene el importador y las licencias. Para preparar un equipo sin Internet, se puede generar antes la caché con la ISO del jugador y llevar esa caché por separado. Los arranques desde la caché validada prescinden de la red y de la clave.
+El preparador incorpora la constante pública de formato XEX del proyecto Xenia bajo BSD de tres cláusulas, con su aviso y procedencia fijada. No utiliza `curl`, Internet ni `%APPDATA%/delirium/xex.key`, ni escribe en una caché compartida con otros proyectos. Los programas, animaciones y datos de GTA IV se siguen leyendo exclusivamente de la ISO del jugador. Se comprobaron importación nueva, reapertura en otro proceso sin ISO y comparación exacta del banco con PATH vacío, APPDATA nuevo y proxies inaccesibles.
 
 ## Compatibilidad comprobada
 
@@ -21,12 +21,12 @@ Desde la raíz del repositorio y con Python, Git, Rust y MSVC x86:
     python tools/Verify-Vendor.py
     cargo build --release --locked --manifest-path bootstrap/Cargo.toml --target i686-pc-windows-msvc
 
-Para la prueba del motor sin ventana, indica en `SA_DELIRIUM_TEST_ROOT` una carpeta con la caché v2 que haya generado el preparador:
+Para la prueba del motor sin ventana, indica en `SA_DELIRIUM_TEST_ROOT` una carpeta con la caché v3 que haya generado el preparador:
 
     cargo test --release --locked --manifest-path bootstrap/Cargo.toml --target i686-pc-windows-msvc --lib runs_an_initialized_delirium_agent -- --ignored --test-threads=1
 
 La prueba separada `imports_owned_iso_then_runs_without_it` exige una raíz nueva con el ejecutable propio y un enlace local `owned.iso`. Importa, aparta únicamente ese enlace y comprueba la reapertura y 120 pasos. No ejecutar ambos tests en paralelo contra la misma raíz ni distribuir sus archivos de entrada.
 
-El ASI de alpha.3 carga `sa_delirium_bootstrap.dll` desde `scripts` y escribe el estado en `SAStandalone.log`. Cuando falta la ISO y aún no existe la caché, muestra la ruta de instalación y permite reintentar sin relanzar el juego. Cancelar permite iniciar el juego sin preparar esos datos. Un error de la imagen o de la caché muestra su diagnóstico. La integración de contactos, poses y tareas de peatones durante una partida sigue pendiente en Steam.
+El ASI carga `sa_delirium_bootstrap.dll` desde `scripts` y escribe el estado en `SAStandalone.log`. Si falta la ISO y la caché, muestra la ruta y permite reintentar sin relanzar el juego; Cancelar permite continuar sin preparar esos datos. El adaptador de físicas espera la disponibilidad real del mismo módulo, sin una segunda instancia del solver ni un plazo que venza mientras el jugador coloca la ISO. Las evidencias de jugabilidad nativa se distinguen de las del importador en `native/README.md`.
 
 En dos arranques separados de una copia de Steam, el ASI registró primero `imported_iso` con la ISO comercial Europa/Asia y luego `cache_ready` con la imagen retirada y un perfil de laboratorio sin la clave que se usa para abrir XEX. En ambos se mantuvo la carga de suspensión. La prueba x86 de 120 pasos produjo la misma huella de trayectoria con esta caché y con la caché de la edición de referencia. Alterar un byte del programa almacenado provocó el rechazo de la caché. Véase [iso-bootstrap-validation.json](iso-bootstrap-validation.json).

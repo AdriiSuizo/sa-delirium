@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "method": "100 Hz forced original moves, fitted CJ/model 7 bounds, 0.025 m distance grid; switch one grid cell before the middle punch misses. No hit-radius or damage changes.",
+  "rows": [
+    {
+      "action": "Jab_Act",
+      "original": [
+        1.1,
+        1.6
+      ],
+      "range": [
+        1.1,
+        1.175
+      ]
+    },
+    {
+      "action": "hook_R_long_Act",
+      "original": [
+        1.6,
+        4.0
+      ],
+      "range": [
+        1.175,
+        4.0
+      ]
+    },
+    {
+      "action": "LockOn_Jab_Act",
+      "original": [
+        1.1,
+        1.6
+      ],
+      "range": [
+        1.1,
+        1.175
+      ]
+    },
+    {
+      "action": "LockOn_hook_R_long_Act",
+      "original": [
+        1.6,
+        4.0
+      ],
+      "range": [
+        1.175,
+        4.0
+      ]
+    },
+    {
+      "action": "cross_R_Act",
+      "original": [
+        1.1,
+        1.6
+      ],
+      "range": [
+        1.0,
+        1.4
+      ]
+    },
+    {
+      "action": "hook_L_long_Act",
+      "original": [
+        1.6,
+        4.0
+      ],
+      "range": [
+        1.4,
+        4.0
+      ]
+    },
+    {
+      "action": "LockOn_cross_R_Act",
+      "original": [
+        1.1,
+        1.6
+      ],
+      "range": [
+        1.0,
+        1.4
+      ]
+    },
+    {
+      "action": "LockOn_hook_L_long_Act",
+      "original": [
+        1.6,
+        4.0
+      ],
+      "range": [
+        1.4,
+        4.0
+      ]
+    }
+  ],
+  "inputs": {
+    "research\\combat-contact-20261031\\inputs\\50e4d71e725ba441b65737ccff902aab50fff7554ed8f60e8de91382071fc149-combat-range-calibration-20261031.json": "50e4d71e725ba441b65737ccff902aab50fff7554ed8f60e8de91382071fc149",
+    "research\\combat-contact-20261031\\inputs\\95371069174da92fd60b1142e0a9e68ab1a66c30b53830d09d035666fa6141ad-action_table.csv": "95371069174da92fd60b1142e0a9e68ab1a66c30b53830d09d035666fa6141ad",
+    "research\\combat-contact-20261031\\inputs\\56b144b4f9a4122c2bed0597c5c86debc676ef97cfd78caad73c153b52896209-MeleeAnims.dat": "56b144b4f9a4122c2bed0597c5c86debc676ef97cfd78caad73c153b52896209",
+    "research\\combat-contact-20261031\\inputs\\97258a1421fb9a1c37c0ca19414ac539512f26d866428581e52d01bafcb46b6b-skeleton.json": "97258a1421fb9a1c37c0ca19414ac539512f26d866428581e52d01bafcb46b6b",
+    "research\\combat-contact-20261031\\inputs\\87ce475a16435aca7eac0fca122583b4f3fc5693ee55438e6772e6f56af90b52-melee_unarmed_base.xad": "87ce475a16435aca7eac0fca122583b4f3fc5693ee55438e6772e6f56af90b52",
+    "research\\combat-contact-20261031\\inputs\\3050a6ba1b6eda94618ea145499edeeb80c3e3c0cba6f9f56d6ac89198b4c584-melee_player_unarmed.xad": "3050a6ba1b6eda94618ea145499edeeb80c3e3c0cba6f9f56d6ac89198b4c584",
+    "research\\combat-contact-20261031\\inputs\\ccc70034bfbfade617e7a911f106a963f27d33a3bd8fbaff0bae22b10ad45534-combat-rig-0.json": "ccc70034bfbfade617e7a911f106a963f27d33a3bd8fbaff0bae22b10ad45534",
+    "research\\combat-contact-20261031\\inputs\\f9200d93a5301c0db03dddf21256f0a959766e9c695a6caf25da4ec435e76010-combat-rig-7.json": "f9200d93a5301c0db03dddf21256f0a959766e9c695a6caf25da4ec435e76010"
+  }
+}

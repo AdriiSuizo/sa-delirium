@@ -1,0 +1,434 @@
+{
+  "status": "owned_resource_bank_and_native_fixture_verified_not_complete_modpack",
+  "cache_version": 3,
+  "bank": {
+    "owned_iv_dictionaries": 17,
+    "total_clips": 418,
+    "owned_sa_gym_clips": 12,
+    "required_resource_files": 26,
+    "source_bank_exact_comparison_passed": true,
+    "decision_tokens_equal_despite_line_endings": true
+  },
+  "fixed": [
+    "Fresh cache-only process unlocks the owned program before decoding animation events",
+    "Runtime readiness is published only after the complete cache directory is committed"
+  ],
+  "headless_log_sha256": {
+    "bootstrap-combat-import-v3-verified.log": "9e7e25b80fa83164ae1472830c78772ac642fc680bb087597ef3d4f95487c3e3",
+    "bootstrap-combat-bank-comparison-fixed.log": "a55b469c06627264eeb4473d43a2d25e8fd243ad6018a2db1a2ea57faa5dd601"
+  },
+  "native_cases": [
+    {
+      "case": "slot2-20261104-145615",
+      "checks": {
+        "runner_succeeded": true,
+        "survived_observation": true,
+        "prefs_unchanged": true,
+        "desktop_unchanged": true,
+        "checkpoint_loaded_inside_house": true,
+        "native_cycles_advance": true,
+        "save_restored": true,
+        "stock_script_restored": true,
+        "native_rig_fitted": true,
+        "native_world_floor": true,
+        "native_world_simulation_completed": true,
+        "no_nonfinite_simulation": true,
+        "physical_palette_applied": true,
+        "same_dll_bootstrap_ready": true,
+        "expected_first_run_status": true,
+        "native_combat_bank_accepted": true
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "SAStandalone.asi": "84995e52715f04d54012d6094e5894ac25e538e9fec66a7527ccc47f7856120c",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "16e30f3f6af0484e18efb30f97aed73377d7b22c16f8c66dcbf49b21f81613b2",
+        "sa_delirium_bootstrap.dll": "a679cd5c8528d5439a4d7017ba05d30b59775f5fcc7f2df69fc4a9c6e75be2e3"
+      },
+      "cache_sha256": {
+        "fred-build.txt": "cf9d300315a91ce317ecc978339a9a1d08174e269fdbcd965a930545ecacc171",
+        "fred.xrt": "508e1deb34413c115a48ed118f86e3cf9544f3001ac310b0cb84eaf646c25c76",
+        "iv-program.bin": "4bb514b6935d1e647fd38ae495018ef26f86dd2fde24ff91515896653554b194",
+        "taskparams.txt": "7194df40e0ff109f449f261f9088b5a47995eccb312d3b75f5c93268b32661b5",
+        "combat/action_table.csv": "95371069174da92fd60b1142e0a9e68ab1a66c30b53830d09d035666fa6141ad",
+        "combat/manifest.json": "9588c53d06b8405bf513ef51b6867a7ff9ae052d931ae9bcc6f758d653ce4d85",
+        "combat/MeleeAnims.dat": "56b144b4f9a4122c2bed0597c5c86debc676ef97cfd78caad73c153b52896209",
+        "combat/melee_baseball_core.xad": "e861cdefcca8d332fee8cdc6e9283fac1c03bcc1475dff681fa219bf7f56d98b",
+        "combat/melee_baseball_extra.xad": "681adaaf49f63ced7cc9f6c4586a7aa3548e0e749a22692f310315d4596dfa7d",
+        "combat/melee_counters.xad": "b0022b7d11e5dc4ebe7f6ac3ff0e7332dcf37099b204dbeb6668296e46363caa",
+        "combat/melee_gang_unarmed.xad": "3327150fd96fc858efa1088955ec290e0cf2158c2782c0f6919bd88eb9c878ce",
+        "combat/melee_gun.xad": "1ffa727669470c260c783416baaa9b7280a183cd99032f5eec3740bb5cd2fb9c",
+        "combat/melee_hits_common.xad": "a4b18e760b99e7ce9c27e92f4988e5587324db1619e051f782c538e6fa9b10dc",
+        "combat/melee_knife_core.xad": "e8f7abe992884cc532d27b7cfaaa0bac7a4a702681667d8f9e145c621f6404de",
+        "combat/melee_knife_extra.xad": "f99b742de60010d77173c8a7cdf0fa31f26baacf2c0ed4846c5a9b2361bd3003",
+        "combat/melee_ped_unarmed.xad": "b09ebd356269162ce38cb9ad25ecc05a672a87314fc14a68ed8466ff447391fb",
+        "combat/melee_player_ground.xad": "6225fe5a3233b441c02040e7403ccf2484971fbed3d80c4ae2c17f9c875a25d3",
+        "combat/melee_player_unarmed.xad": "3050a6ba1b6eda94618ea145499edeeb80c3e3c0cba6f9f56d6ac89198b4c584",
+        "combat/melee_unarmed_base.xad": "87ce475a16435aca7eac0fca122583b4f3fc5693ee55438e6772e6f56af90b52",
+        "combat/move_combat_strafe.xad": "83edd867ecdab99e163f87d248d8fe15e23621f5e43e7b2c8335027643627956",
+        "combat/move_crouch.xad": "2e0d22efa80373442738971d3820870862350966a9d903aff7c3b2c8de5f9e7f",
+        "combat/move_melee.xad": "7a68184fadae7bda908082d9957836934ec350266e577cf374b34ae867a785fa",
+        "combat/move_player.xad": "993a54eb35984a4bbd2af6f80acd433decde50fb70bd41b8f638e8e31988fe16",
+        "combat/ped.xad": "6c8b12bcadb365d4401c740e80af3e8bac2cefe3600986285c45e93a3890f1bf",
+        "combat/pedpersonality.dat": "5d76d85f0c32ad7256431b1ac4a3c99fd13025660e0b82b7e3858b7f4751da86",
+        "combat/sa-contact-ranges.json": "7c46651aa4c131086a1b59d2b36a8cdd710e227ff5f90dabc12d3eebd74f2a26",
+        "combat/sa-gym-clips.json": "266dce938747adae3cfa17cce1ce8fe1a9523082bf54866098544d996c2f216e",
+        "combat/skeleton.json": "a17479150b0ab9e3c4b8b37aa8cb3330c17f2439e3ace40ef3754e4d69cf106a",
+        "combat/decision/m_empty.ped": "3c43b70aa71be7e49fa71439fef17c4c6bb7541996838caecd2b55b210d09b43",
+        "combat/decision/M_NO_NO.cmb": "61e4ed01cb52694f1a8e19d29423f30b66ac508efb468d64d52574335af8f4e0",
+        "combat/decision/R_Norm.ped": "a0c5c4dd72ba858b9e594d65962f540482b6e24304ca5dadb20a4500bb414ecb"
+      }
+    },
+    {
+      "case": "slot2-20261104-145846",
+      "checks": {
+        "runner_succeeded": true,
+        "survived_observation": true,
+        "prefs_unchanged": true,
+        "desktop_unchanged": true,
+        "checkpoint_loaded_inside_house": true,
+        "native_cycles_advance": true,
+        "save_restored": true,
+        "stock_script_restored": true,
+        "native_rig_fitted": true,
+        "native_world_floor": true,
+        "native_world_simulation_completed": true,
+        "no_nonfinite_simulation": true,
+        "physical_palette_applied": true,
+        "same_dll_bootstrap_ready": true,
+        "expected_first_run_status": true,
+        "native_combat_bank_accepted": true
+      },
+      "binary_sha256": {
+        "gta-sa.exe": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+        "dinput8.dll": "63b465dbc1bf9c5ab4e33c3ccad099d9edb702f2c51587ac8d4f196497396437",
+        "eax.dll": "b2da4f1e47ef8054c8390ead0b97d1fbb0c547245b79b8861cfa92ce9ef153fb",
+        "ogg.dll": "4a4f65427e016b3c5ae0d2517a69db5f1cdc7a43d2c0a7957e8da5d6f378f063",
+        "vorbis.dll": "fefda850b69e007fceba644483c7616bc07e9f177fc634fb74e114f0d15b0db0",
+        "vorbisFile.dll": "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f",
+        "SAStandalone.asi": "84995e52715f04d54012d6094e5894ac25e538e9fec66a7527ccc47f7856120c",
+        "SilentPatchSA.asi": "908e1d12e36ba809a8ce584be0bd29239349968259a5de593f9b0cc71dbb352b",
+        "SteamRuntimeProbe.asi": "16e30f3f6af0484e18efb30f97aed73377d7b22c16f8c66dcbf49b21f81613b2",
+        "sa_delirium_bootstrap.dll": "a679cd5c8528d5439a4d7017ba05d30b59775f5fcc7f2df69fc4a9c6e75be2e3"
+      },
+      "cache_sha256": {
+        "fred-build.txt": "cf9d300315a91ce317ecc978339a9a1d08174e269fdbcd965a930545ecacc171",
+        "fred.xrt": "508e1deb34413c115a48ed118f86e3cf9544f3001ac310b0cb84eaf646c25c76",
+        "iv-program.bin": "4bb514b6935d1e647fd38ae495018ef26f86dd2fde24ff91515896653554b194",
+        "taskparams.txt": "7194df40e0ff109f449f261f9088b5a47995eccb312d3b75f5c93268b32661b5",
+        "combat/action_table.csv": "95371069174da92fd60b1142e0a9e68ab1a66c30b53830d09d035666fa6141ad",
+        "combat/manifest.json": "9588c53d06b8405bf513ef51b6867a7ff9ae052d931ae9bcc6f758d653ce4d85",
+        "combat/MeleeAnims.dat": "56b144b4f9a4122c2bed0597c5c86debc676ef97cfd78caad73c153b52896209",
+        "combat/melee_baseball_core.xad": "e861cdefcca8d332fee8cdc6e9283fac1c03bcc1475dff681fa219bf7f56d98b",
+        "combat/melee_baseball_extra.xad": "681adaaf49f63ced7cc9f6c4586a7aa3548e0e749a22692f310315d4596dfa7d",
+        "combat/melee_counters.xad": "b0022b7d11e5dc4ebe7f6ac3ff0e7332dcf37099b204dbeb6668296e46363caa",
+        "combat/melee_gang_unarmed.xad": "3327150fd96fc858efa1088955ec290e0cf2158c2782c0f6919bd88eb9c878ce",
+        "combat/melee_gun.xad": "1ffa727669470c260c783416baaa9b7280a183cd99032f5eec3740bb5cd2fb9c",
+        "combat/melee_hits_common.xad": "a4b18e760b99e7ce9c27e92f4988e5587324db1619e051f782c538e6fa9b10dc",
+        "combat/melee_knife_core.xad": "e8f7abe992884cc532d27b7cfaaa0bac7a4a702681667d8f9e145c621f6404de",
+        "combat/melee_knife_extra.xad": "f99b742de60010d77173c8a7cdf0fa31f26baacf2c0ed4846c5a9b2361bd3003",
+        "combat/melee_ped_unarmed.xad": "b09ebd356269162ce38cb9ad25ecc05a672a87314fc14a68ed8466ff447391fb",
+        "combat/melee_player_ground.xad": "6225fe5a3233b441c02040e7403ccf2484971fbed3d80c4ae2c17f9c875a25d3",
+        "combat/melee_player_unarmed.xad": "3050a6ba1b6eda94618ea145499edeeb80c3e3c0cba6f9f56d6ac89198b4c584",
+        "combat/melee_unarmed_base.xad": "87ce475a16435aca7eac0fca122583b4f3fc5693ee55438e6772e6f56af90b52",
+        "combat/move_combat_strafe.xad": "83edd867ecdab99e163f87d248d8fe15e23621f5e43e7b2c8335027643627956",
+        "combat/move_crouch.xad": "2e0d22efa80373442738971d3820870862350966a9d903aff7c3b2c8de5f9e7f",
+        "combat/move_melee.xad": "7a68184fadae7bda908082d9957836934ec350266e577cf374b34ae867a785fa",
+        "combat/move_player.xad": "993a54eb35984a4bbd2af6f80acd433decde50fb70bd41b8f638e8e31988fe16",
+        "combat/ped.xad": "6c8b12bcadb365d4401c740e80af3e8bac2cefe3600986285c45e93a3890f1bf",
+        "combat/pedpersonality.dat": "5d76d85f0c32ad7256431b1ac4a3c99fd13025660e0b82b7e3858b7f4751da86",
+        "combat/sa-contact-ranges.json": "7c46651aa4c131086a1b59d2b36a8cdd710e227ff5f90dabc12d3eebd74f2a26",
+        "combat/sa-gym-clips.json": "266dce938747adae3cfa17cce1ce8fe1a9523082bf54866098544d996c2f216e",
+        "combat/skeleton.json": "a17479150b0ab9e3c4b8b37aa8cb3330c17f2439e3ace40ef3754e4d69cf106a",
+        "combat/decision/m_empty.ped": "3c43b70aa71be7e49fa71439fef17c4c6bb7541996838caecd2b55b210d09b43",
+        "combat/decision/M_NO_NO.cmb": "61e4ed01cb52694f1a8e19d29423f30b66ac508efb468d64d52574335af8f4e0",
+        "combat/decision/R_Norm.ped": "a0c5c4dd72ba858b9e594d65962f540482b6e24304ca5dadb20a4500bb414ecb"
+      }
+    }
+  ],
+  "geometry_views": {
+    "passed": true,
+    "independent_x86_layout_measurements": 20,
+    "layouts": {
+      "sdk": {
+        "RwObject": 8,
+        "RwObject.parent": 4,
+        "RwMatrix": 64,
+        "RwFrame.modelling": 16,
+        "RwFrame.ltm": 80,
+        "RwFrame.root": 160,
+        "RpAtomic": 112,
+        "RpAtomic.geometry": 24,
+        "RpAtomic.object.parent": 4,
+        "RpGeometry": 96,
+        "RpGeometry.numTriangles": 16,
+        "RpGeometry.numVertices": 20,
+        "RpGeometry.numMorphTargets": 24,
+        "RpGeometry.triangles": 44,
+        "RpGeometry.morphTarget": 92,
+        "RpMorphTarget": 28,
+        "RpMorphTarget.verts": 20,
+        "RpTriangle": 8,
+        "RpTriangle.vertIndex": 0,
+        "RpClump.object.parent": 4
+      },
+      "own": {
+        "RwObject": 8,
+        "RwObject.parent": 4,
+        "RwMatrix": 64,
+        "RwFrame.modelling": 16,
+        "RwFrame.ltm": 80,
+        "RwFrame.root": 160,
+        "RpAtomic": 112,
+        "RpAtomic.geometry": 24,
+        "RpAtomic.object.parent": 4,
+        "RpGeometry": 96,
+        "RpGeometry.numTriangles": 16,
+        "RpGeometry.numVertices": 20,
+        "RpGeometry.numMorphTargets": 24,
+        "RpGeometry.triangles": 44,
+        "RpGeometry.morphTarget": 92,
+        "RpMorphTarget": 28,
+        "RpMorphTarget.verts": 20,
+        "RpTriangle": 8,
+        "RpTriangle.vertIndex": 0,
+        "RpClump.object.parent": 4
+      }
+    },
+    "own_header_sha256": "4eb3b4b93729b78775bbcaf3adf6f76b5ed86df78a48ea95e933ffaac984ea3c",
+    "sdk_headers_sha256": {
+      "rwcore.h": "a6f302e0dabe3e6e9a57436419b8b44cd876577e749aff9c036b92305277f993",
+      "rpworld.h": "5735612b53dddfaf0265a249696558c03e77fb46cb4b266fe64e6d6f7b7733f8",
+      "rwplcore.h": "6cb85e85a74bb865e4629adfe601041b44457efd5fdd48300804e27cac9035e6"
+    }
+  },
+  "controller_oracle": {
+    "status": "isolated_x86_oracle_no_runtime_changes",
+    "samples_per_query": 480,
+    "cases": [
+      {
+        "name": "WalkLeftRight",
+        "legacy_va": "0x53fc90",
+        "samples": 480,
+        "mask": "0xffff",
+        "matches": [
+          "0x550650"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "WalkUpDown",
+        "legacy_va": "0x53fd30",
+        "samples": 480,
+        "mask": "0xffff",
+        "matches": [
+          "0x550590",
+          "0x550700"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "ExitVehicle",
+        "legacy_va": "0x5400d0",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x550ae0"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "ExitVehicleJustDown",
+        "legacy_va": "0x540120",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x550b30"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "MeleeAttack",
+        "legacy_va": "0x540340",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x550d60"
+        ],
+        "stack_cleanup": [
+          8
+        ],
+        "unavailable_candidates": [
+          "0x550b90",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "Target",
+        "legacy_va": "0x540670",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x5510a0"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "Jump",
+        "legacy_va": "0x540750",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x551180"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "JumpJustDown",
+        "legacy_va": "0x540770",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x5511a0"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "Sprint",
+        "legacy_va": "0x5407a0",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x5511d0"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      },
+      {
+        "name": "SprintJustDown",
+        "legacy_va": "0x5407f0",
+        "samples": 480,
+        "mask": "0xff",
+        "matches": [
+          "0x551220"
+        ],
+        "stack_cleanup": [
+          4
+        ],
+        "unavailable_candidates": [
+          "0x550550",
+          "0x551380",
+          "0x5513b0",
+          "0x5513e0",
+          "0x551410"
+        ],
+        "status": "candidates_need_static_review"
+      }
+    ],
+    "seconds": 0.375,
+    "owned_exe_sha256": {
+      "development": "f01a00ce950fa40ca1ed59df0e789848c6edcf6405456274965885d0929343ac",
+      "steam": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb"
+    },
+    "limits": [
+      "Samples do not prove unobserved global-input dependencies",
+      "Statically review matched native queries before enabling bindings",
+      "No physical controller, game or desktop input was exercised"
+    ]
+  },
+  "limits": [
+    "Native damage/AI/recovery/vehicle gameplay adapter remains incomplete",
+    "The native cases are controlled translated solver/render fixtures, not gameplay ownership",
+    "First-ever offline setup without an XEX-key cache remains unresolved",
+    "No new RAR or public release was generated",
+    "Original development/actual Steam binaries were not changed"
+  ]
+}

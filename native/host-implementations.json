@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "implementations": {
+    "0x446f90": {
+      "symbol": "CEntity::UpdateRwMatrix",
+      "function": "sa_steam_glue::updateRwMatrix",
+      "source": "HostEntityTransform.cpp",
+      "dependencies": ["0x59ad70", "0x54ef40"],
+      "reason": "Steam inlines this host boundary. Its real CWorld::Add chooses native CMatrix or CSimpleTransform using the entity's actual matrix pointer and frame.",
+      "gameplay_accepted": false
+    }
+  }
+}

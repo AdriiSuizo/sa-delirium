@@ -1,0 +1,1566 @@
+{
+  "status": "reviewed_subset_not_a_complete_runtime_map",
+  "version": 1,
+  "development_exe_sha256": "f01a00ce950fa40ca1ed59df0e789848c6edcf6405456274965885d0929343ac",
+  "steam_exe_sha256": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+  "bindings": [
+    {
+      "legacy_va": "0x53bee0",
+      "steam_va": "0x54bc50",
+      "symbol": "CGame::Process",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1c0673cda2513aff39893124ae0eb5884f47a44ff7543e443640ae1809c2c840"
+    },
+    {
+      "legacy_va": "0x5e8a20",
+      "steam_va": "0x604f20",
+      "symbol": "CPed::PreRender",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "00997c734a510e2c34454f5a1b6675dbabece1c009dcb1c070258119a1ee5d60"
+    },
+    {
+      "legacy_va": "0x734a40",
+      "steam_va": "0x761890",
+      "symbol": "GetAnimHierarchyFromClump",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "638e7478055380a2aa5057d6c93ca0bd53b42ea19833cb0a2852e8b29d7505d7"
+    },
+    {
+      "legacy_va": "0x749b70",
+      "steam_va": "0x77e360",
+      "symbol": "RpClumpForAllAtomics",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "69a137cbc280b97017c591b41f6926a0c5cba2ea5019cb4ce22140a1267087eb"
+    },
+    {
+      "legacy_va": "0x7c7550",
+      "steam_va": "0x7fbd60",
+      "symbol": "RpSkinGeometryGetSkin",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "615c9fadef3542fbaf8f2c196700c70083ae674eaa32246647dae48cc8bd1485"
+    },
+    {
+      "legacy_va": "0x7c77e0",
+      "steam_va": "0x7fbff0",
+      "symbol": "RpSkinGetNumBones",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "70d1bff2376999b64365e947e0c0a8bab942f981962111fc8728487516761fc8"
+    },
+    {
+      "legacy_va": "0x7c77f0",
+      "steam_va": "0x7fc000",
+      "symbol": "RpSkinGetVertexBoneWeights",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "5d6a179d04cad04f9d65b4b2e882a981702f9131aa395ae5c29a8f41bc8e6496"
+    },
+    {
+      "legacy_va": "0x7c7800",
+      "steam_va": "0x7fc010",
+      "symbol": "RpSkinGetVertexBoneIndices",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "3af7d46c8852b65c9bcac45b6529d824031185cf13bc77f39e94e75b7c1bdf63"
+    },
+    {
+      "legacy_va": "0x7c7810",
+      "steam_va": "0x7fc020",
+      "symbol": "RpSkinGetSkinToBoneMatrices",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "0afd0315995a4e5b77d2aa5064eaeae2e10b32190995680e0e98aa9b1bc33d39"
+    },
+    {
+      "legacy_va": "0x7c7540",
+      "steam_va": "0x7fbd50",
+      "symbol": "RpSkinAtomicGetHAnimHierarchy",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "8fcbd2140fc227fd480ea1633589032d73224ae147ac0922617f3d226c4c3b70"
+    },
+    {
+      "legacy_va": "0x568b80",
+      "steam_va": "0x581ea0",
+      "symbol": "CWorld::FindObjectsIntersectingCube",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ae0eca51f2d71df740ca1673a4ea1fb351a388a02a4b3c0701d0458ccc5c6284"
+    },
+    {
+      "legacy_va": "0x535300",
+      "steam_va": "0x545010",
+      "symbol": "CEntity::GetColModel",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ff05564d5a6a43ef8c15af17b0f8e364c61769da0a7b56c4d5008ffa15e46c82"
+    },
+    {
+      "legacy_va": "0x54ef40",
+      "steam_va": "0x560070",
+      "symbol": "CSimpleTransform::UpdateRwMatrix",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "cb197e9160401ae5b6c0b1d17011a1f413e9365fa9e51feae7a2260aaaf54fed"
+    },
+    {
+      "legacy_va": "0x40f5e0",
+      "steam_va": "0x41a380",
+      "symbol": "CCollisionData::GetVertex",
+      "kind": "function",
+      "review": "Exercised in native Steam slot2-20261104-072238 and 072445; scoped rig/world/solver fixture, not gameplay ownership",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "9081bd490e4f9b98f65c7da01f1619c3880dbc44a9aff04aa1e81b68e1843af7"
+    },
+    {
+      "legacy_va": "0xb74490",
+      "steam_va": "0xc018a8",
+      "symbol": "CPools::ms_pPedPool",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb7cb5c",
+      "steam_va": "0xc0fd50",
+      "symbol": "CTimer::ms_fTimeStep",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb7cb4c",
+      "steam_va": "0xc0fd40",
+      "symbol": "CTimer::m_FrameCounter",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb7cb84",
+      "steam_va": "0xc0fd74",
+      "symbol": "CTimer::m_snTimeInMilliseconds",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb72914",
+      "steam_va": "0xbffbe4",
+      "symbol": "CGame::currArea",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xba6748",
+      "steam_va": "0xc33938",
+      "symbol": "FrontEndMenuManager",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xba67a4",
+      "steam_va": "0xc33994",
+      "symbol": "FrontEndMenuManager::m_bMenuActive",
+      "kind": "global",
+      "review": "Observed in the native checkpoint fixture and independently identified in native CTimer/menu/world paths",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x56e210",
+      "steam_va": "0x560ee0",
+      "symbol": "FindPlayerPed",
+      "kind": "function",
+      "review": "Native function reads C100D0, current-player byte C100BC, stride400; matches development helper; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "7ce88e9678ea2131521398fddcc01b036006e231e488a518683c70ef7c725e05"
+    },
+    {
+      "legacy_va": "0x56e090",
+      "steam_va": "0x560d60",
+      "symbol": "FindPlayerSpeed",
+      "kind": "function",
+      "review": "One cdecl player ID; same ped44/vehicle44 selection from ped46c bit8 and ped58c; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "7ce88e9678ea2131521398fddcc01b036006e231e488a518683c70ef7c725e05"
+    },
+    {
+      "legacy_va": "0x56e0d0",
+      "steam_va": "0x560da0",
+      "symbol": "FindPlayerVehicle",
+      "kind": "function",
+      "review": "Two cdecl inputs; same ped46C in-vehicle gate, remote-vehicle option and vehicle58C return. 560D60 is speed and must not be used as a vehicle pointer; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "7ce88e9678ea2131521398fddcc01b036006e231e488a518683c70ef7c725e05"
+    },
+    {
+      "legacy_va": "0x4b3a20",
+      "steam_va": "0x4bb5c0",
+      "symbol": "CEventDamage::ProcessDamage",
+      "kind": "function",
+      "review": "Same body-removal output and event24 direction; calls4B5460/60BE60; primary CEventDamage declaration; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "f37e383ed65e9944d19b7797022aac98a7a8f19539543b72c140d664422e8637"
+    },
+    {
+      "legacy_va": "0x4b5ac0",
+      "steam_va": "0x4bdb30",
+      "symbol": "CPedDamageResponseCalculator::ComputeDamageResponse",
+      "kind": "function",
+      "review": "Same response+10 calculated guard, zero/init fields and ComputeWillKillPed; primary calculator declaration; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x543490",
+      "steam_va": "0x5543a0",
+      "symbol": "CPhysical::AddCollisionRecord",
+      "kind": "function",
+      "review": "Same physical40/3c, alarm45c, countB9 and six BC collision peers; primary CPhysical declaration; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "9334c5408f0e6450ebb1eb961a676a73b5887dfa1e3c43bec8cd924b37239447"
+    },
+    {
+      "legacy_va": "0x73a530",
+      "steam_va": "0x76d6f0",
+      "symbol": "CWeapon::GenerateDamageEvent",
+      "kind": "function",
+      "review": "Same six cdecl inputs, calculator/event constructors and ped540/46c state; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "09709a169731cb42f58e06f10f63279f0d0501e972c17c59abd28b8db47cce1b"
+    },
+    {
+      "legacy_va": "0x5400d0",
+      "steam_va": "0x550ae0",
+      "symbol": "CPad::GetExitVehicle",
+      "kind": "function",
+      "review": "Same disabled10e/119 flags, controller mode10a, circle1e versus alternative8; primary CPad declaration; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x4aff60",
+      "steam_va": "0x4b7850",
+      "symbol": "CEventKnockOffBike::SetPedOutCar",
+      "kind": "function",
+      "review": "Same event38 vehicle, door37, vehicle460..46c occupants; native out-car constructor/processing/destructor sequence; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x5e1b10",
+      "steam_va": "0x5fd7b0",
+      "symbol": "CPed::UpdatePosition",
+      "kind": "function",
+      "review": "Same ped46c flag, taskmanager47c, heading558, support568 and locomotion550/554; native source comparison; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "6a273e177fb7613189077c4720e334905870c8a0379e76feb8d1505ab116e73f"
+    },
+    {
+      "legacy_va": "0x681c10",
+      "steam_va": "0x6ade70",
+      "symbol": "CTaskManager::ManageTasks",
+      "kind": "function",
+      "review": "Same five primary slots, six secondary14 slots and ped2c; native helpers inline SetNextSubTask; full lifecycle and virtual offsets agree; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1c0673cda2513aff39893124ae0eb5884f47a44ff7543e443640ae1809c2c840"
+    },
+    {
+      "legacy_va": "0x67fa80",
+      "steam_va": "0x6aba30",
+      "symbol": "CTaskSimpleGetUp::ProcessPed",
+      "kind": "function",
+      "review": "Unique task205 vtable, task9 done/C association; ped528/474/478 state and native start6A8370; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "31ce2259e28f82d69fbadd0e15d6cef4d5746098613327a80fa70ba29d3cb025"
+    },
+    {
+      "legacy_va": "0x67c0c0",
+      "steam_va": "0x6a7ca0",
+      "symbol": "CTaskSimpleGetUp::Clone",
+      "kind": "function",
+      "review": "Unique task205 vtable; alloc10, constructor vtable8BB5EC, state8 and C initialization; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "91e948523ca30984e767ca7f8cf3db5d3a7e53b5480f01f6cd37530da4ad01e3"
+    },
+    {
+      "legacy_va": "0x677fe0",
+      "steam_va": "0x6a3660",
+      "symbol": "CTaskSimpleGetUp::MakeAbortable",
+      "kind": "function",
+      "review": "Task205 vtable slot6, same priority2/1 handling, associationC and ped478 bit3; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "02d9917c68a859ef827d754bdb79ed3c7326e9f03eafb046c7b11e0e0af09602"
+    },
+    {
+      "legacy_va": "0x677f50",
+      "steam_va": "0x6a35d0",
+      "symbol": "CTaskSimpleGetUp::Constructor",
+      "kind": "function",
+      "review": "Same 10-byte task layout with state8 and associationC cleared, native simple-task ctor639A10; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "65c4ecc4283b1d5ba18c5ea327e01c78d7da90fc60cf7d1a4af401452b3f9991"
+    },
+    {
+      "legacy_va": "0x629920",
+      "steam_va": "0x64ab10",
+      "symbol": "CTaskSimpleFight::ProcessPed",
+      "kind": "function",
+      "review": "Unique task1016 vtable and ProcessPed slot; same task8 abort,20/24 associations and native blend/delete paths; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "feacbb04aa490e529c6332b0ab536d7929953397dbea0d29fabc8ba16ef945bf"
+    },
+    {
+      "legacy_va": "0x64dd60",
+      "steam_va": "0x6743e0",
+      "symbol": "CTaskSimpleCarJumpOut::ProcessPed",
+      "kind": "function",
+      "review": "Unique task814 vtable and ProcessPed slot; same vehicle10, animationC and door8 state; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x4b0020",
+      "steam_va": "0x4b7910",
+      "symbol": "CEventKnockOffBike::CalcForcesAndAnims",
+      "kind": "function",
+      "review": "Same thiscall one ped parameter; eventC velocity, type36, vehicle38, mass8C and bike804/car960 state; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ba6a488256f0eabc1a31758ece43f0b1acfb0b904160aa37eda80055f7bb5b25"
+    },
+    {
+      "legacy_va": "0x4b4ac0",
+      "steam_va": "0x4bc750",
+      "symbol": "CEventKnockOffBike::SetPedSafePosition",
+      "kind": "function",
+      "review": "Same one-ped thiscall; event38 vehicle, bike590 discriminator, wheel648 and contact cleanup; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ae0eca51f2d71df740ca1673a4ea1fb351a388a02a4b3c0701d0458ccc5c6284"
+    },
+    {
+      "legacy_va": "0x4b3a60",
+      "steam_va": "0x4bb600",
+      "symbol": "CEventDamage::ComputeDeathAnim",
+      "kind": "function",
+      "review": "Same ped/bool thiscall; event28/2C/30/34 outputs, ped46C vehicle bit, task abort slot18; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "d50d145c4d3b3f294d64ffffdb6435de83e391033847634547190c3a693c713e"
+    },
+    {
+      "legacy_va": "0x4b3fc0",
+      "steam_va": "0x4bbb40",
+      "symbol": "CEventDamage::ComputeDamageAnim",
+      "kind": "function",
+      "review": "Same ped/bool thiscall, event1C weapon and2C output; ped478 knockdown gates and native weapon/task dispatch; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "6a273e177fb7613189077c4720e334905870c8a0379e76feb8d1505ab116e73f"
+    },
+    {
+      "legacy_va": "0x4c0170",
+      "steam_va": "0x4c95e0",
+      "symbol": "CEventHandler::ComputeDamageResponse",
+      "kind": "function",
+      "review": "Four stack arguments per primary EventHandler declaration and native RET16; fourth is abortedTaskEventResponse and unused by this native body; distinct from ProcessDamage; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x542b50",
+      "steam_va": "0x553b20",
+      "symbol": "CPhysical::ApplyForce",
+      "kind": "function",
+      "review": "Same six scalar floats and update-turn bool; mass8C/90, physical40 flags and world44/50 velocity writes; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "2507b05909af6898c3368d3a9d108bad002750a5d4cf11dce47ad474604582f4"
+    },
+    {
+      "legacy_va": "0x5435c0",
+      "steam_va": "0x5544e0",
+      "symbol": "CPhysical::ApplyCollision(single intensity)",
+      "kind": "function",
+      "review": "Same entity/ColPoint/intensity thiscall; ColPoint normal10, mass8C/90 and ApplyForce path; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "f9e36612a4dcbbd972177a723a75b420136661539e4102aa89b4628f7172228f"
+    },
+    {
+      "legacy_va": "0x543890",
+      "steam_va": "0x5547c0",
+      "symbol": "CPhysical::ApplySoftCollision(single intensity)",
+      "kind": "function",
+      "review": "Same entity/ColPoint/intensity thiscall; delegates hard collision for soft-branch exclusions; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "f9e36612a4dcbbd972177a723a75b420136661539e4102aa89b4628f7172228f"
+    },
+    {
+      "legacy_va": "0x544d50",
+      "steam_va": "0x555cd0",
+      "symbol": "CPhysical::ApplyCollisionAlt",
+      "kind": "function",
+      "review": "Same five stack arguments, physical pair and normals/intensities; distinct from four-argument pair overload; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "7edf969d9078adcb148b01ca27bf55dd97dc91194e0e93141e2df8f5f652531d"
+    },
+    {
+      "legacy_va": "0x548680",
+      "steam_va": "0x559700",
+      "symbol": "CPhysical::ApplyCollision(pair intensities)",
+      "kind": "function",
+      "review": "Same four stack arguments, physical pair flags/support, calls hard single-intensity5544E0; 55B230 is the soft overload; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "2779b7dff6ce48275813c0dde55bbca03ac42abeda0a5956dc9113f471634dfb"
+    },
+    {
+      "legacy_va": "0x543d60",
+      "steam_va": "0x554c70",
+      "symbol": "CPhysical::ApplySpringCollisionAlt",
+      "kind": "function",
+      "review": "Same seven stack arguments, explicit normal and damping output; mass8C and ApplyForce; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1b520c70f66354fc061a1fc41ca86d309621eae8a117a041c5255602721db24c"
+    },
+    {
+      "legacy_va": "0x543e90",
+      "steam_va": "0x554da0",
+      "symbol": "CPhysical::ApplySpringDampening",
+      "kind": "function",
+      "review": "Same five stack arguments, support-point speed, CTimer step and bounded spring force; not554C70; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "2507b05909af6898c3368d3a9d108bad002750a5d4cf11dce47ad474604582f4"
+    },
+    {
+      "legacy_va": "0x56ba00",
+      "steam_va": "0x584a90",
+      "symbol": "CWorld::ProcessLineOfSight",
+      "kind": "function",
+      "review": "Same twelve cdecl arguments, sector scan and 14-argument sector helper584640; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "0dd0581fed0af06cc739bd3e3543f2ce6d93af0aee028af6d7232f1bc80ef166"
+    },
+    {
+      "legacy_va": "0x56b790",
+      "steam_va": "0x5847d0",
+      "symbol": "CWorld::TriggerExplosion",
+      "kind": "function",
+      "review": "Same seven cdecl arguments and three sector lists through580A90; 584640 is LOS sector, not explosion; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1c0673cda2513aff39893124ae0eb5884f47a44ff7543e443640ae1809c2c840"
+    },
+    {
+      "legacy_va": "0x540770",
+      "steam_va": "0x5511a0",
+      "symbol": "CPad::JumpJustDown",
+      "kind": "function",
+      "review": "Same disabled10E/11E and current1C versus previous4C rising edge; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x61a5a0",
+      "steam_va": "0x639c00",
+      "symbol": "CTask::operator new",
+      "kind": "function",
+      "review": "Native clone6A7CA0 calls639C00(size10); native allocator loads task poolC018C0 then tailcalls639B80; not639A30 (complex-task ctor); statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "79b6fd44629aeb548c017eb3549496b5e7abf66ca703f1ade9c0306f27bfbd75"
+    },
+    {
+      "legacy_va": "0x53e920",
+      "steam_va": "0x54ecc0",
+      "symbol": "Idle",
+      "kind": "function",
+      "review": "Native caller54F0BD and scoped checkpoint loop; same zero/nonzero render argument controls Idle branches; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "6d5a40ec7367bb40475b8109f8aae6e0858a93c501cb75e89fcf4b88b17fd18b"
+    },
+    {
+      "legacy_va": "0x6bd090",
+      "steam_va": "0x6ebbd0",
+      "symbol": "CBike::PreRender",
+      "kind": "function",
+      "review": "Named CBike vtable slot17; corresponding wheel/frame nodes, matrices and component updates, no stack arguments; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ed6baef560f30dcdcb0ad9d07e6c82bf5b188135966cd43947234cebb31b2777"
+    },
+    {
+      "legacy_va": "0x6c0810",
+      "steam_va": "0x6ef610",
+      "symbol": "CBmx::PreRender",
+      "kind": "function",
+      "review": "Named CBmx vtable slot17; corresponding pedal/wheel component phase and native CBike inheritance; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "f16e7a9f26087fbc2ba957269eaa2f95669746bb43e5bf912a927b6daf42ef31"
+    },
+    {
+      "legacy_va": "0x553910",
+      "steam_va": "0x569980",
+      "symbol": "CRenderer::PreRender",
+      "kind": "function",
+      "review": "Same six native entity/alpha lists, virtual PreRender slot44, SpecialHeliPreRender then RenderExtraPlayerShadows; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1cde7d9e780f1452efe6b2e9347243167ba2c2343444d1eef669f8e692f3212a"
+    },
+    {
+      "legacy_va": "0x6c4750",
+      "steam_va": "0x6f9070",
+      "symbol": "CHeli::SpecialHeliPreRender",
+      "kind": "function",
+      "review": "Empty native function identified by its call569A6E immediately before shadows747730 inside renderer569980; many unrelated RET stubs must not be matched by prefix alone; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "04f3b41f4424d43c6753e9c8e995b1f6ba5cba816fdbb4bb612964aa9fc301e5"
+    },
+    {
+      "legacy_va": "0x707fa0",
+      "steam_va": "0x747730",
+      "symbol": "CShadows::RenderExtraPlayerShadows",
+      "kind": "function",
+      "review": "Same native player-shadow body, immediately follows special-heli call in corresponding renderer; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ebc6009def47d1fbb22724f89854f6bc310debcb1c025cb6f697312af93b4ed7"
+    },
+    {
+      "legacy_va": "0x4087e0",
+      "steam_va": "0x408b00",
+      "symbol": "CStreaming::RequestModel",
+      "kind": "function",
+      "review": "Primary CStreaming two cdecl inputs; mapped callers and native streaming/model-state paths agree; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "d007a492869012ca007adb40507db0c0b35709e387c54c774d963c2c09a0d66f"
+    },
+    {
+      "legacy_va": "0x41bd90",
+      "steam_va": "0x41cc40",
+      "symbol": "CGeneral::GetRandomNumberInRange(float)",
+      "kind": "function",
+      "review": "Primary cdecl float,float ABI, CRT random draw and same interpolation; inferred ECX parameter in decompiler is not an argument; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "f2118a747869fe32e638b6793fa6e32dcc90e4efb92ab496a3f15fa17eb51d8a"
+    },
+    {
+      "legacy_va": "0x43e0c0",
+      "steam_va": "0x440a80",
+      "symbol": "CPlaceable::SetHeading",
+      "kind": "function",
+      "review": "Native matrix14 selects CMatrix heading setter, otherwise writes placement10; one float thiscall input; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1ec5f74b6e414d31f0962181c082cc03754c7163e0b5c333998d289b19627166"
+    },
+    {
+      "legacy_va": "0x464d50",
+      "steam_va": "0x469de0",
+      "symbol": "CTheScripts::IsPlayerOnAMission",
+      "kind": "function",
+      "review": "Actual on-mission script offsetABF01C indexes AC12D0 and checks value1; distinct from bAlreadyRunningAMissionScript; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "3127d5dc4223a5fa061e15b1d103bf2fe8081ea7bba7bdc4b8f60a6ec9d501a6"
+    },
+    {
+      "legacy_va": "0x4ab420",
+      "steam_va": "0x4b2b30",
+      "symbol": "CEventGroup::Add",
+      "kind": "function",
+      "review": "Same event/valid-bool inputs RET8, group ped+4, native event validity/type/response dispatch; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "97e45e17eb52ad4e34524c50656dc2f3ef4db589153a915a9047758e7fd98061"
+    },
+    {
+      "legacy_va": "0x4b35a0",
+      "steam_va": "0x4bb140",
+      "symbol": "CEventDamage::AffectsPed",
+      "kind": "function",
+      "review": "Named event vtable slot5, RET4, same response42/43 and actor/player/vehicle/task gates; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1882e45e270a0ebdc0f5bf049ed2e8120f39e069a18eae50b876e87f894a47f9"
+    },
+    {
+      "legacy_va": "0x4cebe0",
+      "steam_va": "0x4d8e10",
+      "symbol": "CAnimBlendAssociation::SetDeleteCallback",
+      "kind": "function",
+      "review": "Same callback type30=1, callback34 and user38; thiscall RET8; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "a2dedd43c0f7f76ac97a404dff5ae60fc941ab62e0079f377a00ef2fe31f73f5"
+    },
+    {
+      "legacy_va": "0x4d4610",
+      "steam_va": "0x4de870",
+      "symbol": "CAnimManager::BlendAnimation",
+      "kind": "function",
+      "review": "Four cdecl inputs, native clump animation link/plugin field, group/anim indices and blend filtering; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "54069bf64b690a23e793f3c93b98e6f063eb51e69eb36fcff6da6645a6661272"
+    },
+    {
+      "legacy_va": "0x4d68b0",
+      "steam_va": "0x4e07c0",
+      "symbol": "RpAnimBlendClumpGetAssociation",
+      "kind": "function",
+      "review": "Two cdecl inputs; native plugin offsetBD6F4C, linked list and association short index2C; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "a2dedd43c0f7f76ac97a404dff5ae60fc941ab62e0079f377a00ef2fe31f73f5"
+    },
+    {
+      "legacy_va": "0x52b730",
+      "steam_va": "0x5397c0",
+      "symbol": "CCamera::Process",
+      "kind": "function",
+      "review": "Named CCamera virtual slot and existing native camera plugin path; no stack arguments; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "2629b07d0b2400a30fd2e3f82795c8fa7c65bc7cea627be5a828fbeb73ba60af"
+    },
+    {
+      "legacy_va": "0x532b00",
+      "steam_va": "0x542460",
+      "symbol": "CEntity::UpdateRwFrame",
+      "kind": "function",
+      "review": "Entity18 RW object, object4 parent frame, native RwFrameUpdateObjects825120; not HAnim updater; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e6424108d0bbd20b9576c69c896bf5928b01a8f1b2b46c80882df11491f3dd19"
+    },
+    {
+      "legacy_va": "0x532b20",
+      "steam_va": "0x542480",
+      "symbol": "CEntity::UpdateRpHAnim",
+      "kind": "function",
+      "review": "Native skin/hierarchy getters and entity1C bit23 gate before7F99D0 update; not UpdateRwFrame; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "365cc6359af218347a2a7f59146cbab06cb8485f263b01fa117ff71f4695b966"
+    },
+    {
+      "legacy_va": "0x53f3c0",
+      "steam_va": "0x54fe60",
+      "symbol": "CPad::UpdateMouse",
+      "kind": "function",
+      "review": "Native mouse-state update intoC007A4, seven button bytes and float deltas; no stack arguments; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "c4cb72722068d6063211f021db9079d627b535c0118ae9bdfe6448df8dc865a3"
+    },
+    {
+      "legacy_va": "0x53fb70",
+      "steam_va": "0x550530",
+      "symbol": "CPad::GetPad",
+      "kind": "function",
+      "review": "Native C007E8 plus input-index times134 bytes, same CPad size308 and cdecl integer input; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "07ef74e1b2c053c967393c5f3d9a7bd7c844c5c26690560f0e2a2c6a9ecede78"
+    },
+    {
+      "legacy_va": "0x542560",
+      "steam_va": "0x553530",
+      "symbol": "CPhysical::RemoveAndAdd",
+      "kind": "function",
+      "review": "Primary CPhysical declaration; same sector-list reinsertion, bound rectangle and native entity flags; distinct from ProcessControl5485E0; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ebb05812830d50f200c0035ee33e748f97eb7944cfb91457f2f803323303eb6a"
+    },
+    {
+      "legacy_va": "0x542ce0",
+      "steam_va": "0x553ca0",
+      "symbol": "CPhysical::GetSpeed",
+      "kind": "function",
+      "review": "Output vector plus xyz point, thiscall RET16; subtract rotated mass centre and add angular/linear point velocity; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "3935ff04f0085db092129c74388f2e1acb8a99a67c605632ebe4ff7737a1fb32"
+    },
+    {
+      "legacy_va": "0x563220",
+      "steam_va": "0x57c410",
+      "symbol": "CWorld::Add",
+      "kind": "function",
+      "review": "Same cdecl entity input, native matrix/simple-transform synchronization, UpdateRwFrame and sector-list insertion; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "4a69b87d925e9bfe523b9e7c9d6da14beac2e6f1ec5441c8775897ab49eb1b45"
+    },
+    {
+      "legacy_va": "0x563280",
+      "steam_va": "0x57c480",
+      "symbol": "CWorld::Remove",
+      "kind": "function",
+      "review": "Same cdecl entity input, native remove virtual slotC and physical entity-type sector removal; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "4a69b87d925e9bfe523b9e7c9d6da14beac2e6f1ec5441c8775897ab49eb1b45"
+    },
+    {
+      "legacy_va": "0x571a00",
+      "steam_va": "0x568cf0",
+      "symbol": "CEntity::CleanUpOldReference",
+      "kind": "function",
+      "review": "Same thiscall reference-pointer input RET4, linked references at24 and native free-reference listC07778; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e480c3dc92d6811fa28a151569ae36a645c733b8caea51ace90766062374517f"
+    },
+    {
+      "legacy_va": "0x5dec00",
+      "steam_va": "0x5faca0",
+      "symbol": "CPed::SetMoveState",
+      "kind": "function",
+      "review": "One stack argument RET4; native writes ped534 only; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "24dfbd0f19605bfe3ed3ac3625f08e8286cdb4f958b36036dd2a1277a29be429"
+    },
+    {
+      "legacy_va": "0x5e2530",
+      "steam_va": "0x5fe210",
+      "symbol": "CPed::ProcessEntityCollision",
+      "kind": "function",
+      "review": "Named CPed virtual collision slot, entity/ColPoint array and RET8; native ped/CPhysical contacts retain authority; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "2552ec05ce5d55e2cdba3f8ac80f14bd93f0ca2d924dcdf54cc208f59304c375"
+    },
+    {
+      "legacy_va": "0x62f310",
+      "steam_va": "0x651550",
+      "symbol": "CTaskSimpleStandStill::Constructor",
+      "kind": "function",
+      "review": "Native stand-still vtable, task8 duration, C/10/14 state and18/19 flags; four stack inputs RET16; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "c8550aabb9d4f156f48e274e5592b81c96c7f0129a6d4cc726557d70adb9c259"
+    },
+    {
+      "legacy_va": "0x6302d0",
+      "steam_va": "0x6525d0",
+      "symbol": "CTaskComplexDie::CreateFirstSubTask",
+      "kind": "function",
+      "review": "Named die-task virtual slot; one ped RET4, same event/vehicle test and child task construction; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x681720",
+      "steam_va": "0x6ad8d0",
+      "symbol": "CTaskManager::GetActiveTask",
+      "kind": "function",
+      "review": "Returns first non-null of five primary task pointers; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "5e20dcdc8e5fd54d35425ef93eae5ea64cb2282a3dda36ddbff9d527a5c4ce69"
+    },
+    {
+      "legacy_va": "0x6819d0",
+      "steam_va": "0x6adb90",
+      "symbol": "CTaskManager::GetSimplestActiveTask",
+      "kind": "function",
+      "review": "Five primary slots followed by repeated GetSubTask slot8 to leaf; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "5e20dcdc8e5fd54d35425ef93eae5ea64cb2282a3dda36ddbff9d527a5c4ce69"
+    },
+    {
+      "legacy_va": "0x681af0",
+      "steam_va": "0x6add10",
+      "symbol": "CTaskManager::SetTask",
+      "kind": "function",
+      "review": "Primary slot ownership/deletion and child lifecycle; RET12 preserves third input even though unused in native body; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "d007a492869012ca007adb40507db0c0b35709e387c54c774d963c2c09a0d66f"
+    },
+    {
+      "legacy_va": "0x681b60",
+      "steam_va": "0x6adda0",
+      "symbol": "CTaskManager::SetTaskSecondary",
+      "kind": "function",
+      "review": "Secondary table offset14, prior-task deletion and child validation; RET8; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "d007a492869012ca007adb40507db0c0b35709e387c54c774d963c2c09a0d66f"
+    },
+    {
+      "legacy_va": "0x6afb10",
+      "steam_va": "0x6de250",
+      "symbol": "CAutomobile::ProcessSuspension",
+      "kind": "function",
+      "review": "Named vehicle suspension vtable slot70 and existing native suspension plugin path, RET0; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "d97ccdef5af31aceea3d41eeb567024ab4a6e42f3b5d43480ad34e1578071e9e"
+    },
+    {
+      "legacy_va": "0x743c60",
+      "steam_va": "0x7771e0",
+      "symbol": "CWeaponInfo::GetWeaponInfo",
+      "kind": "function",
+      "review": "Native weapon/skill bounds and weapon-info table return; two cdecl inputs; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "7e02be0021ecb5c1d3eda703aa14dafc8ee70847f46f16a2c0930f6bf7f0cedf"
+    },
+    {
+      "legacy_va": "0x7f0910",
+      "steam_va": "0x825120",
+      "symbol": "RwFrameUpdateObjects",
+      "kind": "function",
+      "review": "Frame rootA0 dirty flags and root-list links8/C; cdecl frame pointer, no stack cleanup; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "84bec4688af3ff17ee6d508b3b702447910f2baaf727fe5d8e72aac3113cc4de"
+    },
+    {
+      "legacy_va": "0x7f1200",
+      "steam_va": "0x825a10",
+      "symbol": "RwFrameForAllObjects",
+      "kind": "function",
+      "review": "Native frame object list90, saved-next callback traversal and stop on null callback result; cdecl frame/callback/userdata; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "69a137cbc280b97017c591b41f6926a0c5cba2ea5019cb4ce22140a1267087eb"
+    },
+    {
+      "legacy_va": "0x59ad70",
+      "steam_va": "0x5b11d0",
+      "symbol": "CMatrix::UpdateRwMatrix",
+      "kind": "function",
+      "review": "Actual CWorld::Add native path57C410; copies four xyz vectors preserving padding then calls RwMatrixUpdate8260C0; thiscall output pointer; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "31a3b4b770b719e4600c0baf19b6c729db7f09ff40a8bb5b5b4f6686f428a73d"
+    },
+    {
+      "legacy_va": "0x53fc90",
+      "steam_va": "0x550650",
+      "symbol": "CPad::GetPedWalkLeftRight",
+      "kind": "function",
+      "review": "480 isolated x86 pad snapshots match result AX and stack; primary read of axis0, disable10E and controller modes; stateful550550 rejected; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x53fd30",
+      "steam_va": "0x550700",
+      "symbol": "CPad::GetPedWalkUpDown",
+      "kind": "function",
+      "review": "480 isolated x86 pad snapshots match AX and stack; primary read of axis2 and disabled/mode guards; steering getter550590 has equivalent query but different caller role; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x540120",
+      "steam_va": "0x550b30",
+      "symbol": "CPad::ExitVehicleJustDown",
+      "kind": "function",
+      "review": "480 isolated x86 snapshots match AL and stack; current1E versus previous4E, controller modes and keyboard helper in mode2; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x540340",
+      "steam_va": "0x550d60",
+      "symbol": "CPad::GetMeleeAttack",
+      "kind": "function",
+      "review": "480 isolated x86 snapshots and the bool input match AL/RET4; native circle22 and contextual cross20/square1C/triangle1E; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "0cf716e3efbd9c6624601ad6136a3a7ddbf7552c0438e12841e3fde8235baf37"
+    },
+    {
+      "legacy_va": "0x540670",
+      "steam_va": "0x5510a0",
+      "symbol": "CPad::GetTarget",
+      "kind": "function",
+      "review": "480 isolated x86 snapshots match AL and stack; right-shoulderC for modes0..2 and left-shoulder8 for mode3; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x540750",
+      "steam_va": "0x551180",
+      "symbol": "CPad::GetJump",
+      "kind": "function",
+      "review": "480 isolated x86 snapshots match AL and stack including disable-jump flag11E; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x5407a0",
+      "steam_va": "0x5511d0",
+      "symbol": "CPad::GetSprint",
+      "kind": "function",
+      "review": "480 isolated x86 snapshots match AL and stack; actual cross20 for modes0/1/3 and circle22 for mode2; 551510 rejected; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x5407f0",
+      "steam_va": "0x551220",
+      "symbol": "CPad::SprintJustDown",
+      "kind": "function",
+      "review": "480 isolated x86 snapshots match AL and stack; current-versus-previous cross/circle rising edges; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "e86e7fa619082cdd963213d9de372813903482530fd57ea1d8745795176d275c"
+    },
+    {
+      "legacy_va": "0x4d15e0",
+      "steam_va": "0x4dbc50",
+      "symbol": "RpAnimBlendClumpGetFirstAssociation",
+      "kind": "function",
+      "review": "Actual CEntity::UpdateAnim545CF0 checks this helper; pluginBD6F4C, initialized-clump guard4E0670 and head link minus4; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "a2dedd43c0f7f76ac97a404dff5ae60fc941ab62e0079f377a00ef2fe31f73f5"
+    },
+    {
+      "legacy_va": "0x4d6ab0",
+      "steam_va": "0x4e09e0",
+      "symbol": "RpAnimBlendGetNextAssociation",
+      "kind": "function",
+      "review": "One cdecl association pointer; returns link at+4 minus4 or null, preserving the native linked list; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "a2dedd43c0f7f76ac97a404dff5ae60fc941ab62e0079f377a00ef2fe31f73f5"
+    },
+    {
+      "legacy_va": "0x4d34f0",
+      "steam_va": "0x4dd630",
+      "symbol": "RpAnimBlendClumpUpdateAnimations",
+      "kind": "function",
+      "review": "Three cdecl inputs clump/dt/onScreen; actual two CEntity::UpdateAnim native calls and pluginBD6F4C association evaluation; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1e2a20602e2f5ebb9fe1f32c4e08b67d385254761fecc8093835b5861e7cae84"
+    },
+    {
+      "legacy_va": "0x4ceb70",
+      "steam_va": "0x4d8d90",
+      "symbol": "CAnimBlendAssociation::Start",
+      "kind": "function",
+      "review": "Native running bit2E bit0, then current-time setter4D8C70; float thiscall input; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "fef6def9042363e8b84bda0c9f35d4940878ff09c0bebf1e010769385bdc92d4"
+    },
+    {
+      "legacy_va": "0x535f00",
+      "steam_va": "0x545cf0",
+      "symbol": "CEntity::UpdateAnim",
+      "kind": "function",
+      "review": "Actual entity in ESI and common ped call545DAB; separate early decorative-object call545D50 is not a ped ownership path; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "da129a45446c833011be82b74f87c4367e46cbf353e0bd9e7c0a708991f0196d"
+    },
+    {
+      "legacy_va": "0x5df910",
+      "steam_va": "0x600090",
+      "symbol": "CPed::SetPedPositionInCar",
+      "kind": "function",
+      "review": "Unique corresponding 58C vehicle/558 heading/occupant460..46C fields, matrix composition and native6E5920 bike lean; also called by mapped SetPedSafePosition4BC750; 5FB660/5FBAD0 rejected; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x542fe0",
+      "steam_va": "0x553f70",
+      "symbol": "CPhysical::ApplyGravity",
+      "kind": "function",
+      "review": "Physical40 gravity/rotation flags, mass8C and CTimer step; unique native ProcessControl call5596E9; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "c4cb72722068d6063211f021db9079d627b535c0118ae9bdfe6448df8dc865a3"
+    },
+    {
+      "legacy_va": "0x54a2c0",
+      "steam_va": "0x55b230",
+      "symbol": "CPhysical::ApplySoftCollision(pair intensities)",
+      "kind": "function",
+      "review": "Four stack arguments, RET16 and source soft-pair branches; exactly four direct calls from corresponding sector-list function55C9D0; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "2779b7dff6ce48275813c0dde55bbca03ac42abeda0a5956dc9113f471634dfb"
+    },
+    {
+      "legacy_va": "0x54ba60",
+      "steam_va": "0x55c9d0",
+      "symbol": "CPhysical::ProcessCollisionSectorList",
+      "kind": "function",
+      "review": "Same four soft-pair call contexts and ordering as original54BA60; used only to establish precise call-site ownership; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x5ded10",
+      "steam_va": "0x5fadb0",
+      "symbol": "CPed::StopNonPartialAnims",
+      "kind": "function",
+      "review": "Native clump18 association traversal and non-partial blend-out path; no stack arguments; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "c1609f1a85fa1a02f44d07f6c270e0947dda1a8f6785dba0d091113f540d5483"
+    },
+    {
+      "legacy_va": "0x5e4280",
+      "steam_va": "0x600510",
+      "symbol": "CPed::GetBonePosition",
+      "kind": "function",
+      "review": "Output vector/bone/update thiscall, native flag474 bit10, HAnim tags and bone matrix translation30; RET12; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "af6bfd54939f81f40567157ff99966f880e9e043a1f182bf483fae0e40fb7f4c"
+    },
+    {
+      "legacy_va": "0x5e5320",
+      "steam_va": "0x6016a0",
+      "symbol": "CPed::ClearAll",
+      "kind": "function",
+      "review": "Native protected-state tests530 and flags46C before movement/state534 and target128 cleanup; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "4fc7766279b31c6ce5a27c33e632675ba5fab4a590e25580bad6c8d9e80ea21d"
+    },
+    {
+      "legacy_va": "0x616a40",
+      "steam_va": "0x624b60",
+      "symbol": "Get-up blocking-vehicle query",
+      "kind": "function",
+      "review": "Same cdecl ped input; native GetUpStart6A8370 calls it; actual world sphere5831A0 and COL overlap query returns blocking vehicle; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "31ce2259e28f82d69fbadd0e15d6cef4d5746098613327a80fa70ba29d3cb025"
+    },
+    {
+      "legacy_va": "0x678700",
+      "steam_va": "0x6a3e40",
+      "symbol": "CTaskComplexFallAndGetUp::Constructor2",
+      "kind": "function",
+      "review": "Two stack arguments, direction0..3 selects fall animation18..1B, group10 and down-time14; named native task vtable; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "c8550aabb9d4f156f48e274e5592b81c96c7f0129a6d4cc726557d70adb9c259"
+    },
+    {
+      "legacy_va": "0x6787d0",
+      "steam_va": "0x6a3f10",
+      "symbol": "CTaskComplexFallAndGetUp::IsFalling",
+      "kind": "function",
+      "review": "Same subtask8 and GetTaskType slot10 equals207 check; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "8ff1d6a31f844fed2c10af4b1d18dea9088d4a3480ae4ae5f05a33d871673bb8"
+    },
+    {
+      "legacy_va": "0x65c430",
+      "steam_va": "0x6842c0",
+      "symbol": "CTaskComplexSmartFleeEntity::Constructor",
+      "kind": "function",
+      "review": "Named native smart-flee vtable and entityC reference registration; same six inputs, target/range/time and flee flags; statically reviewed, not yet called by the full Steam gameplay adapter",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ea88b96393a54413b4e2c8f5a77a17ef46fb1a1bc1478b117ddf87e687e2a888"
+    },
+    {
+      "legacy_va": "0x40ea10",
+      "steam_va": "0x40fc00",
+      "symbol": "CStreaming::LoadAllRequestedModels",
+      "kind": "function",
+      "review": "One cdecl bool, native streaming-lock9DD100, dual channel load-state processing and requested-list termination; preserves actual synchronous model loading; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ac6548b8933d664287719bc5f87a6049a05a6eedac19ef2ba668ccffd9c39bbe"
+    },
+    {
+      "legacy_va": "0x612710",
+      "steam_va": "0x6301e0",
+      "symbol": "CPopulation::AddPed",
+      "kind": "function",
+      "review": "Four cdecl inputs type/model/position/wander, native civilian/cop factory, pool7C4 and position/heading/world insertion. Fixture helper only; not used to replace ambient gameplay actors; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x4a21d0",
+      "steam_va": "0x4a8a50",
+      "symbol": "FxEmitterBP_c::UpdateParticle",
+      "kind": "function",
+      "review": "Two stack inputs dt/particle, native system pointer28, time8/C, position10..18 and velocity1C..24; same advance/lifetime and FxInfo4AB6B0 processing as old method. ECX is unused by the optimized native body; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "6ffa67f2d5b2817422bb944732cb4027817208928c3c6740ab2d733202133ad8"
+    },
+    {
+      "legacy_va": "0x4a2580",
+      "steam_va": "0x4a8e60",
+      "symbol": "FxEmitter_c::CreateParticle",
+      "kind": "function",
+      "review": "Seven thiscall stack inputs emission/matrix/velocity/time/multipliers/brightness/local; actual native emitter vtable CreateParticle caller4AAB10, particle allocation4B0960, field28 source-system and final UpdateParticle4A8A50 plus list4B0300; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "1b83e183cb4ebbc73af7ba6e7adf9469bc93f17a430631b98a9e1afcd5a601c4"
+    },
+    {
+      "legacy_va": "0x564a20",
+      "steam_va": "0x57dc80",
+      "symbol": "CWorld::FindObjectsInRange",
+      "kind": "function",
+      "review": "Eleven cdecl inputs, point plus/minus radius sector bounds, count reset, scanC100C0 advance and five native list categories through57C700. 582350 takes explicit bounds and is not this ABI; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "ae0eca51f2d71df740ca1673a4ea1fb351a388a02a4b3c0701d0458ccc5c6284"
+    },
+    {
+      "legacy_va": "0x5674e0",
+      "steam_va": "0x5807f0",
+      "symbol": "CWorld::ProcessVerticalLine",
+      "kind": "function",
+      "review": "Eleven cdecl inputs, native sector clamp0..119 and57D780 sector-list call, full stored-poly final input and collision-fraction output. 580940 is distinct ten-input fill-globe variant; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "0dd0581fed0af06cc739bd3e3543f2ce6d93af0aee028af6d7232f1bc80ef166"
+    },
+    {
+      "legacy_va": "0x72fb30",
+      "steam_va": "0x763c00",
+      "symbol": "GetFrameNodeName",
+      "kind": "function",
+      "review": "One cdecl frame input; native registered plugin offsetD13C6C greater-than-zero gate, returns frame plus offset or null. Matches primary NodeNamePlugin fields; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "5c247ed766cf8616a8872f399de26d7e80cab395207830fc6fd797c9fe014a3d"
+    },
+    {
+      "legacy_va": "0x4a09c0",
+      "steam_va": "0x4a71a0",
+      "symbol": "Fx_c::AddWheelDust",
+      "kind": "function",
+      "review": "Six stack words including by-value vector; unique corresponding dust branch in vehicle70CF00 with the same creates-dust/wet-road/random gates. Native source objectB125E0, particle calls4B1A90/4B2990 and player-vehicle560DA0; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "829643a704f22b25a332176793df3cad07e4dab4f5aed1f5e5a9395d82412039"
+    },
+    {
+      "legacy_va": "0x417950",
+      "steam_va": "0x416040",
+      "symbol": "CCollision::ProcessLineOfSight",
+      "kind": "function",
+      "review": "Seven cdecl inputs; local line transformed through inverse host matrix, actual COL data2C and sphere/box/triangle checks, see-through/shoot-through flags. 4162C0 is the distinct eight-input stored-polygon API; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "de161239055ac64dcd5c122e19bb6e093544514e4cbedf3d953174b4a236eaa2"
+    },
+    {
+      "legacy_va": "0x4ad830",
+      "steam_va": "0x4b5070",
+      "symbol": "CEventDamage::Constructor",
+      "kind": "function",
+      "review": "Named CEventDamage vtable, seven thiscall inputs, source14 reference registration, damage/bodypiece/direction fields18..24 and alive/inVehicle bits25; same native event layout; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "aa85783a798f0df72b284b0b44372d01a367d81ada43627f8db61f0b15a34576"
+    },
+    {
+      "legacy_va": "0x50bec0",
+      "steam_va": "0x518640",
+      "symbol": "CCamera::SetCamPositionForFixedMode",
+      "kind": "function",
+      "review": "Two vector references copied into86C..880 and camera flag4E cleared; native thiscall RET8; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "a2dedd43c0f7f76ac97a404dff5ae60fc941ab62e0079f377a00ef2fe31f73f5"
+    },
+    {
+      "legacy_va": "0x50c8b0",
+      "steam_va": "0x519060",
+      "symbol": "CCamera::TakeControlNoEntity",
+      "kind": "function",
+      "review": "Position860..868, modeC38=15, switchC3C and controllerB0 gate; three thiscall inputs and same native fields; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "eb0da74c6b8b8ac1d021129f7df2cb6d22e6909418edf08389e7bd2ea224a485"
+    },
+    {
+      "legacy_va": "0x545980",
+      "steam_va": "0x5568e0",
+      "symbol": "CPhysical::ApplyFriction(pair)",
+      "kind": "function",
+      "review": "Three stack inputs other physical/friction/ColPoint; same pair body masses8C and contact/friction velocity paths. Single-body variant5563B0 has only two stack inputs; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "3e83b708216692c3733726c00a14045408e227a94596390222873b3f4c2dcba0"
+    },
+    {
+      "legacy_va": "0x6ff410",
+      "steam_va": "0x734230",
+      "symbol": "CDraw::SetFOV",
+      "kind": "function",
+      "review": "Exact scalar setter: fld [ebp+8], fstp native FOV94CC04, cdecl RET0; 45.0 initial global independently read by native camera5397C0 and render/Idle54ECC0. 7321E0 rejected; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "db6859a9c6e0ab494084bba51b46bc35e6842f3057396152b752e71577fa178d"
+    },
+    {
+      "legacy_va": "0x7f0990",
+      "steam_va": "0x8251a0",
+      "symbol": "RwFrameGetLTM",
+      "kind": "function",
+      "review": "Frame rootA0 dirty bit checked and sync83E000 called; returns actual frame+50 LTM, one cdecl argument; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "761457a298b0e69b1a36f96b6b888005fd3f45c4b94de6729c6314916d872029"
+    },
+    {
+      "legacy_va": "0x5f0360",
+      "steam_va": "0x60c060",
+      "symbol": "CPed::KillPedWithCar",
+      "kind": "function",
+      "review": "Reviewed full native car/ped response; unique force caller60D018->553B20 and return60D01D, native weapon/event response and ped flags; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "574907b8035ed3e3a1ced7791d8f0a79c276656fa5ee39ace0816b6ca9fe6088"
+    },
+    {
+      "legacy_va": "0x678110",
+      "steam_va": "0x6a3770",
+      "symbol": "CTaskSimpleGetUp::FinishGetUpAnimCB",
+      "kind": "function",
+      "review": "Native GetUpStart6A8370 sets this deletion callback; two cdecl inputs, task9/C and animation1C lifecycle reset; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "b73a8ecc36daf6876de345a15c4e84d4d05fdd47c8a370b4e4c242642b942f2e"
+    },
+    {
+      "legacy_va": "0x4afcf0",
+      "steam_va": "0x4b7600",
+      "symbol": "CEventKnockOffBike::Constructor",
+      "kind": "function",
+      "review": "Native DamageKnockOffRider6E4170 constructs the event with all eleven stack inputs; matching captured velocity/collision/damage fields and RET44; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "880c182585ab144aaf2a630144aed40d3d4cdfbd69847bc0393309aaa7865b54"
+    },
+    {
+      "legacy_va": "0x6b5a10",
+      "steam_va": "0x6e4170",
+      "symbol": "CBike::DamageKnockOffRider",
+      "kind": "function",
+      "review": "Six cdecl arguments; vehicle first stack input, intensity/mass8C times800, driver460/state530, impact velocity sixth input and native KnockOff event4B7600. Unused third/fourth/fifth inputs omitted by decompiler do not change cdecl stack ownership; static review only, gameplay acceptance pending",
+      "gameplay_acceptance": false,
+      "entry_prefix_length": 7,
+      "entry_prefix_sha256": "9e8f9ac887b1e09ad987b5cc594c16f95a273a3f0fcad82b4996425cbef22761"
+    },
+    {
+      "legacy_va": "0x5e1e4c",
+      "steam_va": "0x5fda7e",
+      "symbol": "OriginalPedMotor ordinary XY branch",
+      "kind": "code_site",
+      "review": "Same six-byte fld [esi+550], ESI=ped, empty x87 stack after preceding comparisons; other platform/slope branches retained",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x5e1e52",
+      "steam_va": "0x5fda84",
+      "symbol": "OriginalPedMotor native continuation",
+      "kind": "code_site",
+      "review": "Exact next instruction, fsub [esi+44]; native frame locals use EBP instead of ESP but replay instruction is unchanged",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x5e1f99",
+      "steam_va": "0x5fdc59",
+      "symbol": "OriginalPedMotor native epilogue",
+      "kind": "code_site",
+      "review": "Native epilogue restores EDI/ESI/EBX and EBP stack frame; shared naked callback preserves every register/flags and resumes it",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x5539fc",
+      "steam_va": "0x569a6e",
+      "symbol": "Physics frame barrier before player shadows",
+      "kind": "code_site",
+      "review": "Verified CALL to native special-heli function6F9070 after all six PreRender lists and before CALL747730 at569A76",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x53ecbd",
+      "steam_va": "0x54f0bd",
+      "symbol": "AppEventHandler Idle caller",
+      "kind": "code_site",
+      "review": "Verified CALL to native Idle54ECC0 inside AppEventHandler54F000; caller chaining remains separate from the renderer barrier",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x535f94",
+      "steam_va": "0x545dab",
+      "symbol": "Ped authored-animation call",
+      "kind": "code_site",
+      "review": "Both callers retain owner in ESI; three cdecl arguments, then addESP12; native decorative-object branch is separate",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x535f99",
+      "steam_va": "0x545db0",
+      "symbol": "Ped authored-animation continuation",
+      "kind": "code_site",
+      "review": "Exact five-byte call end; native addESP12 preserves the original hook wrapper ABI",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x548661",
+      "steam_va": "0x5596e9",
+      "symbol": "Native physical gravity call",
+      "kind": "code_site",
+      "review": "Only ApplyGravity call in native CPhysical::ProcessControl559670, target553F70",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x54be1c",
+      "steam_va": "0x55cd49",
+      "symbol": "First soft-pair contact call",
+      "kind": "code_site",
+      "review": "First of four corresponding sector-list CALLs to native55B230",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x54c098",
+      "steam_va": "0x55cf82",
+      "symbol": "Second soft-pair contact call",
+      "kind": "code_site",
+      "review": "Second of four corresponding sector-list CALLs to native55B230",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x54c35a",
+      "steam_va": "0x55d1f2",
+      "symbol": "Third soft-pair contact call",
+      "kind": "code_site",
+      "review": "Third of four corresponding sector-list CALLs to native55B230",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x54c54d",
+      "steam_va": "0x55d3c5",
+      "symbol": "Fourth soft-pair contact call",
+      "kind": "code_site",
+      "review": "Fourth of four corresponding sector-list CALLs to native55B230",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x5f12cf",
+      "steam_va": "0x60d01d",
+      "symbol": "Native KillPedWithCar force return address",
+      "kind": "code_site",
+      "review": "Unique ApplyForce call in each KillPedWithCar function: old5F12CA->542B50 and native60D018->553B20, return+5",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb7cd98",
+      "steam_va": "0xc100d0",
+      "symbol": "CWorld::Players[0].m_pPed",
+      "kind": "global",
+      "review": "Native FindPlayerPed560EE0; do not use C100E0",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb6f028",
+      "steam_va": "0xbfc448",
+      "symbol": "TheCamera",
+      "kind": "global",
+      "review": "Same camera position fields/call in the corresponding CGame::Process functions",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb5f852",
+      "steam_va": "0xbd6f3e",
+      "symbol": "CCutsceneMgr::ms_cutsceneProcessing",
+      "kind": "global",
+      "review": "Same first frontend/cutscene gate in CGame::Process",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb74494",
+      "steam_va": "0xc018ac",
+      "symbol": "CPools::ms_pVehiclePool",
+      "kind": "global",
+      "review": "Identified in native pool initialization; vehicle iteration not yet dynamically validated",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xc8d4c0",
+      "steam_va": "0xd19020",
+      "symbol": "gameState",
+      "kind": "global",
+      "review": "Independently corroborated by native WinMain77CE70 states2..9 and DirectShow77A040 transitions2->3/4->5; state9 is gameplay",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xa444b1",
+      "steam_va": "0xabbe2a",
+      "symbol": "CTheScripts::bAlreadyRunningAMissionScript",
+      "kind": "global",
+      "review": "Native script Init46DBB0 clears it; LOAD_AND_LAUNCH_MISSION_INTERNAL48EE20 sets it after starting mission thread with DC flag; terminate46AF70 clears it only for mission threads",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xb73418",
+      "steam_va": "0xc007a4",
+      "symbol": "CPad::NewMouseControllerState",
+      "kind": "global",
+      "review": "Native UpdateMouse54FE60 writes seven button bytes atC007A4, including wheel-up +3 and wheel-down +4; distinct from exclusive-look flagC007A3",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xa9b0c8",
+      "steam_va": "0xb12818",
+      "symbol": "CModelInfo::ms_modelInfoPtrs",
+      "kind": "global",
+      "review": "Native GetColModel545010 and seat-placement600090 use this indexed model-info pointer table; same model index22 and COL14 layout",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xc1c83c",
+      "steam_va": "0xca88a4",
+      "symbol": "CBmx::bSuspension",
+      "kind": "global",
+      "review": "Named native CBmx::PreRender6EF610 uses this byte at all three corresponding original suspension branches, affecting wheel-node translation and body pitch; no constant substitute",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xa9ae00",
+      "steam_va": "0xb125e0",
+      "symbol": "g_fx",
+      "kind": "global",
+      "review": "Native vehicle70CF00 passes this actual Fx_c object to dust4A71A0; native initialization4A4C10 writes the named static particle systems in matching field order",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0xa9ae24",
+      "steam_va": "0xb12604",
+      "symbol": "g_fx.prt_smokeII_3_expand",
+      "kind": "global",
+      "review": "Actual Fx_c static initialization4A4C10 assigns prt_smokeII_3_expand at object offset24, same nativeB125E0 object; not a relocated FxsFuncs global",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x86d684",
+      "steam_va": "0x8b848c",
+      "symbol": "CTaskSimpleFight::vftable",
+      "kind": "vtable",
+      "review": "Named Steam RTTI class and same primary-declared method count/slot identities, with task-type and native construction corroboration",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x86ddbc",
+      "steam_va": "0x8b8c94",
+      "symbol": "CTaskSimpleDie::vftable",
+      "kind": "vtable",
+      "review": "Named Steam RTTI class and same primary-declared method count/slot identities, with task-type and native construction corroboration",
+      "gameplay_acceptance": false
+    },
+    {
+      "legacy_va": "0x86de78",
+      "steam_va": "0x8b8d64",
+      "symbol": "CTaskComplexDie::vftable",
+      "kind": "vtable",
+      "review": "Named Steam RTTI class and same primary-declared method count/slot identities, with task-type and native construction corroboration",
+      "gameplay_acceptance": false
+    }
+  ],
+  "gameplay_acceptance": false,
+  "limits": [
+    "No candidate generator may enable a runtime hook",
+    "Caller barriers and remaining dependencies require independent verification",
+    "Native object/task layout and live gameplay acceptance are separate requirements"
+  ]
+}

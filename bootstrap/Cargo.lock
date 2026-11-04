@@ -1049,10 +1049,13 @@ version = "0.1.0"
 dependencies = [
  "bevy_math",
  "bevy_transform",
+ "blake3",
  "delirium",
  "delirium-data 0.1.1",
  "delirium-data 0.1.2",
  "delirium-sdk",
+ "sa-combat",
+ "serde_json",
 ]
 
 [[package]]

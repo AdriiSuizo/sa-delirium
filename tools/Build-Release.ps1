@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$Version,
     [string]$LoaderArchive,
+    [string]$SilentPatchArchive,
     [string]$Rar = (Join-Path $env:ProgramFiles 'WinRAR/Rar.exe')
 )
 $ErrorActionPreference = 'Stop'
@@ -30,6 +31,8 @@ $dev = Join-Path $vs 'Common7/Tools/VsDevCmd.bat'
 if ($LASTEXITCODE -ne 0) { throw 'Win32 compile failed' }
 & python (Join-Path $PSScriptRoot 'Verify-Vendor.py')
 if ($LASTEXITCODE -ne 0) { throw 'Retained adapted source verification failed' }
+& python (Join-Path $PSScriptRoot 'Collect-RustLicenses.py')
+if ($LASTEXITCODE -ne 0) { throw 'Dependency notices are incomplete' }
 $targetDir = Join-Path $root 'build/bootstrap-target'
 $manifest = Join-Path $root 'bootstrap/Cargo.toml'
 Push-Location -LiteralPath $root
@@ -40,20 +43,44 @@ try {
 $bootstrap = Join-Path $targetDir 'i686-pc-windows-msvc/release/sa_delirium_bootstrap.dll'
 & python (Join-Path $PSScriptRoot 'Verify-Runtime.py') $bootstrap
 if ($LASTEXITCODE -ne 0) { throw 'Runtime needs unbundled libraries' }
+$nativeResult = Join-Path $stage.FullName 'native-result.json'
+& (Join-Path $root 'native/Build-Adapter.ps1') -BootstrapImportLibrary ($bootstrap + '.lib') -ResultPath $nativeResult *> (Join-Path $stage.FullName 'native-build.log')
+if (!$? -or $LASTEXITCODE -ne 0) { throw 'Native adapter build failed; see native-build.log' }
+$nativeBuild = Get-Content -LiteralPath $nativeResult -Raw | ConvertFrom-Json
+if ($nativeBuild.unresolved -ne 0 -or $nativeBuild.status -ne 'linked_not_installed_or_gameplay_accepted') { throw 'Native adapter bindings are incomplete' }
+if (!$SilentPatchArchive) {
+    $SilentPatchArchive = Join-Path $stage.FullName 'SilentPatchSA.zip'
+    Invoke-WebRequest -Uri 'https://github.com/CookiePLMonster/SilentPatch/releases/download/1.1-BUILD34.1-SA/SilentPatchSA.zip' -OutFile $SilentPatchArchive
+}
+if ((Get-FileHash -LiteralPath $SilentPatchArchive -Algorithm SHA256).Hash -ne '0837BBDC0548A4A952F924ADEFD2BB6EACC866407F153844FE1F56995668C42C') { throw 'Pinned SilentPatch archive hash mismatch' }
+$silent = Join-Path $stage.FullName 'silentpatch'
+Expand-Archive -LiteralPath $SilentPatchArchive -DestinationPath $silent
 Copy-Item -LiteralPath $loader[0].FullName -Destination (Join-Path $runtime.FullName 'dinput8.dll')
 Copy-Item -LiteralPath (Join-Path $stage.FullName 'SAStandalone.asi') -Destination $scripts.FullName
 Copy-Item -LiteralPath $bootstrap -Destination $scripts.FullName
+Copy-Item -LiteralPath (Join-Path $nativeBuild.output 'DeliriumSA.asi') -Destination $scripts.FullName
+Copy-Item -LiteralPath (Join-Path $root 'package/DeliriumSA.ini') -Destination $runtime.FullName
+Copy-Item -LiteralPath (Join-Path $silent 'SilentPatchSA.asi') -Destination $scripts.FullName
+Copy-Item -LiteralPath (Join-Path $silent 'SilentPatchSA.ini') -Destination $scripts.FullName
 Copy-Item -LiteralPath (Join-Path $root 'package/scripts/SAStandalone.ini') -Destination $scripts.FullName
 Copy-Item -LiteralPath (Join-Path $root 'docs/INSTALL.md') -Destination (Join-Path $runtime.FullName 'SAStandalone-LEEME.md')
 Copy-Item -LiteralPath (Join-Path $root 'CREDITS.md') -Destination (Join-Path $runtime.FullName 'SAStandalone-CREDITOS.md')
 Copy-Item -LiteralPath (Join-Path $root 'licenses/Ultimate-ASI-Loader.txt') -Destination $licenses.FullName
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE.md') -Destination $licenses.FullName
 Copy-Item -LiteralPath (Join-Path $root 'bootstrap/COPYING') -Destination (Join-Path $licenses.FullName 'Delirium-GPL-3.0.txt')
+foreach ($notice in 'Xenia-BSD-3-Clause.txt','SilentPatch-MIT.txt','Rust-Dependencies.txt') { Copy-Item -LiteralPath (Join-Path $root ('licenses/' + $notice)) -Destination $licenses.FullName }
+Copy-Item -LiteralPath (Join-Path $root 'vendor/third-party/minhook/LICENSE.txt') -Destination (Join-Path $licenses.FullName 'MinHook-BSD.txt')
+foreach ($binary in 'DeliriumSA.asi','SilentPatchSA.asi','SAStandalone.asi') {
+    & python (Join-Path $PSScriptRoot 'Verify-Runtime.py') (Join-Path $scripts.FullName $binary) --bundled sa_delirium_bootstrap.dll
+    if ($LASTEXITCODE -ne 0) { throw ('Unbundled dependency in ' + $binary) }
+}
 $expected = @(
     'dinput8.dll','scripts/SAStandalone.asi','scripts/SAStandalone.ini','scripts/sa_delirium_bootstrap.dll',
     'SAStandalone-LEEME.md','SAStandalone-CREDITOS.md',
     'SAStandalone-licenses/Ultimate-ASI-Loader.txt','SAStandalone-licenses/LICENSE.md',
-    'SAStandalone-licenses/Delirium-GPL-3.0.txt'
+    'SAStandalone-licenses/Delirium-GPL-3.0.txt',
+    'scripts/DeliriumSA.asi','DeliriumSA.ini','scripts/SilentPatchSA.asi','scripts/SilentPatchSA.ini',
+    'SAStandalone-licenses/Xenia-BSD-3-Clause.txt','SAStandalone-licenses/SilentPatch-MIT.txt','SAStandalone-licenses/MinHook-BSD.txt','SAStandalone-licenses/Rust-Dependencies.txt'
 )
 $actual = @(Get-ChildItem -LiteralPath $runtime.FullName -Recurse -File | ForEach-Object {
     $_.FullName.Substring($runtime.FullName.Length + 1).Replace('\','/')

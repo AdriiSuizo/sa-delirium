@@ -1,17 +1,19 @@
 # Instalación
 
-Previa técnica privada para GTA San Andreas clásico de Steam, build 459558, con ejecutable original de 32 bits **gta-sa.exe**. Incluye el importador de Delirium, un filtro de color PS2 con la tabla de iluminación del propio juego y el ajuste de suspensión. En esta previa, los peatones de Steam todavía no usan el motor de Delirium.
+Candidata privada para GTA San Andreas clásico de Steam, build 459558, con el ejecutable original de 32 bits **gta-sa.exe**. Conserva una copia de cualquier mod que ya utilices antes de sustituir archivos.
 
-En alpha.4, el juego abre en ventana sin bordes al tamaño del escritorio y la cámara usa el stick derecho de un mando XInput activo. Puedes desactivar cada ajuste en `scripts/SAStandalone.ini` con `Borderless=0` o `RightStickCamera=0`. El control aéreo experimental sigue desactivado.
+1. Cierra el juego y abre su carpeta desde Steam: **Administrar → Explorar archivos locales**.
+2. Extrae el RAR directamente junto a **gta-sa.exe**. Si ya existe **dinput8.dll**, conserva primero tu copia.
+3. Para el primer arranque, coloca en esa carpeta la ISO compatible de tu copia de GTA IV para Xbox 360. Si falta, la ventana indica la ruta y permite **Reintentar** o **Cancelar**.
+4. Abre el juego desde Steam o su ejecutable. El primer importado funciona sin Internet y genera **DeliriumSA-local-v3** usando también los archivos de tu SA instalado.
+5. Cuando **SAStandalone.log** muestre `delirium_assets_ready imported_iso`, puedes retirar la ISO. Los siguientes arranques utilizan la caché local.
 
-1. Cierra el juego.
-2. En Steam abre la carpeta de instalación desde **Administrar → Explorar archivos locales**.
-3. Extrae el RAR directamente junto a **gta-sa.exe**. Si ya tienes un **dinput8.dll**, conserva tu copia antes de instalar.
-4. En el primer arranque, coloca junto al ejecutable la ISO de tu copia de GTA IV de Xbox 360. Si falta, una ventana muestra la carpeta y ofrece **Reintentar** o **Cancelar**. Windows localiza los botones según su idioma. La apertura inicial de la imagen puede requerir Internet.
-5. Una vez que **SAStandalone.log** muestre `delirium_assets_ready imported_iso`, puedes retirar la ISO. Los arranques siguientes usan la caché local.
+El paquete actual conecta el motor de físicas y combate, el importador, la iluminación/color PS2, el modo sin bordes, el stick derecho XInput, el ajuste de suspensión y SilentPatch. Sigue siendo una candidata: el paquete gráfico ampliado y las pruebas finales de combate y vehículos continúan en desarrollo.
 
-En **scripts/SAStandalone.ini**, usa `Ps2TimeCycle=0` para restaurar la iluminación y el filtro de PC o `DampingIncreasePercent=0` para desactivar el ajuste de suspensión. El ciclo usa el archivo local de Steam. Los demás efectos de SkyGfx y los packs visuales siguen pendientes.
+Las opciones generales están en **DeliriumSA.ini**. El modo sin bordes, la cámara, el filtro PS2 y la suspensión propia se configuran en **scripts/SAStandalone.ini**. El control aéreo experimental permanece desactivado. La instalación no sustituye el ejecutable ni incluye programas, animaciones, partidas o archivos originales extraídos de juegos.
 
 ## Desinstalación
 
-Cierra el juego y retira **scripts/SAStandalone.asi**, **scripts/SAStandalone.ini**, **scripts/sa_delirium_bootstrap.dll**, **SAStandalone.log**, **SAStandalone-LEEME.md**, **SAStandalone-CREDITOS.md** y **SAStandalone-licenses**. Retira **DeliriumSA-local-v2** si quieres borrar la caché generada; las previas antiguas usaban **DeliriumSA-local-v1**. Retira **dinput8.dll** si venía de este RAR y ningún otro mod lo usa. Si sustituiste un cargador existente, restaura su copia.
+Cierra el juego y retira **scripts/DeliriumSA.asi**, **DeliriumSA.ini**, **scripts/SAStandalone.asi**, **scripts/SAStandalone.ini**, **scripts/sa_delirium_bootstrap.dll**, **scripts/SilentPatchSA.asi**, **scripts/SilentPatchSA.ini**, **SAStandalone-LEEME.md**, **SAStandalone-CREDITOS.md** y **SAStandalone-licenses**. Restaura los componentes que ya tenías si procedían de otra instalación.
+
+Puedes borrar **DeliriumSA-local-v3**, **SAStandalone.log** y **DeliriumSA-native-startup.log** para retirar los datos y registros generados. Las cachés antiguas **DeliriumSA-local-v1/v2** también son opcionales. Retira **dinput8.dll** solo si venía de este RAR y ningún otro mod lo utiliza.

@@ -17,6 +17,9 @@ delirium-sdk = { path = "../vendor/src/delirium-physics/crates/delirium-sdk" }
 iso_data = { package = "delirium-data", path = "../vendor/src/delirium-physics/crates/comparison-data" }
 bevy_math = { version = "=0.20.0", default-features = false, features = ["std"] }
 bevy_transform = { version = "=0.20.0", default-features = false, features = ["std"] }
+serde_json = { version = "=1.0.154", features = ["float_roundtrip"] }
+blake3 = "1"
+sa-combat = { path = "../vendor/src/sa-combat" }
 
 [profile.release]
 opt-level = 2
