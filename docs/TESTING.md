@@ -96,3 +96,6 @@ sector and assigned to model1297. It also confirms512MiB after Init2's reset,
 using the configured initializer rather than a per-frame budget write. Native
 post-effect flag1 is observed; this does not establish full SkyGfx pipeline parity.
 The case used a manual host replacement after RAR7, so do not label RAR7 accepted.
+
+
+The exact dev.8.local RAR subsequently passed cold213822, warm/noISO214027 and actual installed Steam214244. See `visual-native-dev8-validation.json`. These include model74/nativecleanup,512MiB and actor damage/recovery/corpse checks; they do not close the full pack or hardware/FPS coverage.
