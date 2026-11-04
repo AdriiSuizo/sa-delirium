@@ -1,0 +1,88 @@
+{
+  "recorded_utc": "2026-11-04T03:40:58.351254+00:00",
+  "status": "isolated_compatibility_verified_not_steam_gameplay_acceptance",
+  "source_revision": "b53ef59af7bb35809f71f08d62f564c46c8b4159_with_existing_local_adaptations",
+  "original_snapshot_files_checked": 264,
+  "original_source_changes": [],
+  "legacy_slots_bit_exact": 992,
+  "unsupported_program_rejected": true,
+  "baseline_and_iso_sdk_tests_each": 68,
+  "canonical_cache_sdk_tests": 68,
+  "vehicle_contact_cases_all_report_fields_equal": 144,
+  "local_cache_sha256": {
+    "iv-program.bin": "4bb514b6935d1e647fd38ae495018ef26f86dd2fde24ff91515896653554b194",
+    "fred.xrt": "508e1deb34413c115a48ed118f86e3cf9544f3001ac310b0cb84eaf646c25c76",
+    "fred-build.txt": "cf9d300315a91ce317ecc978339a9a1d08174e269fdbcd965a930545ecacc171",
+    "taskparams.txt": "7194df40e0ff109f449f261f9088b5a47995eccb312d3b75f5c93268b32661b5"
+  },
+  "sdk_x86_sha256": "a7051b5bab928f3da4ce14e287efafc5dcff61bfee21ef897554f7c488de0f6b",
+  "logs": {
+    "all_words": {
+      "path": "release-work/evidence/legacy-iso-abi/ported-reader-final.log",
+      "sha256": "aa94caad5839c9c17edab057087415ad44f944ad3e751e840824f2a9481aacde"
+    },
+    "baseline_sdk": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-baseline/src/delirium-physics/sdk-tests.log",
+      "sha256": "7c14d814b2bc6d0051213e728af1c3043149140ef9a514071b254ef039ecfb36"
+    },
+    "iso_sdk": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/sdk-tests-with-fixture.log",
+      "sha256": "22e50abb8452ed3bf49119c63b4b62a45e4486cbdac97d7da03c3241dbb4fde4"
+    },
+    "canonical_cache_sdk": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/sdk-canonical-cache-tests.log",
+      "sha256": "0e9353c67966e95c2f8d4f0c600738e7b18cbe479e5c458c60754fa363805ee3"
+    },
+    "first_import_and_no_iso_restart": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/bootstrap/adapted-canonical-import-v2-test.log",
+      "sha256": "f35a3ba6bc32f48a0e0473fc37139098dc181b3befa015b4d627f23963988265"
+    },
+    "x86_build": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/sdk-x86-final.log",
+      "sha256": "0145f366a4c0bf765775fa5f3082006205aba41240a7c87c68302e7a98784516"
+    },
+    "baseline_audit_contact_mass": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-baseline/src/delirium-physics/audit_contact_mass.log",
+      "sha256": "345c54221ac5fba91157272acbf90d9465f0e5090a73ca7f90f0bedcc1a81328"
+    },
+    "baseline_audit_peer_contacts": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-baseline/src/delirium-physics/audit_peer_contacts.log",
+      "sha256": "b131e41fa5b46cea94ac394e3abe5168b872412d1ebd271a81ca5bca0e5942bb"
+    },
+    "baseline_audit_vehicle_shapes": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-baseline/src/delirium-physics/audit_vehicle_shapes.log",
+      "sha256": "a8c1005573f6db8446af59e1eeab770e6f3cfd48a996bc11c18b99b310261937"
+    },
+    "baseline_audit_vehicle_mobility": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-baseline/src/delirium-physics/audit_vehicle_mobility.log",
+      "sha256": "268fc7c24247aa6d41c0ad9ef7baaeac4d8ad3036bebef436f7b0784aa18840c"
+    },
+    "iso_audit_contact_mass": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/audit_contact_mass.log",
+      "sha256": "422ac7816aea991ce794c8e7e1c9045a3458d70f3960b2863213445d5953379b"
+    },
+    "iso_audit_peer_contacts": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/audit_peer_contacts.log",
+      "sha256": "6cbd88cdd463f7e8a1d436ff292b47a658ec7ff397a92ee4bddd198f99fd126d"
+    },
+    "iso_audit_vehicle_shapes": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/audit_vehicle_shapes.log",
+      "sha256": "255cd6e1aedc78ffc78418f2a62cf149dcad181669ba48ff1463f5b09a769364"
+    },
+    "iso_audit_vehicle_mobility": {
+      "path": "release-work/evidence/legacy-iso-abi/sdk-iso/src/delirium-physics/audit_vehicle_mobility.log",
+      "sha256": "e864f3efd8f2de08f4588d6be819790c4536d5ce94fb404dde2f9514e7bc7901"
+    }
+  },
+  "rejected_evidence": [
+    "sdk-owned-cache-tests.log: bind-pose import failed the flat-floor translation regression (8/90 cases)",
+    "adapted-canonical-import-test.log ran the old bind-pose importer after a preparation command failed; use v2 instead"
+  ],
+  "limits": [
+    "No game process was launched in this compatibility investigation",
+    "Native Steam actor adapter is not ported or accepted",
+    "Generated canonical body still needs fitting and interaction tests inside Steam",
+    "Fresh encrypted ISO import used the existing local XEX key cache; not a no-key offline test",
+    "These sources are not selected by alpha.4 and no new RAR is represented as complete"
+  ]
+}
