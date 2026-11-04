@@ -21,3 +21,11 @@ El RAR de alpha.2 es un artefacto de laboratorio. El borrador de distribución p
 La sonda de laboratorio intercaló `CPed::PreRender` después de su trabajo nativo. Leyó un civil y a CJ con jerarquías RenderWare de 32 nodos y matrices finitas. Se localizaron pelvis y cabeza por etiqueta en cada jerarquía. Esta prueba no aplica una pose física ni comprueba reacciones de juego.
 
 El método compartido está en RVA `0x204f20`. Se verificó la entrada 17 de las tablas de civil y jugador y se comprobó el puntero original antes de instalar la sonda. La identificación parte de los métodos y tablas documentados en [gta-reversed](https://github.com/gta-reversed/gta-reversed/tree/master/source/game_sa/Entity/Ped).
+
+## Alpha.3 · importador y color PS2
+
+- La copia limpia se obtuvo de Steam build 459558. Se compararon los hashes de los archivos originales después de extraer y arrancar el RAR.
+- Sin caché ni ISO, se observó la ventana de primera instalación. Cancelar dejó continuar el juego. Reintentar después de colocar la ISO de GTA IV Europa/Asia preparó la caché. El siguiente proceso abrió esa caché con la ISO fuera de la raíz.
+- Se comparó la escena inicial a las 06:36 en dos arranques a 1280 × 720. El perfil PS2 registró la primera pasada de color. El control con `Ps2TimeCycle=0` usó el posprocesado nativo. Las capturas muestran el cambio en el cielo y en la iluminación del entorno con el HUD original.
+- Steam duplica y guarda en un byte los canales alfa del posprocesado. Las primeras ocho muestras de alfa fueron 254 en ambos modos. La diferencia visual comprobada procede del filtro, con la tabla local como entrada.
+- La fixture XInput y los observadores son de laboratorio. Quedan por probar el mando físico, el rendimiento en juego y el port de peatones de Delirium.

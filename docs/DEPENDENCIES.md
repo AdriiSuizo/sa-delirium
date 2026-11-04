@@ -5,9 +5,25 @@
 | Componente | Función | Licencia y origen |
 | --- | --- | --- |
 | SAStandalone | Aplica amortiguación adicional en las filas de coches de los datos nativos que el jugador ya tiene instalados. | Código de esta rama. Véase LICENSE.md. |
+| Ciclo de iluminación y color PS2 | Presenta el `timecycp.dat` de la instalación local al lector de Steam y aplica la modulación en la pasada nativa de posprocesado. | Código propio y datos del juego leídos en el equipo del jugador. |
+| Preparador de Delirium 0.6.0 | Valida la ISO de Xbox 360 y prepara la caché de Delirium en la instalación del jugador. | GPLv3 con el permiso adicional de Delirium. Código y construcción en `bootstrap` y `tools/Prepare-DeliriumSdk.py`. |
 | Ultimate ASI Loader 10.0.2 Win32 | Carga el ASI y sirve la vista en memoria de handling.cfg. | MIT, ThirteenAG y colaboradores. [Release original](https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/tag/v10.0.2) |
 
-El empaquetador usa una lista cerrada. Solo contiene esos dos binarios, el INI y los textos de instalación y licencias. El juego aporta sus propios datos en cada arranque.
+El empaquetador usa una lista cerrada de tres binarios, un INI y los textos de instalación, créditos y licencias. El juego aporta sus datos en cada arranque.
+
+## Selección visual para la futura versión
+
+| Grupo | Estado en Steam |
+| --- | --- |
+| PS2 Time Cycle | Activado en alpha.3 con la tabla de la instalación del jugador. |
+| SkyGfx Extended | Alpha.3 implementa su propio filtro de color sin desenfoque. Quedan pendientes radiosidad y pipelines de edificios y vehículos, así como acreditar la redistribución del binario de terceros. [Fuente](https://www.mixmods.com.br/2024/03/sa-skygfx/) |
+| RoSA Evolved y Proper Player Retex | La publicación de RoSA prohíbe volver a subir el paquete. Para distribuir texturas dentro del RAR hacen falta equivalentes propios o con licencia verificable. [Licencia publicada por la autora](https://www.mixmods.com.br/2023/07/rosa-project-evolved-remaster-texturas-hd/) |
+| Project2DFX | Código MIT. Su implementación de SA usa direcciones fijas de otro ejecutable. Las luces lejanas requieren un port y una prueba en el Steam original. [Código del plugin](https://github.com/ThirteenAG/III.VC.SA.IV.Project2DFX/blob/master/source/SALodLights/dllmain.cpp) |
+| BSOR, LOD Vegetation y NextGen Grass | Pendientes los shaders de viento, el cargador compatible y la licencia de cada paquete. |
+| FxsFuncs, NextGen Effects y Enhance ParticleTXD | Pendientes la compatibilidad de hooks, el cargador de scripts y la procedencia de recursos. |
+| Improved Lamps, Brightened, LV Neon, Parallax y Jefferson | Pendientes los reemplazos de modelos, las capas de mapa y sus licencias. |
+| GTA IV Textures/HQ Roads, GTA IV Rubbish, packs de armas y skins | Revisión pendiente de los archivos derivados de juegos y de la licencia de cada aporte original. |
+| GTA V HUD, rueda de armas y DLSS | Fuera de la selección de distribución. |
 
 ## Port completo
 

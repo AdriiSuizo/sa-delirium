@@ -16,6 +16,7 @@ const TASKS: &str = "taskparams.txt";
 const BODY: &str = "fred-build.txt";
 const CACHE: &str = "DeliriumSA-local-v1";
 const PARTS: i32 = 21;
+const MISSING_ISO: &str = "Pon la ISO de GTA IV de Xbox 360 junto a gta-sa.exe para el primer arranque";
 
 fn disc_file(disc: &Disc, path: &str, limit: u64) -> Result<Vec<u8>, String> {
     match disc.len(path) {
@@ -125,9 +126,7 @@ fn iso_path(root: &Path) -> Result<PathBuf, String> {
     }
     match images.as_slice() {
         [image] => Ok(image.clone()),
-        [] => Err(
-            "Pon la ISO de GTA IV de Xbox 360 junto a gta-sa.exe para el primer arranque".into(),
-        ),
+        [] => Err(MISSING_ISO.into()),
         _ => Err("Deja una sola ISO de GTA IV de Xbox 360 junto a gta-sa.exe".into()),
     }
 }
@@ -220,6 +219,7 @@ pub unsafe extern "C" fn sa_delirium_prepare(
         .unwrap_or_else(|_| Err("El lector de Delirium interrumpió la preparación".into()));
     let (code, message) = match result {
         Ok(status) => (0, status.to_owned()),
+        Err(error) if error == MISSING_ISO => (-2, error),
         Err(error) => (-1, error),
     };
     let len = message.len().min(capacity - 1);

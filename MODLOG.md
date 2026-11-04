@@ -1,5 +1,11 @@
 # Registro técnico
 
+## Filtro de color de Steam
+
+- El lector de iluminación de Steam está en RVA `0x1d8f70`. Los datos originales incluyen `data/timecycp.dat`. El cargador virtual presenta ese archivo como entrada de `timecyc.dat` en memoria. La primera tabla alfa comprobada está en RVA `0x80d7a8`.
+- La llamada a la pasada de color está en RVA `0x34438b` y originalmente llama a `0x3428d0`. Se comprueban la huella completa del ejecutable y los cinco bytes de la llamada. La pasada propia usa el raster de la escena y multiplica los canales conforme al rango de modulación PS2, sin desenfoque. Usa la ruta original para visión nocturna e infrarroja.
+- Se obtuvieron capturas A/B en la escena inicial a la misma hora de juego. Quedan por portar radiosidad, reflejos, vegetación y luces LOD. La selección visual y la procedencia están en `docs/DEPENDENCIES.md`.
+
 - El port parte del proyecto de desarrollo y de una copia limpia del Steam clásico build 459558. Ambas instalaciones originales se tratan como fuentes de solo lectura.
 - El prototipo inicial de empaquetado aplastaba el árbol de rutas en RAR. Se corrigió y se añadió una comprobación posterior sobre las rutas del archivo empaquetado.
 - La previa aísla la primera adaptación de vehículos en el nuevo ejecutable sin resolver direcciones de la revisión anterior. El cargador proporciona una vista temporal de los datos del propio juego. Los archivos originales se comprueban por hash.

@@ -12,6 +12,7 @@
 
 namespace fs = std::filesystem;
 using AddVirtualFile = bool(WINAPI*)(const wchar_t*, const unsigned char*, std::size_t, int);
+bool installSteamColour(const fs::path& log);
 
 static std::string read(const fs::path& path, std::size_t limit) {
     std::ifstream in(path, std::ios::binary | std::ios::ate);
@@ -49,10 +50,46 @@ static void prepareDelirium(const fs::path& root, std::ostream& log) {
         log << "delirium_bootstrap_unavailable\n";
         return;
     }
-    log << "delirium_bootstrap_started\n" << std::flush;
-    std::array<char, 1024> status{};
-    const int result = prepare(root.c_str(), root.native().size(), status.data(), status.size());
-    log << (result == 0 ? "delirium_assets_ready " : "delirium_assets_error ") << status.data() << '\n';
+    for (;;) {
+        log << "delirium_bootstrap_started\n" << std::flush;
+        std::array<char, 1024> status{};
+        const int result = prepare(root.c_str(), root.native().size(), status.data(), status.size());
+        if (result == 0) {
+            log << "delirium_assets_ready " << status.data() << '\n';
+            return;
+        }
+        log << "delirium_assets_error " << status.data() << '\n' << std::flush;
+        if (result == -2) {
+            const auto message =
+                L"Coloca la ISO de tu copia de GTA IV para Xbox 360 en esta carpeta y pulsa Reintentar.\n\n"
+                + root.native() +
+                L"\n\nDespués de preparar los datos podrás retirar la ISO. Cancelar inicia el juego sin esos datos.";
+            if (MessageBoxW(nullptr, message.c_str(), L"Delirium SA · Primera instalación",
+                            MB_RETRYCANCEL | MB_ICONINFORMATION | MB_SETFOREGROUND) == IDRETRY) continue;
+            log << "delirium_iso_prompt_cancelled\n";
+        } else {
+            std::array<wchar_t, 1024> detail{};
+            MultiByteToWideChar(CP_UTF8, 0, status.data(), -1, detail.data(), static_cast<int>(detail.size()));
+            const auto message = std::wstring(L"No se pudieron preparar los datos de Delirium.\n\n")
+                + detail.data() + L"\n\nEl juego continuará sin esos datos. Consulta SAStandalone.log.";
+            MessageBoxW(nullptr, message.c_str(), L"Delirium SA · Error de preparación",
+                        MB_OK | MB_ICONWARNING | MB_SETFOREGROUND);
+        }
+        return;
+    }
+}
+
+static void preparePs2TimeCycle(const fs::path& root, AddVirtualFile add, std::ostream& log) {
+    static const auto table = read(root / L"data" / L"timecycp.dat", 128 * 1024);
+    const auto target = root / L"data" / L"timecyc.dat";
+    if (table.empty() || !fs::is_regular_file(target)) {
+        log << "ps2_timecycle_source_unavailable\n";
+        return;
+    }
+    const bool registered = add(target.c_str(), reinterpret_cast<const unsigned char*>(table.data()), table.size(), 0);
+    log << (registered ? "ps2_timecycle_overlay_registered\n" : "ps2_timecycle_overlay_rejected\n");
+    if (registered)
+        log << (installSteamColour(root / L"SAStandalone.log") ? "ps2_colour_hook_installed\n" : "ps2_colour_hook_unavailable\n");
 }
 
 static void initialize() {
@@ -69,11 +106,13 @@ static void initialize() {
         log << (installSteamAirPitch() ? "experimental_air_pitch_installed\n" : "experimental_air_pitch_unavailable\n");
     }
     const int percent = GetPrivateProfileIntW(L"Suspension", L"DampingIncreasePercent", 8, config.c_str());
-    if (percent <= 0) { log << "suspension_disabled\n"; return; }
     const auto loader = GetModuleHandleW(L"dinput8.dll");
     const auto add = loader ? reinterpret_cast<AddVirtualFile>(
         GetProcAddress(loader, "AddVirtualFileForOverloadW")) : nullptr;
     if (!add) { log << "loader_virtual_file_api_unavailable\n"; return; }
+    if (GetPrivateProfileIntW(L"Visuals", L"Ps2TimeCycle", 1, config.c_str()) == 1)
+        preparePs2TimeCycle(root, add, log);
+    if (percent <= 0) { log << "suspension_disabled\n"; return; }
     const auto path = root / L"data" / L"handling.cfg";
     const auto handling = read(path, 1024 * 1024);
     const auto vehicles = read(root / L"data" / L"vehicles.ide", 1024 * 1024);

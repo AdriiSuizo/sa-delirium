@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$Version,
     [string]$LoaderArchive,
+    [string]$DeliriumCheckout,
     [string]$Rar = (Join-Path $env:ProgramFiles 'WinRAR/Rar.exe')
 )
 $ErrorActionPreference = 'Stop'
@@ -28,17 +29,29 @@ if (!$vs -or $LASTEXITCODE -ne 0) { throw 'Install Visual Studio Build Tools wit
 $dev = Join-Path $vs 'Common7/Tools/VsDevCmd.bat'
 & (Join-Path $PSScriptRoot 'Compile.cmd') $stage.FullName $dev
 if ($LASTEXITCODE -ne 0) { throw 'Win32 compile failed' }
+$sdkArgs = @()
+if ($DeliriumCheckout) { $sdkArgs = @('--checkout', (Resolve-Path -LiteralPath $DeliriumCheckout).Path) }
+& python (Join-Path $PSScriptRoot 'Prepare-DeliriumSdk.py') @sdkArgs
+if ($LASTEXITCODE -ne 0) { throw 'Pinned Delirium source preparation failed' }
+$targetDir = Join-Path $root 'build/bootstrap-target'
+$manifest = Join-Path $root 'bootstrap/Cargo.toml'
+& cargo build --manifest-path $manifest --lib --locked --release --target i686-pc-windows-msvc --target-dir $targetDir
+if ($LASTEXITCODE -ne 0) { throw 'Win32 Delirium bootstrap build failed' }
+$bootstrap = Join-Path $targetDir 'i686-pc-windows-msvc/release/sa_delirium_bootstrap.dll'
 Copy-Item -LiteralPath $loader[0].FullName -Destination (Join-Path $runtime.FullName 'dinput8.dll')
 Copy-Item -LiteralPath (Join-Path $stage.FullName 'SAStandalone.asi') -Destination $scripts.FullName
+Copy-Item -LiteralPath $bootstrap -Destination $scripts.FullName
 Copy-Item -LiteralPath (Join-Path $root 'package/scripts/SAStandalone.ini') -Destination $scripts.FullName
 Copy-Item -LiteralPath (Join-Path $root 'docs/INSTALL.md') -Destination (Join-Path $runtime.FullName 'SAStandalone-LEEME.md')
 Copy-Item -LiteralPath (Join-Path $root 'CREDITS.md') -Destination (Join-Path $runtime.FullName 'SAStandalone-CREDITOS.md')
 Copy-Item -LiteralPath (Join-Path $root 'licenses/Ultimate-ASI-Loader.txt') -Destination $licenses.FullName
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE.md') -Destination $licenses.FullName
+Copy-Item -LiteralPath (Join-Path $root 'bootstrap/COPYING') -Destination (Join-Path $licenses.FullName 'Delirium-GPL-3.0.txt')
 $expected = @(
-    'dinput8.dll','scripts/SAStandalone.asi','scripts/SAStandalone.ini',
+    'dinput8.dll','scripts/SAStandalone.asi','scripts/SAStandalone.ini','scripts/sa_delirium_bootstrap.dll',
     'SAStandalone-LEEME.md','SAStandalone-CREDITOS.md',
-    'SAStandalone-licenses/Ultimate-ASI-Loader.txt','SAStandalone-licenses/LICENSE.md'
+    'SAStandalone-licenses/Ultimate-ASI-Loader.txt','SAStandalone-licenses/LICENSE.md',
+    'SAStandalone-licenses/Delirium-GPL-3.0.txt'
 )
 $actual = @(Get-ChildItem -LiteralPath $runtime.FullName -Recurse -File | ForEach-Object {
     $_.FullName.Substring($runtime.FullName.Length + 1).Replace('\','/')
