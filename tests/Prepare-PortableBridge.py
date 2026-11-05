@@ -16,7 +16,20 @@ shutil.copy2(Path(__file__).with_name('PortableNativeImpact.hpp'),out/'PortableN
 old='out.parent_path().parent_path()/"game"/"userfiles"'
 assert s.count(old)==1
 s=s.replace(old,'[](){wchar_t path[32768];GetModuleFileNameW(nullptr,path,32768);return fs::path(path).parent_path();}()/"userfiles"')
-s=s.replace('static bool pendingLoad=false;','static bool pendingLoad=false;static bool firstNewGame=false;')
+s=s.replace('static bool pendingLoad=false;','static bool pendingLoad=false;static bool firstNewGame=false;static bool nativeLoadBusy=false;static unsigned nativeLoadReentries=0;')
+marker='static void nativeLoadStep(){\n    if(!pendingLoad)return;'
+assert s.count(marker)==1
+s=s.replace(marker,marker+'''
+    // A native load can pump window messages while its menu action is still
+    // on the stack. WM_TIMER must not issue that action a second time.
+    if(nativeLoadBusy){++nativeLoadReentries;return;}
+    struct NativeLoadScope {
+        NativeLoadScope(){nativeLoadBusy=true;}
+        ~NativeLoadScope(){nativeLoadBusy=false;}
+    } nativeLoadScope;
+''')
+assert s.count('<<trainerPadReads')==1
+s=s.replace('<<trainerPadReads',r'<<trainerPadReads<<",\"native_load_reentries\":"<<nativeLoadReentries')
 marker='    if(text.find("\\\"load_test_save\\\"")==std::string::npos)'
 assert s.count(marker)==1
 s=s.replace(marker,'''    if(text.find("\\\"probe_native_ammo\\\"")!=std::string::npos){nativeAmmoStatus();return;}
@@ -47,5 +60,5 @@ s=s.replace(marker,'''    if(firstNewGame){
     }
 '''+marker)
 (out/'AgentBridge.cpp').write_text(s,encoding='utf-8',newline='\n')
-(out/'provenance.json').write_text(json.dumps({'original_sha256':hashlib.sha256(original.read_bytes()).hexdigest(),'fixture_only':True,'native_menu_references':['FrontendScreensPC.h screens1/6/7','MenuManager_Process.cpp actions10/14'],'changes':['Resolve actual executable root','Native standard new-game UI actions; no mission or save flag edits']}),encoding='utf-8')
+(out/'provenance.json').write_text(json.dumps({'original_sha256':hashlib.sha256(original.read_bytes()).hexdigest(),'fixture_only':True,'native_menu_references':['FrontendScreensPC.h screens1/6/7','MenuManager_Process.cpp actions10/14'],'changes':['Resolve actual executable root','Native standard new-game UI actions; no mission or save flag edits','Prevent reentrant WM_TIMER from repeating a native load action; expose counter']}),encoding='utf-8')
 print(out)

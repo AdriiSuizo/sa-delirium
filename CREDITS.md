@@ -1,6 +1,7 @@
 # Créditos
 
 - **AdriiSuizo** dirige la integración y el proyecto.
+- **Grinch_**, autor de **Grinch Trainer1.0**. ASI original sin modificar; distribución gratuita según el acuerdo incluido en `Documentation/Licenses/GrinchTrainer-License.txt`. [Proyecto y licencia originales](https://github.com/user-grinch/GrinchTrainer-III-VC-SA/tree/1.0).
 - **Izzy / Izzys Mods**, autora de **Lively Vehicle Physics 1.6**. Incluido con su permiso explícito, conservando su ASI, configuración y readme originales. [Publicación de la autora](https://libertycity.net/files/gta-san-andreas/246038-izzys-lively-vehicle-physics-1-6.html).
 - **FxsFuncs 1.1 Build 46 (47 fix)**, de Junior_Djjr, con soporte de Ezekiel. ASI original incluido según su permiso para compilaciones, con su readme y créditos. [Página original](https://www.mixmods.com.br/2025/06/fxsfuncs/).
 - **Ultimate ASI Loader 10.0.2**, de ThirteenAG y colaboradores. Cargador y API de superposición virtual incluidos bajo licencia MIT. [Proyecto](https://github.com/ThirteenAG/Ultimate-ASI-Loader/tree/v10.0.2)
@@ -16,17 +17,20 @@
 
 Desarrollo asistido por OpenAI Codex (familia GPT-6). GTA San Andreas y GTA IV pertenecen a sus titulares.
 
-El perfil portátil clásico incluye los fixes, SkyGfx Extended1.7 de aap y
+El perfil portátil completo incluye los fixes, SkyGfx Extended1.7 de aap y
 Junior_Djjr, el timecycle PS2 leído de Steam, Project2DFX, NextGen Remaster Effects
 de Ezekiel/Junior_Djjr y Enhance ParticleTXD de Junior_Djjr. Conserva los créditos,
 readmes y licencias originales en `Documentation/Original` y
-`Documentation/Licenses`. Los plugins se incluyen en el instalador; sus autores
+`Documentation/Licenses`. Los plugins se incluyen en el instalador salvo Urbanize, adquirido automáticamente
+desde su distribución original; sus autores
 conservan sus derechos y sus términos individuales. La lista de orígenes está en
 `installer/portable/source-catalog.json` y el inventario de construcción.
 Se incluyen los avisos originales de las dependencias Rust, DXVK (zlib),
 Framerate Vigilante y PortableGTA (MIT), plugin-sdk (zlib), 7-Zip y DirectSetup.
-RoSA/Proper Player Retex, GTA IV Textures and HQ Roads, el HUD de GTA V y los
-extras HD/trainer/Urbanize no forman parte de este perfil.
+Se conservan los extras HD, trainer y Urbanize; se excluyen RoSA/Proper Player
+Retex, GTA IV Textures and HQ Roads, el HUD GTA V y ambos packs de armas añadidos.
+Urbanize es de Junior_Djjr: https://www.mixmods.com.br/2026/02/urbanize/ .
+Sus originales no se reempaquetan. Los avisos de cada extra acompañan el perfil.
 
 ## Optional local visual data
 

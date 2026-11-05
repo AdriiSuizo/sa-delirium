@@ -15,7 +15,8 @@ if(!$vs){throw 'C++ build tools required'}
 & (Join-Path $repo 'installer/Build-Launcher.cmd') $packageRoot (Join-Path $vs 'Common7/Tools/VsDevCmd.bat')
 if($LASTEXITCODE -ne 0){throw 'Current Steam launcher build failed'}
 $launcher=Join-Path $packageRoot 'SteamLauncher.exe'
-$out=Join-Path $packageRoot 'SA-Delirium-0.3.0-Setup.exe'
+$version=if($spec.version){$spec.version}else{'0.3.0'}
+$out=Join-Path $packageRoot ('SA-Delirium-'+$version+'-Setup.exe')
 & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 `
     /r:System.Web.Extensions.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
     ('/win32manifest:'+(Join-Path $repo 'installer/setup.manifest')) `

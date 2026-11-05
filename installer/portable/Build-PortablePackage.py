@@ -2,7 +2,8 @@
 
 Development and original-author archives are BUILD inputs only. The resulting
 manifest contains HTTPS sources and hashes, never a destination development path.
-The classic preset embeds the selected original plugins and their notices.
+Embedded presets include selected original plugins and their notices; Urbanize
+remains an automatic original-author download.
 Game resources remain local Steam inputs or owner-ISO generated resources.
 """
 from pathlib import Path
@@ -34,8 +35,9 @@ def main():
     ap.add_argument('--steam-source',type=Path,help='Verified owned stock Steam files used only to build compatibility deltas')
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
-    ap.add_argument('--preset',choices=['development','classic'],default='development')
-    ap.add_argument('--embed-mods',action='store_true',help='Resolve selected original mod members at build time; no provider downloads on destination')
+    ap.add_argument('--preset',choices=['development','classic','full'],default='full')
+    ap.add_argument('--version',default='0.3.1')
+    ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     args = ap.parse_args()
     project = args.project.resolve()
     repo = Path(__file__).resolve().parents[2]
@@ -70,6 +72,7 @@ def main():
     unresolved = []
     used_packages = set()
     classic_components={'asi-loader','cleo','cleo-plus','modloader','window','silentpatch','ginput','widescreen','limit-adjuster','frameratevigilante','portablegta','skygfx','ps2-time-cycle','delirium','render-backend','izzy-s-lively-vehicle-physics','fxsfuncs','nextgen-effects','enhance-particletxd','project2dfx'}
+    weapon_components={'gta-v-weapons','nextgen-remaster-weapons'}
 
     # Small configuration files authored for this distribution. Preserve the
     # selected gameplay settings while dropping machine resolution/menu state.
@@ -100,6 +103,9 @@ def main():
         'Enhance ParticleTXD': 65, 'Rubbish GTA 4': 65, 'Improved Lamps': 75,
         'Advanced Aiming Mod': 65, 'NeXtGen Remaster Weapons': 65, 'HD Skin Pack 299': 65,
     }
+    if args.preset in {'full','classic'}:
+        priorities.pop('GTA V Weapons',None)
+    priorities.pop('GTA IV Textures and HQ Roads',None)
     own['modloader/modloader.ini'] = '[Folder.Config]\nProfile=Default\nPriorityLimit=100\n[Profiles.Default.Config]\nIgnoreAllMods=false\nExcludeAllMods=false\n[Profiles.Default.Priority]\n' + ''.join(f'{k}={v}\n' for k,v in priorities.items()) + '[Profiles.Default.IgnoreMods]\n_ignore\n'
     licensed = {
         'd3d9.dll': ('DXVK-zlib.txt', 'https://github.com/doitsujin/dxvk/releases/tag/v3.1.1'),
@@ -174,6 +180,7 @@ def main():
     for f in frozen['files']:
         name = f['path']
         components = f['components']
+        if args.preset=='full' and set(components)&weapon_components:continue
         if args.preset=='classic' and (name.endswith('.ini.0') or (components and not set(components)&classic_components)):continue
         if name.startswith('DeliriumSA/') or set(components) & {'rosa-project-evolved', 'proper-player-retex', 'gta-iv-textures-and-hq-roads', 'izzy-s-lively-vehicle-physics'} or name in {'gta-sa.exe', 'delirium_physics.dll', 'cleo/cleo_saves/cs1.sav', 'GrinchTrainerSA/update.json'}:
             continue
@@ -288,36 +295,50 @@ def main():
             data=subprocess.run([str(seven),'x','-so','-spd','-p'+password,str(archive),name],capture_output=True,check=True).stdout
             recipes.append(dict(path='Documentation/Original/'+pid+'/'+name,kind='package',package=pid,member=name,bytes=len(data),sha256=hashlib.sha256(data).hexdigest(),components=[]))
     if args.embed_mods:
-        if 'urbanize-21217a20e7' in used_packages:
-            raise ValueError('Urbanize author terms prohibit modpack redistribution; choose the classic preset')
+        # Urbanize's author forbids repackaging. Keep that original download
+        # automatic; embed the other selected components and their notices.
+        original_downloads={'urbanize-21217a20e7'}
+        extraction=tempfile.TemporaryDirectory(prefix='author-input-',dir=out)
+        extracted={}
+        groups=collections.defaultdict(list)
+        for recipe in recipes:
+            if recipe['kind'] in {'package','package_delta'} and recipe['package'] not in original_downloads:
+                groups[recipe['package']].append(recipe)
+        for pid,group in groups.items():
+            package=packages[pid];archive=archive_path(pid)
+            assert not package.get('security_blocked'),'Blocked source is not a build input'
+            assert archive.is_file() and sha(archive)==package['sha256'],'Original author archive changed: '+pid
+            if package.get('format')=='raw':extracted[pid]=archive;continue
+            directory=Path(extraction.name)/hashlib.sha256(pid.encode()).hexdigest()[:16]
+            directory.mkdir()
+            names=sorted({f['member'] for f in group})
+            for name in names:
+                assert not Path(name).is_absolute() and '..' not in Path(name).parts and not any(c in name for c in '\r\n\0')
+            listing=directory.with_suffix('.members.txt');listing.write_text('\n'.join(names)+'\n',encoding='utf-8')
+            subprocess.run([str(seven),'x','-y','-bd','-bb0','-spd','-scsUTF-8','-p'+package.get('password','-'),'-o'+str(directory),str(archive),'@'+str(listing)],capture_output=True,check=True)
+            extracted[pid]=directory
         # Resolve only build-time author inputs. No full game resource can take
         # this route: game originals have steam/steam_delta recipes above.
-        verified_archives=set()
         converted=[]
         for recipe in recipes:
-            if recipe['kind'] not in {'package','package_delta'}:
+            if recipe['kind'] not in {'package','package_delta'} or recipe['package'] in original_downloads:
                 converted.append(recipe);continue
             pid=recipe['package'];package=packages[pid];archive=archive_path(pid)
             assert not package.get('security_blocked'),'Blocked source is not a build input'
-            if pid not in verified_archives:
-                assert archive.is_file() and sha(archive)==package['sha256'],'Original author archive changed: '+pid
-                verified_archives.add(pid)
-            if package.get('format')=='raw':data=archive.read_bytes()
-            else:
-                password=package.get('password','-')
-                data=subprocess.run([str(seven),'x','-so','-spd','-p'+password,str(archive),recipe['member']],capture_output=True,check=True).stdout
+            data=extracted[pid] if package.get('format')=='raw' else extracted[pid]/recipe['member']
+            assert data.is_file() and not data.is_symlink() and not data.is_junction()
             if recipe['kind']=='package_delta':
-                assert hashlib.sha256(data).hexdigest()==recipe['source_sha256'] and len(data)==recipe['source_bytes']
+                assert sha(data)==recipe['source_sha256'] and data.stat().st_size==recipe['source_bytes']
                 data=project/'game'/recipe['path']
                 assert sha(data)==recipe['sha256'] and data.stat().st_size==recipe['bytes']
             else:
-                assert len(data)==recipe['bytes'] and hashlib.sha256(data).hexdigest()==recipe['sha256'],'Original member changed: '+recipe['path']
+                assert data.stat().st_size==recipe['bytes'] and sha(data)==recipe['sha256'],'Original member changed: '+recipe['path']
             converted.append(dict(path=recipe['path'],kind='payload',source=recipe['path'],bytes=recipe['bytes'],sha256=recipe['sha256'],components=recipe['components']))
             payload[recipe['path']]=data
             receipts.append(dict(path=recipe['path'],original_package=pid,original_url=package.get('url'),original_member=recipe['member'],permission='Original third-party component; preserve author credits, original notices and separate terms'))
         recipes=converted
         patches=[p for p in patches if any(f.get('patch')==p[0] for f in recipes)]
-        used_packages.clear()
+        used_packages={f['package'] for f in recipes if f['kind'] in {'package','package_delta'}}
     browser_package = None
     if any(packages[p].get('resolver')=='browser' for p in used_packages):
         browser_package = read(project/'release-work/portable-fetch/originals/webview2-runtime-source.json')
@@ -371,13 +392,14 @@ def main():
             if path.is_file() and path.suffix.lower() in {'.exe','.dll','.txt'}:shutil.copy2(path,helpers/path.name)
     subprocess.run([sys.executable,str(Path(__file__).with_name('Prepare-PlatformSupport.py')),'--project',str(project),'--out',str(helpers/'directx')],check=True,stdout=subprocess.DEVNULL)
     profile=dict(frozen)
-    profile.update(profile='steam-owned-iso-'+args.preset+'-0.3.0',source_kind='owned_steam_plus_owned_xbox360_iso',files=[{k:f[k] for k in ['path','bytes','sha256','components']} for f in recipes],total_bytes=plan['bytes'],notes=['Steam originals are read locally; IV resources are generated from the owner ISO.','Selected mod plugins are embedded and source-checked.' if args.embed_mods else 'Original author distributions are downloaded and source-checked before local preparation.'])
+    profile.update(profile='steam-owned-iso-'+args.preset+'-'+args.version,source_kind='owned_steam_plus_owned_xbox360_iso',files=[{k:f[k] for k in ['path','bytes','sha256','components']} for f in recipes],total_bytes=plan['bytes'],notes=['Steam originals are read locally; IV resources are generated from the owner ISO.','Mod plugins are embedded except automatic original Urbanize download.' if args.embed_mods else 'Original author distributions are downloaded and source-checked before local preparation.'])
     for c in profile['components']:
         c['requested']=bool(c['requested'] and c['id'] not in ['rosa-project-evolved','proper-player-retex','gta-iv-textures-and-hq-roads'] and (args.preset!='classic' or c['id'] in classic_components))
+        if args.preset=='full' and c['id'] in weapon_components:c['requested']=False
         c['files']=sum(c['id'] in f['components'] for f in recipes)
         c['bytes']=sum(f['bytes'] for f in recipes if c['id'] in f['components'])
         if c['id']=='izzy-s-lively-vehicle-physics':c['version']='1.6';c['distribution']='Explicit author permission; original files unchanged'
-    manifest=dict(schema=1,lab_only=False,choose_compatible_renderer=True,prepare_legacy_directx=True,profile=profile,files=recipes,packages=[packages[p] for p in sorted(used_packages)],omissions=['GTA V HUD / minimap / weapon wheel','RoSA / bundled Proper Player Retex','GTA IV Textures and HQ Roads','Author saves and generated state'])
+    manifest=dict(schema=1,version=args.version,lab_only=False,choose_compatible_renderer=True,prepare_legacy_directx=True,profile=profile,files=recipes,packages=[packages[p] for p in sorted(used_packages)],omissions=['GTA V HUD / minimap / weapon wheel','RoSA / bundled Proper Player Retex','GTA IV Textures and HQ Roads','Added weapon packs','Author saves and generated state'])
     if browser_package:manifest['webview_bootstrapper_package']=browser_package['id']
     bundle=out/'portable-tools.zip.new'
     with zipfile.ZipFile(bundle,'w',zipfile.ZIP_DEFLATED,compresslevel=7,strict_timestamps=False) as zip:
@@ -386,6 +408,7 @@ def main():
     bundle.replace(out/'portable-tools.zip')
     manifest['tools_sha256']=sha(out/'portable-tools.zip')
     (out/'portable-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False),encoding='utf-8')
+    if args.embed_mods:extraction.cleanup()
 
 
 if __name__=='__main__':

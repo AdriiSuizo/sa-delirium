@@ -1,0 +1,10 @@
+                    License Agreement
+      Copyright © 2024 Grinch_. All Rights Reserved.
+      
+This Agreement, effective 2024, grants you the right to use, share, and distribute this modification, developed by Grinch_, at no cost. However, selling or modifying the software without explicit permission is strictly prohibited. All intellectual property rights, including ownership and trademarks, remain with Grinch_.
+
+Redistribution of the unaltered software is permitted for non-commercial purposes, provided this agreement is included.
+
+Termination of this agreement may occur if violations are identified, requiring the cessation of software use and distribution. The software is provided "as-is," without warranty and Grinch_ is not liable for any associated damages.
+
+By using the software, you acknowledge and accept these terms.

@@ -36,8 +36,11 @@ def main():
     ap.add_argument('--izzy-sha256', help='Require the exact approved author ASI to be installed and loaded')
     ap.add_argument('--fxs-sha256', help='Require the exact selected effects ASI')
     ap.add_argument('--fire-effects', action='store_true', help='Fire actual owned-game pistol rounds and verify ammunition decreases')
+    ap.add_argument('--require-module',action='append',default=[],help='Wait for a selected extra plugin to be loaded')
+    ap.add_argument('--trainer-menu',action='store_true',help='Exercise trainer menu through its own process-local XInput samples; no desktop input')
     ap.add_argument('--scenario', choices=['melee', 'bike-shot', 'bicycle-shot', 'car-contact', 'native-shot'], default='melee')
     args = ap.parse_args()
+    assert not args.trainer_menu or args.bridge,'Trainer menu case requires an isolated native bridge'
     target = args.target.resolve()
     game = target / 'SA'
     args.out.mkdir(parents=True, exist_ok=False)
@@ -120,6 +123,17 @@ def main():
                 time.sleep(.25)
             assert len(izzy) == 1 and sha(izzy[0]) == args.izzy_sha256, 'Author ASI missing, duplicated or changed'
             report['izzy_sha256'] = sha(izzy[0])
+        needed_modules=args.require_module+(['FxsFuncs.asi'] if args.fxs_sha256 else [])
+        if needed_modules:
+            deadline=time.monotonic()+45
+            while time.monotonic()<deadline:
+                report['modules']=sorted({m.path for m in child.memory_maps() if m.path.lower().endswith(('.asi','.cleo','.dll'))})
+                loaded={Path(n).name.lower() for n in report['modules']}
+                if all(n.lower() in loaded for n in needed_modules):break
+                assert child.is_running(),'Game exited while loading selected extras'
+                time.sleep(.25)
+            else:raise RuntimeError('Required extras not loaded: '+repr([n for n in needed_modules if n.lower() not in loaded]))
+            report['required_modules']=needed_modules
         if args.fxs_sha256:
             effects=[Path(p) for p in report['modules'] if p.lower().endswith('fxsfuncs.asi')]
             assert len(effects)==1 and sha(effects[0])==args.fxs_sha256
@@ -276,6 +290,19 @@ def main():
             if state['result'] == 'visual_frame_ok':
                 from PIL import Image
                 Image.open(folder / f'visual-frame-{child.pid}.bmp').convert('RGB').resize((1280, 720)).save(args.out / 'game.png')
+            if args.trainer_menu:
+                before=command('observe').get('trainer_pad_reads',0)
+                for action,name in [('probe_trainer_toggle','trainer-open'),('probe_trainer_down','trainer-navigation'),('probe_trainer_toggle','trainer-closed')]:
+                    result=command(action)
+                    assert result.get('result')=='trainer_pad_probe_sent',result
+                    time.sleep(1)
+                    frame=command('probe_visual_frame')
+                    if frame.get('result')=='visual_frame_ok':
+                        from PIL import Image
+                        Image.open(folder/f'visual-frame-{child.pid}.bmp').convert('RGB').resize((1280,720)).save(args.out/(name+'.png'))
+                after=command('observe').get('trainer_pad_reads',0)
+                assert after>before,(before,after)
+                report['trainer_input']={'module_local_reads':after-before,'hardware_controller_tested':False,'desktop_input_sent':False}
             final = command('observe')
             assert final['frame'] > start_state['frame'] and final['game_time_ms'] > start_state['game_time_ms']
             assert final['input_isolated'] and final['health'] > 0

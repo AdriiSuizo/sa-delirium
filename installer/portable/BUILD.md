@@ -19,13 +19,13 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
    Production source generation removes authoring-only hooks and exports. Do not
    use --include-test-diagnostics for a release. InitializeASI is the only export.
 4. Build DeltaTool.exe and RendererProbe.exe with their included build scripts.
-5. BrowserDownload is an optional historical download backend. The classic
+5. BrowserDownload is an optional historical download backend. The full
    embedded preset does not ship or need it or WebView2.
 6. Run Prepare-RustNotices.py. Prepare-PlatformSupport.py creates the documented
    minimal DirectSetup set from the signed official June2010 redistribution.
 7. Build-PortablePackage.py requires the maintained build reference, pinned
    original-author archives and the approved original Izzy1.6 files. Those are
-   build-time inputs. Use --preset classic --embed-mods and an absolute
+   build-time inputs. Use --preset full --embed-mods --version 0.3.1 and an absolute
    --izzy-source path. It resolves selected plugins at build time, fails on
    unaccounted files and emits source-checked Steam deltas and embedded files
    and their redistribution basis. It never embeds game executables, game IMG
@@ -41,10 +41,11 @@ and changed source files must stop safely. A warmed private source fixture is
 not evidence of an automatic clean-PC download.
 
 Original build inputs are pinned in source-catalog.json and the private routing
-receipt. The classic embedded preset has packages=[]: destination preparation
-cannot visit providers or require development/cache inputs. Keep original plugin
-notices and separate author terms. Do not include the prohibited Urbanize/RoSA
-packs. Public archive passwords apply only to build-time author containers.
+receipt. The full preset embeds all selected extra packages except Urbanize. Its single
+original HTTPS download is automatic and pinned; no provider-page interaction or
+additional owner file is required. No destination development/cache inputs. Keep original plugin
+notices and separate author terms. Do not embed the prohibited Urbanize/RoSA
+packs. Keep Urbanize as an original-download recipe, including its license. Public archive passwords apply only to build-time author containers.
 
 The shared runtime, adapter and integration code use GPL3 with the preserved
 Delirium additional permission. Include corresponding source for the same

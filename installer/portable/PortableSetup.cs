@@ -12,7 +12,7 @@ using SASetup;
 
 namespace SAPortable {
     public static class Program {
-        public const string Version="0.3.0";
+        public const string Version="0.3.1";
         public static byte[] Resource(string name) {
             using(var input=Assembly.GetExecutingAssembly().GetManifestResourceStream(name)) {
                 if(input==null)throw new IOException("Falta un recurso del instalador: "+name);
@@ -122,7 +122,7 @@ namespace SAPortable {
             Controls.Add(new Label {Text="El asistente prepara el juego, instala los mods y configura Jugar en Steam.\nSolo necesitas tu San Andreas clásico y la ISO de GTA IV para Xbox 360.",Location=new Point(30,78),Size=new Size(700,52)});
             AddPath("San Andreas clásico de Steam",steam,148,false);
             AddPath("ISO de GTA IV para Xbox 360",iso,244,true);
-            Controls.Add(new Label {Text="Incluye fixes, aspecto PS2, Delirium e Izzy Lively Vehicle Physics 1.6.\nLos mods vienen en el instalador. Sin texturas de GTA IV, RoSA ni HUD de GTA V.\nLas partidas tienen su propio perfil y el ejecutable original queda respaldado.",Location=new Point(31,344),Size=new Size(700,72),ForeColor=Color.FromArgb(65,77,96)});
+            Controls.Add(new Label {Text="Conserva extras HD, trainer, fixes, aspecto PS2, Delirium e Izzy 1.6.\nUrbanize se descarga automáticamente del autor; los demás mods vienen incluidos.\nSin packs de armas, texturas IV, RoSA ni HUD GTA V. Partidas y original respaldados.",Location=new Point(31,344),Size=new Size(700,72),ForeColor=Color.FromArgb(65,77,96)});
             progress.SetBounds(31,426,698,15);Controls.Add(progress);
             status.SetBounds(31,452,698,40);Controls.Add(status);
             restore.Text="Restaurar Steam";restore.SetBounds(31,505,160,34);restore.Click+=delegate{BeginWork(true);};Controls.Add(restore);

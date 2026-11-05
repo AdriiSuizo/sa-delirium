@@ -1,13 +1,13 @@
 # SA Delirium
 
-San Andreas clásico de Steam con Delirium, fixes, aspecto PS2 y Lively Vehicle
-Physics1.6 de Izzy. Se instala con un asistente y se abre con **Jugar** en Steam.
-Los plugins seleccionados vienen dentro del instalador.
+San Andreas clásico de Steam con Delirium, fixes, aspecto PS2, extras de desarrollo
+y Lively Vehicle Physics1.6 de Izzy. Se instala con un asistente y se abre con **Jugar** en Steam.
+Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automáticamente de su autor.
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.0-Setup.exe** o el RAR de la
-[entrega0.3.0](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.0).
+Descarga **SA-Delirium-0.3.1-Setup.exe** o el RAR de la
+[entrega0.3.1](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.1).
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
 elige la ISO si falta su ruta y pulsa **Instalar**. Después usa **Jugar**.
 
@@ -16,11 +16,12 @@ de Steam, AppID12120**, y una **ISO compatible propia de GTA IV para Xbox360**.
 La Definitive Edition y otras ediciones de SA no son esta entrega. La instalación
 verifica la versión; si Steam cambia los archivos, se detiene con un error.
 No necesitas la carpeta de desarrollo ni otra instalación de GTA IV de PC.
-Los mods no requieren descargas durante la instalación. Los recursos de GTA IV
+Solo Urbanize requiere conexión durante la instalación; el asistente lo descarga
+automáticamente de su distribución original, sin pedir otro archivo. Los recursos de GTA IV
 se generan en tu equipo desde la ISO; después puedes quitarla de esa ruta.
 
 Se requiere espacio para el perfil y su preparación temporal (aproximadamente
-11GB adicionales). Las rutas de instalación deben admitir el límite nativo de
+15GB adicionales). Las rutas de instalación deben admitir el límite nativo de
 SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
@@ -35,9 +36,21 @@ Windowed Mode, Open Limit Adjuster, Framerate Vigilante y PortableGTA.
 DXVK se comprueba en el equipo; si no puede crear un dispositivo, se usa D3D9
 de Windows. Los créditos y readmes originales se instalan en `SA/Documentation`.
 
-Quedan fuera RoSA/Proper Player Retex, GTA IV Textures and HQ Roads, el
-HUD/minimapa/rueda de armas de GTA V y los extras HD, Urbanize, trainer y armas
-de GTA V del perfil de desarrollo. Este es el perfil clásico de fixes/PS2/físicas.
+Se conservan Urbanize, Grinch Trainer, Advanced Aiming, HD Skin Pack299,
+BSOR/LOD Vegetation, NextGen Grass, SA Brightened, Jefferson Retextured, Parallax
+Interiors, neones/lámparas, Rubbish GTA4 y los eventos civiles de desarrollo.
+La configuración de combate, físicas y movimientos de Delirium se conserva.
+
+Quedan fuera **ambos packs de armas añadidos** (GTA V Weapons y NeXtGen Remaster
+Weapons), RoSA/Proper Player Retex, GTA IV Textures and HQ Roads y el
+HUD/minimapa/rueda de GTA V. Las armas usan los recursos de San Andreas de Steam.
+Esta selección corresponde a la aclaración del usuario: «Todo menos las armas»,
+conservando sus exclusiones anteriores. La entrega0.3.0 era un perfil más reducido.
+
+Urbanize se mantiene separado según su licencia, que prohíbe reempaquetarlo en
+modpacks desde octubre2026. El asistente obtiene su original y aplica los ajustes
+locales verificados. Se instalan sus readmes/licencia y se acredita a
+[Junior_Djjr](https://www.mixmods.com.br/2026/02/urbanize/).
 
 ## Partidas, restauración y diagnóstico
 
@@ -64,10 +77,10 @@ No mezcles este perfil con otros loaders/renderizadores o SA-MP.
 ## Validación y límites
 
 La entrega se comprueba desde416 archivos propios de Steam y una ISO externa,
-con caché vacía, mediante el EXE literal y con los mods embebidos. Se comprueban
+con caché vacía, mediante el EXE literal y con los extras embebidos y Urbanize descargado de su autor. Se comprueban
 arranque sin puente, intro de partida nueva, daño nativo, efectos, conservación
 de partidas, restauración y Jugar en Steam. La cobertura concreta y las huellas
-se documentan en [VALIDATION.md](installer/portable/VALIDATION.md).
+se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.1.md).
 
 Las pruebas son acotadas. No certifican todos los vehículos, misiones, mandos,
 GPUs, idiomas o ediciones de ISO; tampoco equivalencia completa con GTA IV ni
