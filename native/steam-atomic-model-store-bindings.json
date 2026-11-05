@@ -1,0 +1,277 @@
+{
+  "status": "reviewed_lifecycle_pending_runtime_validation",
+  "steam_sha256": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+  "original_counter": "0xb260c8",
+  "size": 32,
+  "original_capacity": 14000,
+  "native_constructor": "0x4cf570",
+  "native_vtable": "0x8a576c",
+  "native_add": "0x4d0810",
+  "prefix_size": 7,
+  "references": [
+    {
+      "operand_va": "0x4d05ed",
+      "instruction_va": "0x4d05eb",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "aa977c3452c3966a402d4ce884a4a33751ce95bdb1a9dc2e3d7062eb9af3cded",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d05f4",
+      "instruction_va": "0x4d05f3",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "8405be581f55a4ab6133c2eeeb41456c91be219dbac419553227483333279665",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0605",
+      "instruction_va": "0x4d0603",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "c6ead887bfc71d6c0a1f78ebe7ff67e11b2d7946fa760bd551cc5018f7283ac6",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d07cf",
+      "instruction_va": "0x4d07cd",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "f0eeb78f8a38e3d5b0d88086fc305ba7d4d57fb52b49d4d6126d50bb339d09f1",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0aa1",
+      "instruction_va": "0x4d0aa0",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "18d284774f3a4f3b3ea32234ab2663fdf95e2821f46ba6c366417b7008fa1621",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0aab",
+      "instruction_va": "0x4d0aaa",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "e57b50ad908fd9b85d13c71e543bf1516a2b09d23dffb0b71cfeb54860ce6721",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0ae7",
+      "instruction_va": "0x4d0ae5",
+      "instruction_size": 10,
+      "delta": 0,
+      "canonical_prefix_sha256": "4c1816852b4d6c6a8554efd7134344a9017dd0599445572f5f383110ca7d077c",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0af8",
+      "instruction_va": "0x4d0af7",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "d77f72d8e0f2cadf4908eb564450d42015af776d61e6a3f24b295a6107c8e05a",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b02",
+      "instruction_va": "0x4d0afc",
+      "instruction_size": 10,
+      "delta": 4,
+      "canonical_prefix_sha256": "81a188191a8227c87374dc45c8f3f455e5350ab1b76dada1e9362bb01249e521",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b11",
+      "instruction_va": "0x4d0b10",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "1728949013f9f62ba58a705caecbf0dfc1e280702179374aad7bb4dce4ed31ec",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b21",
+      "instruction_va": "0x4d0b20",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "6785e71392e8f31a1ad4601fcc3bcec96ccc49869435767d75bbaeab09ae4530",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b33",
+      "instruction_va": "0x4d0b31",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b38",
+      "instruction_va": "0x4d0b37",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b6e",
+      "instruction_va": "0x4d0b6d",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "8cffd307bc8824c3511abb293d76c43775a7b64e82a47a17ae9a4d0c28c41183",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b7a",
+      "instruction_va": "0x4d0b78",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0b7f",
+      "instruction_va": "0x4d0b7e",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0bb5",
+      "instruction_va": "0x4d0bb4",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "8cffd307bc8824c3511abb293d76c43775a7b64e82a47a17ae9a4d0c28c41183",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0bc1",
+      "instruction_va": "0x4d0bbf",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0bc6",
+      "instruction_va": "0x4d0bc5",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0bfc",
+      "instruction_va": "0x4d0bfb",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "8cffd307bc8824c3511abb293d76c43775a7b64e82a47a17ae9a4d0c28c41183",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c08",
+      "instruction_va": "0x4d0c06",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c0d",
+      "instruction_va": "0x4d0c0c",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c43",
+      "instruction_va": "0x4d0c42",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "8cffd307bc8824c3511abb293d76c43775a7b64e82a47a17ae9a4d0c28c41183",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c4f",
+      "instruction_va": "0x4d0c4d",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c54",
+      "instruction_va": "0x4d0c53",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c8a",
+      "instruction_va": "0x4d0c89",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "8cffd307bc8824c3511abb293d76c43775a7b64e82a47a17ae9a4d0c28c41183",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c96",
+      "instruction_va": "0x4d0c94",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0c9b",
+      "instruction_va": "0x4d0c9a",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0cd1",
+      "instruction_va": "0x4d0cd0",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "8cffd307bc8824c3511abb293d76c43775a7b64e82a47a17ae9a4d0c28c41183",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0cdd",
+      "instruction_va": "0x4d0cdb",
+      "instruction_size": 6,
+      "delta": 4,
+      "canonical_prefix_sha256": "193db6598fc567eebc03e49edd34d97973eb6d57164cadcd6280487856d49fed",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0ce2",
+      "instruction_va": "0x4d0ce1",
+      "instruction_size": 5,
+      "delta": 0,
+      "canonical_prefix_sha256": "237b4a2fef0ee9f89327fe7b6ba8bd12973e22b4d4fd8a3662b5e919d5b717d5",
+      "reviewed": true
+    }
+  ],
+  "preconstruction": "All slots must use the real constructor BEFORE native Initialise. Its fixed native model setup writes slots directly rather than going through AddAtomicModel. All its counter/base operands are relocated together.",
+  "crt_references_left_unchanged": [
+    "0x899b22",
+    "0x899b32",
+    "0x89d3fd"
+  ],
+  "native_add_operands_left_unchanged": [
+    "0x4d0814",
+    "0x4d0821",
+    "0x4d0826"
+  ],
+  "reference_project": {
+    "repo": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster",
+    "commit": "e454bfaf7edf4d293e533401b0a03330cde80906",
+    "license": "MIT"
+  }
+}

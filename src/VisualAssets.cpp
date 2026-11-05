@@ -9,6 +9,7 @@
 
 namespace fs=std::filesystem;
 bool installSteamModelStores(const fs::path&root,std::ostream&log);
+bool installSteamVisualPools(const fs::path&root,std::ostream&log);
 bool prepareVisualAssets(const fs::path& root,std::ostream& log){
     if(!fs::is_regular_file(root/L"SAStandalone-assets"/L"manifest.json"))return true;
     const auto module=LoadLibraryExW((root/L"scripts"/L"sa_delirium_bootstrap.dll").c_str(),nullptr,
@@ -44,6 +45,9 @@ bool prepareVisualAssets(const fs::path& root,std::ostream& log){
     bool hasDefinitions=false;
     for(const auto&[from,to]:mappings)if(_wcsicmp(from.extension().c_str(),L".ide")==0)hasDefinitions=true;
     if(hasDefinitions&&!installSteamModelStores(root,log)){log<<"required_model_store_backend_unavailable\n";return false;}
+    bool hasWorldMaps=false;
+    for(const auto&[from,to]:mappings)if(_wcsicmp(from.filename().c_str(),L"gta.dat")==0)hasWorldMaps=true;
+    if(hasWorldMaps&&!installSteamVisualPools(root,log)){log<<"required_collision_pool_backend_unavailable\n";return false;}
     std::size_t installed=0;
     for(const auto& [from,to]:mappings){
         if(!add(from.c_str(),to.c_str(),10)){

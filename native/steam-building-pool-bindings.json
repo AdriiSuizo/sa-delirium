@@ -1,0 +1,42 @@
+{
+  "status": "reviewed_original_constructor_pending_runtime_test",
+  "pool": "CBuilding",
+  "global": "0xc018b0",
+  "element_size": 56,
+  "original_capacity": 13500,
+  "logical_default_capacity": 30000,
+  "configuration": "Streaming/Buildings",
+  "ceiling_reference": "OLA building handle ceiling32767",
+  "unrolled_initializer_factor": 6,
+  "references": [
+    {
+      "operand_va": "0x5664a4",
+      "instruction_va": "0x5664a3",
+      "instruction_size": 5,
+      "original_value": 13500,
+      "canonical_prefix_sha256": "60ea94927f119f36c96469f657f4eb97b9a46e52cb7dd27449be5ec68a90a39c"
+    },
+    {
+      "operand_va": "0x5664bd",
+      "instruction_va": "0x5664bc",
+      "instruction_size": 5,
+      "original_value": 13500,
+      "canonical_prefix_sha256": "9434fcf7eea36d3fc02eb2a1b6b38fb9b4dbb3281541806a7828f844eddeb9c4"
+    },
+    {
+      "operand_va": "0x5664d5",
+      "instruction_va": "0x5664d2",
+      "instruction_size": 7,
+      "original_value": 13500,
+      "canonical_prefix_sha256": "265d1baccfc3e694c6e63ed6cf46ae2618fc5b70cdd85fa7dcc5aa84c08da3e1"
+    },
+    {
+      "operand_va": "0x56656a",
+      "instruction_va": "0x566569",
+      "instruction_size": 5,
+      "original_value": 13500,
+      "canonical_prefix_sha256": "56bb2b80332231c1a6901a6c74c16f1e7192bc5a954224aeba467b3ed9494c53"
+    }
+  ],
+  "scope": "Four capacity operands of native inlined constructor. Native pool layout/handles/allocation/shutdown remain unchanged."
+}

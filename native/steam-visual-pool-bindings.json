@@ -1,0 +1,42 @@
+{
+  "status": "reviewed_original_constructor_pending_runtime_test",
+  "pool": "CColModel",
+  "global": "0xc018bc",
+  "element_size": 48,
+  "original_capacity": 10150,
+  "logical_default_capacity": 20000,
+  "configuration": "Streaming/CollisionModels",
+  "ceiling_reference": "OLA ColModel ceiling100000",
+  "unrolled_initializer_factor": 5,
+  "references": [
+    {
+      "operand_va": "0x566785",
+      "instruction_va": "0x566784",
+      "instruction_size": 5,
+      "original_value": 10150,
+      "canonical_prefix_sha256": "e001b389ce195bedce3e05e1ca33fc53f205f09a36794ee8e61d27e802e50d42"
+    },
+    {
+      "operand_va": "0x56679e",
+      "instruction_va": "0x56679d",
+      "instruction_size": 5,
+      "original_value": 10150,
+      "canonical_prefix_sha256": "1c385f00ae33beea89eb9ad46126a981894c457878ddf97cf05c5044a33d80d5"
+    },
+    {
+      "operand_va": "0x5667b6",
+      "instruction_va": "0x5667b3",
+      "instruction_size": 7,
+      "original_value": 10150,
+      "canonical_prefix_sha256": "804a65e71cde56e37ac54eaa544c508094924170cf1224d3dd79c0e2828780db"
+    },
+    {
+      "operand_va": "0x566832",
+      "instruction_va": "0x566831",
+      "instruction_size": 5,
+      "original_value": 10150,
+      "canonical_prefix_sha256": "a19af05df0071ef1b021fe6557c0e890bf2154584fa96e8ded8dac6086771102"
+    }
+  ],
+  "scope": "Only the four capacity operands of the actual native inlined constructor. Native allocation, flags, free/reuse, shutdown and allocator stay unchanged."
+}

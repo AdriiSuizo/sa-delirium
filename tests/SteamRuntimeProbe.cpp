@@ -11,6 +11,8 @@
 #include "World.hpp"
 #include <memory>
 #include <atomic>
+#include <array>
+#include <utility>
 
 // Opt-in lab observer for the SHA-pinned original Steam executable.
 // Chains the central CALL. Separate opt-ins fit, simulate and render a lab body;
@@ -24,10 +26,24 @@ LONG CALLBACK observeCrash(EXCEPTION_POINTERS* exception){
     const auto code=exception->ExceptionRecord->ExceptionCode;
     if(code!=EXCEPTION_ACCESS_VIOLATION&&code!=EXCEPTION_STACK_OVERFLOW)return EXCEPTION_CONTINUE_SEARCH;
     const auto*c=exception->ContextRecord;char line[512];DWORD written{};
-    const int n=sprintf_s(line,"exception code=%08lx ip=%08lx rva=%08lx eax=%08lx ecx=%08lx edx=%08lx esp=%08lx ebp=%08lx atomic_count=%u address=%08lx\r\n",
+    const int n=sprintf_s(line,"exception code=%08lx ip=%08lx rva=%08lx eax=%08lx ecx=%08lx edx=%08lx esp=%08lx ebp=%08lx damage_count=%u simple_count=%u time_count=%u esi=%08lx address=%08lx\r\n",
         code,c->Eip,c->Eip-DWORD(reinterpret_cast<uintptr_t>(image)),c->Eax,c->Ecx,c->Edx,c->Esp,c->Ebp,
-        *reinterpret_cast<const unsigned*>(image+0x7936d0),DWORD(exception->ExceptionRecord->ExceptionInformation[1]));
+        *reinterpret_cast<const unsigned*>(image+0x7936d0),*reinterpret_cast<const unsigned*>(image+0x7260c8),*reinterpret_cast<const unsigned*>(image+0x7940d8),c->Esi,DWORD(exception->ExceptionRecord->ExceptionInformation[1]));
     if(n>0)WriteFile(crashTrace,line,DWORD(n),&written,nullptr);
+    for(const auto&item:std::array{std::pair{"col",std::size_t(0x8018bc)},std::pair{"building",std::size_t(0x8018b0)}}){
+    DWORD pool{},layout[4]{};SIZE_T got{};
+    if(ReadProcessMemory(GetCurrentProcess(),image+item.second,&pool,4,&got)&&got==4&&pool&&
+       ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(pool),layout,sizeof(layout),&got)&&got==sizeof(layout)){
+        unsigned used=0;bool complete=layout[2]<=100000;unsigned char flags[1024];
+        for(unsigned i=0;complete&&i<layout[2];){
+            const unsigned count=(layout[2]-i<sizeof(flags))?layout[2]-i:sizeof(flags);
+            if(!ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(layout[1]+i),flags,count,&got)||got!=count){complete=false;break;}
+            for(unsigned j=0;j<count;j++)used+=(flags[j]&0x80)==0;i+=count;
+        }
+        const int size=sprintf_s(line,"native_%s_pool capacity=%lu occupied=%u complete=%u first_free=%ld\r\n",item.first,layout[2],used,unsigned(complete),LONG(layout[3]));
+        if(size>0)WriteFile(crashTrace,line,DWORD(size),&written,nullptr);
+    }
+    }
     DWORD frame=c->Ebp;
     for(unsigned i=0;i<12&&frame;i++){
         DWORD values[6]{};SIZE_T got{};
@@ -170,6 +186,10 @@ void observeRoad(){
         reinterpret_cast<Request>(image+0x8b00)(7,2);reinterpret_cast<Request>(image+0x8b00)(400,2);
         char lamp[4]{};const bool lampProbe=GetEnvironmentVariableA("SA_STEAM_LAMP_PROBE",lamp,4)==1&&lamp[0]=='1';
         if(lampProbe)reinterpret_cast<Request>(image+0x8b00)(1297,2);
+        char worldSetting[4]{};
+        const bool worldVisualProbe=GetEnvironmentVariableA("SA_STEAM_VISUAL_WORLD_PROBE",worldSetting,4)==1&&worldSetting[0]=='1';
+        const std::array<int,5> worldModels{12004,19000,7393,3222,2634};
+        if(worldVisualProbe)for(const int id:worldModels)reinterpret_cast<Request>(image+0x8b00)(id,2);
         if(roadBikeModel){reinterpret_cast<Request>(image+0x8b00)(roadBikeModel,2);reinterpret_cast<Request>(image+0x8b00)(284,2);}
         reinterpret_cast<Load>(image+0xfc00)(false);
         if(lampProbe){
@@ -182,6 +202,15 @@ void observeRoad(){
                 std::fprintf(trace,"native_visual_lamp model=1297 txd_slot=%d txd_loaded=%u model_loaded=%u sectors=%u rw_object=%u txd_sector=%u txd_sectors=%u\n",
                     txd,loaded,field<unsigned char>(stream,16),field<unsigned>(stream,12),field<void*>(model,0x1c)!=nullptr,txdSector,txdSectors);
             }
+        }
+        if(worldVisualProbe)for(const int id:worldModels){
+            const auto*model=field<const std::byte*>(image,0x712818+id*4);
+            if(!readable(model,0x20)){std::fprintf(trace,"native_visual_world model=%d missing=1\n",id);continue;}
+            const int txd=field<short>(model,0xa);const auto*stream=image+0x55c8a0+id*0x14;
+            const auto loaded=(txd>=0&&txd<5000)?field<unsigned char>(image,0x55c8a0+(20000+txd)*0x14+16):0;
+            const auto sector=(txd>=0&&txd<5000)?field<unsigned>(image,0x55c8a0+(20000+txd)*0x14+8):0;
+            std::fprintf(trace,"native_visual_world model=%d txd_slot=%d txd_loaded=%u model_loaded=%u rw_object=%u col_model=%u txd_sector=%u\n",
+                id,txd,loaded,field<unsigned char>(stream,16),field<void*>(model,0x1c)!=nullptr,field<void*>(model,0x14)!=nullptr,sector);
         }
         const V pedestrian=pm->pos+V{1.7f,6.f,0};
         if(roadBikeModel){

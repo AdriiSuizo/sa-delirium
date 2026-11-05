@@ -1,0 +1,70 @@
+{
+  "status": "reviewed_original_native_lifecycle_pending_runtime_correction_test",
+  "steam_sha256": "15e3cfedba9a841df67d8194e7249afb493b0e10d6138fb8ebab2c136e543efb",
+  "original_counter": "0xb940d8",
+  "size": 36,
+  "original_capacity": 169,
+  "native_model_table_capacity": 20000,
+  "native_constructor": "0x4cf6b0",
+  "native_vtable": "0x8a5844",
+  "native_add": "0x4d08d0",
+  "references": [
+    {
+      "operand_va": "0x4d0659",
+      "instruction_va": "0x4d0657",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "9e375a064ef92ca2a74f407f190af44fa08073b91a34a69b76f9d0d98e3e9a49",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0660",
+      "instruction_va": "0x4d065f",
+      "instruction_size": 5,
+      "delta": 4,
+      "canonical_prefix_sha256": "d1be3ef6489a149d200d00fe3ea4215231727061370ba79d199e2bb1c44b2953",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0671",
+      "instruction_va": "0x4d066f",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "27c21f9f1da24fe3145f71ccbc94c5742bdd2cd8384d0522920790f2c663b9cc",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d07e1",
+      "instruction_va": "0x4d07df",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "fa271748168557fa39d0f7d3722e604178f851d7d79c5acb019afb0d434b5702",
+      "reviewed": true
+    },
+    {
+      "operand_va": "0x4d0abd",
+      "instruction_va": "0x4d0abb",
+      "instruction_size": 6,
+      "delta": 0,
+      "canonical_prefix_sha256": "988596d73a5f92195df684fe7277c3138547fe70a32926055a6c0eaac469669e",
+      "reviewed": true
+    }
+  ],
+  "crt_references_left_unchanged": [
+    "0x899bc2",
+    "0x899bd2",
+    "0x89d45d"
+  ],
+  "original_add_operands_left_in_unused_native_body": [
+    "0x4d08d4",
+    "0x4d08e0",
+    "0x4d08e5"
+  ],
+  "reference_project": {
+    "repo": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster",
+    "commit": "e454bfaf7edf4d293e533401b0a03330cde80906",
+    "license": "MIT"
+  },
+  "evidence": "world9 original time-store counter170, vtable0x32 at preferred4d08eb; native CRT constructs169 objects. Original and repeat crash evidence preserved.",
+  "prefix_size": 7
+}
