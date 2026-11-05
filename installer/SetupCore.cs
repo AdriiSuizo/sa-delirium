@@ -22,7 +22,14 @@ namespace SASetup {
         public int schema;
         public int native_save_path_limit_bytes;
         public string profile, source_executable, source_executable_sha256, stock_steam_executable_sha256;
+        // Optional extra Steam builds that have their own verified delta.
+        // Absent in older indexes: then only the stock build is accepted.
+        public string[] accepted_steam_executable_sha256;
         public long total_bytes;
+        public bool AcceptsSteamExecutable(string sha256) {
+            return sha256 != null && (sha256 == stock_steam_executable_sha256 ||
+                (accepted_steam_executable_sha256 != null && Array.IndexOf(accepted_steam_executable_sha256, sha256) >= 0));
+        }
         public ProfileFile[] files;
         public ProfileComponent[] components;
     }
@@ -38,6 +45,11 @@ namespace SASetup {
         public string State, Target, Source, Profile, OriginalExeSha256, LauncherSha256, StartedUtc;
         public string BackupDirectory, StageDirectory, RetainedProfile;
         public bool ProfileMoved, LauncherInstalled;
+        // Previous profile whose saves were copied into this one, if any.
+        public string SavesFrom;
+        // Absent for Steam installs. "standalone": own folder, game only read.
+        public string Mode;
+        public string[] Shortcuts;
     }
     public static class Paths {
         public static void EnableLongPaths() {
@@ -58,6 +70,14 @@ namespace SASetup {
             if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("El archivo es un enlace: " + path);
         }
+        // Extended form for both sides of a move: Windows refuses to move
+        // between an ordinary and a \\?\ path ("identical roots").
+        public static string Long(string path) {
+            if (path.StartsWith(@"\\?\")) return path;
+            var full = Path.GetFullPath(path);
+            return full.StartsWith(@"\\") ? @"\\?\UNC\" + full.Substring(2) : @"\\?\" + full;
+        }
+        public static void MoveDirectory(string source, string destination) { Directory.Move(Long(source), Long(destination)); }
         public static string Inside(string root, string relative) {
             if (String.IsNullOrEmpty(relative) || relative.Contains('\\') || relative.Contains(':') || relative.StartsWith("/"))
                 throw new IOException("Ruta de archivo no válida: " + relative);
@@ -77,8 +97,9 @@ namespace SASetup {
     }
     public static class Json {
         public static JavaScriptSerializer Serializer() { return new JavaScriptSerializer { MaxJsonLength = 64 * 1024 * 1024, RecursionLimit = 100 }; }
-        public static T Read<T>(string path) { return Serializer().Deserialize<T>(File.ReadAllText(path, Encoding.UTF8)); }
+        public static T Read<T>(string path) { return Serializer().Deserialize<T>(File.ReadAllText(Paths.Long(path), Encoding.UTF8)); }
         public static void Write(string path, object value) {
+            path = Paths.Long(path);
             var temp = path + ".tmp";
             File.WriteAllText(temp, Serializer().Serialize(value), new UTF8Encoding(false));
             if (File.Exists(path)) File.Replace(temp, path, null); else File.Move(temp, path);
@@ -212,7 +233,7 @@ namespace SASetup {
             if (!File.Exists(exe) || Hash(exe) != Index.source_executable_sha256)
                 throw new IOException("El origen no contiene la versión de desarrollo compatible con este instalador.");
             var targetExe = Paths.Inside(target, "gta-sa.exe");
-            if (!File.Exists(targetExe) || Hash(targetExe) != Index.stock_steam_executable_sha256)
+            if (!File.Exists(targetExe) || !Index.AcceptsSteamExecutable(Hash(targetExe)))
                 throw new IOException("El destino no contiene el ejecutable original de Steam esperado. Si ya está instalado, usa Restaurar primero.");
             if (Directory.Exists(Path.Combine(target, ProfileDirectory)) || File.Exists(Path.Combine(target, ReceiptName)))
                 throw new IOException("Ya existe una instalación o una operación pendiente. Usa Restaurar o revisa el diario.");
@@ -259,7 +280,7 @@ namespace SASetup {
                 throw new IOException("No hay espacio suficiente. Se necesitan " + (Index.total_bytes / (1024.0 * 1024 * 1024)).ToString("F1") + " GiB más 1 GiB de margen.");
             string id = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
             var receipt = new Receipt { State = "copying", Source = plan.Source, Target = plan.Target,
-                Profile = Index.profile, OriginalExeSha256 = Index.stock_steam_executable_sha256,
+                Profile = Index.profile, OriginalExeSha256 = Hash(Paths.Inside(plan.Target, "gta-sa.exe")),
                 LauncherSha256 = Hash(Launcher), StartedUtc = DateTime.UtcNow.ToString("o"),
                 BackupDirectory = "SA-Delirium-backups/" + id, StageDirectory = ".SA-Setup-" + id };
             var stage = Paths.Inside(plan.Target, receipt.StageDirectory);
@@ -297,17 +318,17 @@ namespace SASetup {
                 NoRunningGame();
                 if (Hash(original) != receipt.OriginalExeSha256) throw new IOException("Steam ha cambiado durante la copia; no se sustituye su ejecutable.");
                 Directory.CreateDirectory(backup);
-                File.Copy(original, Path.Combine(backup, "gta-sa.exe"));
+                File.Copy(Paths.Long(original), Paths.Long(Path.Combine(backup, "gta-sa.exe")));
                 if (Hash(Path.Combine(backup, "gta-sa.exe")) != receipt.OriginalExeSha256) throw new IOException("La copia de seguridad no coincide.");
                 File.WriteAllBytes(Path.Combine(backup, "launcher.exe"), Launcher);
                 receipt.State = "prepared"; Save(receipt);
-                Directory.Move(stage, profile);
+                Paths.MoveDirectory(stage, profile);
                 receipt.ProfileMoved = true; Save(receipt);
                 var temporaryExe = Path.Combine(backup, "launcher-pending.exe");
                 File.WriteAllBytes(temporaryExe, Launcher);
                 // Atomic replacement. The independently verified original backup
                 // remains available even if the process dies before the journal.
-                File.Replace(temporaryExe, original, Path.Combine(backup, "gta-sa.swap-original.exe"));
+                File.Replace(Paths.Long(temporaryExe), Paths.Long(original), Paths.Long(Path.Combine(backup, "gta-sa.swap-original.exe")));
                 receipt.LauncherInstalled = true; receipt.State = "installed"; Save(receipt);
                 return receipt;
             } catch {
@@ -319,10 +340,11 @@ namespace SASetup {
         private Receipt ReadReceipt(string target) {
             target = Paths.Full(target); Paths.NoLinks(target);
             var receipt = Json.Read<Receipt>(Path.Combine(target, ReceiptName));
+            if (receipt.Mode != null) throw new IOException("Esta instalación de SA Delirium está en su propia carpeta, no en Steam. Usa Restaurar desde el asistente.");
             if (receipt.Schema != 1 || !target.Equals(Paths.Full(receipt.Target), StringComparison.OrdinalIgnoreCase) ||
                 !Regex.IsMatch(receipt.BackupDirectory ?? "", @"^SA-Delirium-backups/\d{8}-\d{6}-[a-f0-9]{8}$") ||
                 !Regex.IsMatch(receipt.StageDirectory ?? "", @"^\.SA-Setup-\d{8}-\d{6}-[a-f0-9]{8}$") ||
-                receipt.OriginalExeSha256 != Index.stock_steam_executable_sha256 || receipt.LauncherSha256 != Hash(Launcher))
+                !Index.AcceptsSteamExecutable(receipt.OriginalExeSha256) || receipt.LauncherSha256 != Hash(Launcher))
                 throw new IOException("Diario de instalación no válido. No se modifica el juego.");
             return receipt;
         }
@@ -338,7 +360,7 @@ namespace SASetup {
                 var saved = Path.Combine(backup, "gta-sa.exe");
                 if (Hash(saved) != receipt.OriginalExeSha256) throw new IOException("El respaldo del ejecutable original no coincide.");
                 var temp = Path.Combine(backup, "restore-pending.exe");
-                File.Copy(saved, temp, true); File.Replace(temp, original, null);
+                File.Copy(Paths.Long(saved), Paths.Long(temp), true); File.Replace(Paths.Long(temp), Paths.Long(original), null);
             }
             var profile = Paths.Inside(receipt.Target, ProfileDirectory);
             var stage = Paths.Inside(receipt.Target, receipt.StageDirectory);
@@ -346,15 +368,15 @@ namespace SASetup {
             if (Directory.Exists(profile)) {
                 Directory.CreateDirectory(backup);
                 if (Directory.Exists(retained)) throw new IOException("Ya hay un perfil conservado; revisa el respaldo.");
-                Directory.Move(profile, retained); receipt.RetainedProfile = retained;
+                Paths.MoveDirectory(profile, retained); receipt.RetainedProfile = retained;
             } else if (Directory.Exists(stage)) {
                 Directory.CreateDirectory(backup);
-                Directory.Move(stage, retained); receipt.RetainedProfile = retained;
+                Paths.MoveDirectory(stage, retained); receipt.RetainedProfile = retained;
             }
             receipt.State = "restored"; Save(receipt);
             Directory.CreateDirectory(backup);
             var journal = Path.Combine(receipt.Target, ReceiptName);
-            File.Move(journal, Path.Combine(backup, "restored-install.json"));
+            File.Move(Paths.Long(journal), Paths.Long(Path.Combine(backup, "restored-install.json")));
             return receipt;
         }
     }

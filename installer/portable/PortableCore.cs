@@ -26,6 +26,34 @@ namespace SAPortable {
         public long bytes;
         public long source_bytes;
         public string[] components;
+        // Other verified originals for a steam or steam_delta recipe: the
+        // same game file as another edition ships it (PC 1.0, German R2...).
+        // With a patch it reaches the recipe output; without one it is used
+        // unchanged and its own hash becomes the verified output.
+        public RecipeSource[] alternatives;
+    }
+    public sealed class RecipeSource {
+        public string name, source, source_sha256, patch, sha256;
+        public long source_bytes, bytes;
+    }
+    public static class Originals {
+        // Every accepted original of a game-file recipe, primary first,
+        // with source, patch and verified output made explicit.
+        public static List<RecipeSource> Candidates(Recipe f) {
+            var list=new List<RecipeSource>();
+            if(f.kind!="steam" && f.kind!="steam_delta")return list;
+            bool delta=f.kind=="steam_delta";
+            list.Add(new RecipeSource{name="",source=f.source,source_sha256=delta?f.source_sha256:f.sha256,source_bytes=delta?f.source_bytes:f.bytes,
+                patch=delta?f.patch:null,sha256=f.sha256,bytes=f.bytes});
+            if(f.alternatives!=null)foreach(var a in f.alternatives) {
+                bool patched=!String.IsNullOrEmpty(a.patch);
+                list.Add(new RecipeSource{name=a.name,source=String.IsNullOrEmpty(a.source)?f.source:a.source,source_sha256=a.source_sha256,source_bytes=a.source_bytes,
+                    patch=patched?a.patch:null,
+                    sha256=!String.IsNullOrEmpty(a.sha256)?a.sha256:patched?f.sha256:a.source_sha256,
+                    bytes=a.bytes>0?a.bytes:patched?f.bytes:a.source_bytes});
+            }
+            return list;
+        }
     }
     public sealed class Manifest {
         public int schema;
@@ -51,7 +79,7 @@ namespace SAPortable {
         void CheckCancellation() { if (Cancelled()) throw new OperationCanceledException(); }
         public Composer(Manifest manifest, string helperDirectory, string cacheDirectory) {
             Manifest=manifest;tools=Paths.Full(helperDirectory);cache=Paths.Full(cacheDirectory);
-            Paths.NoLinks(tools);Paths.NoLinks(cache);
+            Paths.NoLinks(tools);Paths.NoLinks(cache);Editions.Complete(manifest);
             if (manifest.schema!=1 || manifest.files==null || manifest.packages==null || manifest.profile==null)
                 throw new IOException("Manifiesto portátil incompleto.");
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -62,6 +90,17 @@ namespace SAPortable {
                 if(f.kind.EndsWith("_delta",StringComparison.Ordinal)) {
                     Paths.Inside(tools,"patches/"+f.patch);
                     if(!Regex.IsMatch(f.source_sha256??"","^[a-f0-9]{64}$") || f.source_bytes<0)throw new IOException("Parche sin origen verificado.");
+                }
+                if(f.alternatives!=null) {
+                    if(f.kind!="steam" && f.kind!="steam_delta")throw new IOException("Solo los archivos del juego admiten originales alternativos.");
+                    var candidates=Originals.Candidates(f);
+                    foreach(var a in candidates) {
+                        Paths.Inside(cache,a.source);
+                        if(a.patch!=null)Paths.Inside(tools,"patches/"+a.patch);
+                        if(!Regex.IsMatch(a.source_sha256??"","^[a-f0-9]{64}$") || !Regex.IsMatch(a.sha256??"","^[a-f0-9]{64}$") || a.source_bytes<0 || a.bytes<0)
+                            throw new IOException("Original alternativo sin huella verificada.");
+                    }
+                    if(candidates.Select(a=>a.source.ToLowerInvariant()+"|"+a.source_sha256).Distinct().Count()!=candidates.Count)throw new IOException("Original alternativo repetido.");
                 }
                 if(f.kind.StartsWith("steam",StringComparison.Ordinal) || f.kind=="payload")Paths.Inside(cache,f.source);
                 if(f.path.StartsWith("modloader/RoSA ",StringComparison.OrdinalIgnoreCase) ||
@@ -247,7 +286,8 @@ namespace SAPortable {
         public ProfileIndex Prepare(string steam,string iso,out string preparedRoot) {
             Engine.NoRunningGame();
             steam=Paths.Full(steam);iso=Path.GetFullPath(iso);Paths.NoLinks(steam);Paths.NoLinks(iso);
-            Verify(Paths.Inside(steam,"gta-sa.exe"),Manifest.profile.stock_steam_executable_sha256);
+            var edition=Editions.Identify(steam,Manifest,null);
+            if(!edition.accepted)throw new IOException(edition.message);
             if(!File.Exists(iso) || !Path.GetExtension(iso).Equals(".iso",StringComparison.OrdinalIgnoreCase))throw new IOException("Selecciona la ISO de GTA IV para Xbox 360.");
             Directory.CreateDirectory(cache);
             preparedRoot=Paths.Inside(cache,"prepared-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(preparedRoot);
@@ -282,24 +322,36 @@ namespace SAPortable {
                 }
             }
             long completed=0,total=Manifest.files.Sum(x=>x.bytes);
+            var outputs=new Dictionary<string,RecipeSource>(StringComparer.OrdinalIgnoreCase);
+            var measured=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
             foreach(var f in Manifest.files) {
                 CheckCancellation();var destination=Paths.Inside(preparedRoot,f.path);Directory.CreateDirectory(Path.GetDirectoryName(destination));
                 string source;
+                if(f.kind=="steam" || f.kind=="steam_delta") {
+                    // The game folder may come from any edition: each file is
+                    // matched by its measured hash, never by store or name.
+                    var choice=ChooseOriginal(f,steam,measured);outputs[f.path]=choice;
+                    source=Paths.Inside(steam,choice.source);
+                    if(choice.patch!=null)Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+choice.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"));
+                    else File.Copy(source,destination);
+                    Verify(destination,choice.sha256,choice.bytes);completed+=f.bytes;Progress(completed,total,f.path);
+                    continue;
+                }
                 switch(f.kind) {
-                    case "steam":case "steam_delta":source=Paths.Inside(steam,f.source);break;
                     case "package":case "package_delta":source=sources[f.path];break;
                     case "payload":source=Paths.Inside(tools,"payload/"+f.source);break;
                     default:throw new IOException("Receta desconocida: "+f.kind);
                 }
                 if(f.kind.EndsWith("_delta",StringComparison.Ordinal)) {
-                    Verify(source,f.source_sha256);
+                    Verify(source,f.source_sha256,f.source_bytes);
                     Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+f.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"));
                 } else {Verify(source,f.sha256,f.bytes);File.Copy(source,destination);}
                 Verify(destination,f.sha256,f.bytes);completed+=f.bytes;Progress(completed,total,f.path);
             }
             Progress(total,total,"Preparando Delirium desde tu ISO…");
             Run(Path.Combine(tools,"sa-delirium-bootstrap.exe"),Quote(preparedRoot)+" --iso "+Quote(iso),Paths.Inside(preparedRoot,"iso-import.log"));
-            var files=Manifest.files.Select(f=>new ProfileFile {path=f.path,sha256=f.sha256,bytes=f.bytes,components=f.components}).ToList();
+            var files=Manifest.files.Select(f=>{RecipeSource o;var used=outputs.TryGetValue(f.path,out o);
+                return new ProfileFile {path=f.path,sha256=used?o.sha256:f.sha256,bytes=used?o.bytes:f.bytes,components=f.components};}).ToList();
             if(Manifest.prepare_legacy_directx)EnsureLegacyRuntime(preparedRoot);
             if(Manifest.choose_compatible_renderer)SelectRenderer(preparedRoot,files);
             var resources=Paths.Inside(preparedRoot,"DeliriumSA-local-v3");
@@ -312,6 +364,17 @@ namespace SAPortable {
             index.files=files.ToArray();index.total_bytes=files.Sum(f=>f.bytes);
             Json.Write(Paths.Inside(preparedRoot,"portable-preparation.json"),new{status="prepared",index,omissions=Manifest.omissions,iso_copied=false});
             return index;
+        }
+        // The original is chosen by the measured hash of the owner's file.
+        RecipeSource ChooseOriginal(Recipe f,string game,Dictionary<string,string> measured) {
+            foreach(var c in Originals.Candidates(f)) {
+                var path=Paths.Inside(game,c.source);
+                if(!File.Exists(path) || new FileInfo(path).Length!=c.source_bytes)continue;
+                string hash;
+                if(!measured.TryGetValue(path,out hash)){Paths.NoLinks(path);hash=Engine.Hash(path);measured[path]=hash;}
+                if(hash==c.source_sha256)return c;
+            }
+            throw new IOException("Tu copia del juego tiene un archivo modificado o ausente: "+f.source+". Reinstala o verifica el juego y vuelve a intentarlo.");
         }
         void SelectRenderer(string root,List<ProfileFile> files) {
             var dxvk=files.Single(f=>f.path.Equals("d3d9.dll",StringComparison.OrdinalIgnoreCase));

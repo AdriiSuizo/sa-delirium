@@ -59,7 +59,7 @@ public static class InstallerTests {
         Json.Write(Path.Combine(f.Target, Engine.ReceiptName), receipt);
         var restored = f.Engine.Restore(f.Target);
         Assert(Engine.Hash(Path.Combine(f.Target, "gta-sa.exe")) == f.Index.stock_steam_executable_sha256, "Original Steam restored despite stale journal");
-        Assert(File.ReadAllText(Path.Combine(restored.RetainedProfile, "userfiles/GTASAsf2.b")) == "new-progress", "New progress retained");
+        Assert(File.ReadAllText(Path.Combine(restored.RetainedProfile, "userfiles", "GTASAsf2.b")) == "new-progress", "New progress retained");
         Assert(!File.Exists(Path.Combine(f.Target, Engine.ReceiptName)), "Recovery journal archived");
         f = new Fixture("hash-mismatch");
         Put(f.Source, "modloader/.data/plugins/native.dll", "changed-resorce");
@@ -112,6 +112,25 @@ public static class InstallerTests {
         Reject(delegate { f.Engine.MakePlan(f.Source, f.Target, false); }, "Native 104-byte save path limit checked before copying");
         Directory.CreateDirectory(Path.GetDirectoryName(longFile)); File.WriteAllText(longFile, "long-path-resource");
         Assert(longFile.Length > 300 && File.ReadAllText(longFile) == "long-path-resource", "Long paths work beyond 300 characters");
+        // Another Steam build (German R2, a future update) is accepted only
+        // when the index lists it; the journal keeps the exact bytes found.
+        f = new Fixture("alternative-steam-edition");
+        Put(f.Target, "gta-sa.exe", "owned-steam-other-edition");
+        var otherEdition = Engine.Hash(Path.Combine(f.Target, "gta-sa.exe"));
+        Reject(delegate { f.Engine.MakePlan(f.Source, f.Target, false); }, "Unlisted Steam edition refused");
+        f.Index.accepted_steam_executable_sha256 = new[] { otherEdition };
+        var alternative = f.Engine.Install(f.Engine.MakePlan(f.Source, f.Target, false));
+        Assert(alternative.OriginalExeSha256 == otherEdition, "Journal records the edition actually found");
+        Assert(Engine.Hash(Path.Combine(f.Target, alternative.BackupDirectory.Replace('/', Path.DirectorySeparatorChar), "gta-sa.exe")) == otherEdition, "Backup holds the alternative original");
+        f.Engine.Restore(f.Target);
+        Assert(Engine.Hash(Path.Combine(f.Target, "gta-sa.exe")) == otherEdition, "Alternative edition restored byte for byte");
+        f = new Fixture("alternative-journal-not-accepted");
+        Put(f.Target, "gta-sa.exe", "owned-steam-other-edition");
+        f.Index.accepted_steam_executable_sha256 = new[] { otherEdition };
+        f.Engine.Install(f.Engine.MakePlan(f.Source, f.Target, false));
+        f.Index.accepted_steam_executable_sha256 = null;
+        Reject(delegate { f.Engine.Restore(f.Target); }, "Journal for an edition this index does not accept is refused");
+        Assert(Engine.Hash(Path.Combine(f.Target, "gta-sa.exe")) == Engine.Hash(Encoding.ASCII.GetBytes("own-launcher")), "Refused restore leaves the launcher in place");
         Console.WriteLine("PASS: " + checks + " installer assertions"); return 0;
     }
 }

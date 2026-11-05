@@ -27,6 +27,59 @@ def read(path):
     return json.loads(path.read_text(encoding='utf-8-sig'))
 
 
+def classic_alternatives(recipes, classic, game, patches, label='PC 1.0 US'):
+    """Accept each game file as PC 1.0 US ships it, besides the Steam one.
+
+    classic holds the 1.0 US versions of the files that differ from Steam, at
+    their Steam paths (gtasa-open-downgrader output layout). Files that are
+    the same in both editions need nothing. A 1.0 file equal to the recipe
+    output is copied; otherwise one verified delta reaches that output. The
+    executable is accepted under both names: gta_sa.exe (PC) and gta-sa.exe
+    (a Steam folder already downgraded), plus the exact 1.0 output itself.
+    """
+    added = 0
+    target_exe = game/'gta_sa.exe'
+    for f in recipes:
+        if f['kind'] not in {'steam', 'steam_delta'}:
+            continue
+        exe = f['path'] == 'gta_sa.exe'
+        steam_sha = f['source_sha256'] if f['kind'] == 'steam_delta' else f['sha256']
+        inputs = []
+        candidate = classic / f['source']
+        if candidate.is_file():
+            inputs.append(candidate)
+        if exe:
+            inputs.append(target_exe)
+        alternatives = f.setdefault('alternatives', [])
+        for path in inputs:
+            digest = sha(path)
+            if digest == steam_sha:
+                continue
+            entry = dict(source_sha256=digest, source_bytes=path.stat().st_size)
+            if digest != f['sha256'] and f['kind'] == 'steam_delta':
+                entry['patch'] = hashlib.sha256(('classic|'+f['path']+'|'+digest).encode()).hexdigest()[:24]+'.pa30'
+                patches.append((entry['patch'], path, game/f['path']))
+            if not exe:
+                entry['name'] = label
+            for name in (['gta_sa.exe', 'gta-sa.exe'] if exe else [f['source']]):
+                if any(a.get('source', f['source']).casefold() == name.casefold() and a['source_sha256'] == digest for a in alternatives):
+                    continue
+                alternatives.append(dict(entry, source=name)); added += 1
+        if not alternatives:
+            del f['alternatives']
+    return added
+
+
+def patch_names(recipes):
+    # Every patch, including the alternatives of a recipe, maps to its output.
+    names = {}
+    for f in recipes:
+        if f.get('patch'):names[f['patch']] = f['sha256']
+        for a in f.get('alternatives', []):
+            if a.get('patch'):names[a['patch']] = f['sha256']
+    return names
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--project', type=Path, required=True)
@@ -38,6 +91,12 @@ def main():
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
     ap.add_argument('--version',default='0.3.1')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
+    ap.add_argument('--classic-source',type=Path,
+                    help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
+                         'the gtasa-open-downgrader output). Lets the installer accept a PC 1.0 US copy of the game.')
+    ap.add_argument('--steam-edition',action='append',default=[],metavar='NAME=PATH',
+                    help='Accept another owned Steam gta-sa.exe build (for example German R2 or a future Steam update). '
+                         'Only its executable delta is added; every other Steam file must still match the stock reference.')
     args = ap.parse_args()
     project = args.project.resolve()
     repo = Path(__file__).resolve().parents[2]
@@ -56,6 +115,16 @@ def main():
     stock_by_name = {n.casefold(): (n, h) for n, h in stock.items()}
     stock_by_hash = {h: n for n, h in stock.items()}
     original = args.steam_source.resolve() if args.steam_source else project/'release-work/reference/steam-stock'
+    editions = []
+    for value in args.steam_edition:
+        label, sep, location = value.partition('=')
+        location = Path(location).resolve()
+        assert sep and label.strip() and location.is_file() and not location.is_symlink(), 'Use --steam-edition "Name=C:/path/gta-sa.exe"'
+        assert location.name.casefold() == 'gta-sa.exe', 'An alternative Steam edition is identified by its gta-sa.exe'
+        digest = sha(location)
+        assert digest != sha(original/'gta-sa.exe') and digest not in {e['source_sha256'] for e in editions}, 'Edition repeated or identical to stock'
+        editions.append(dict(name=label.strip(), source_sha256=digest, source_bytes=location.stat().st_size,
+                             patch=hashlib.sha256(('gta_sa.exe|'+digest).encode()).hexdigest()[:24]+'.pa30', path=location))
     sdk = repo / 'build/bootstrap-portable/i686-pc-windows-msvc/release'
     seven = Path(r'C:\Program Files\7-Zip\7z.exe')
     delta = repo / 'build/portable-tools/DeltaTool.exe'
@@ -197,6 +266,10 @@ def main():
                 patch_name = hashlib.sha256(name.encode()).hexdigest()[:24]+'.pa30'
                 recipes.append(dict(f, kind='steam_delta', source=source, source_sha256=expected, source_bytes=(original/source).stat().st_size, patch=patch_name))
                 patches.append((patch_name, original/source, target))
+                if name == 'gta_sa.exe' and editions:
+                    # Same verified 1.0 output, reached from another Steam build.
+                    recipes[-1]['alternatives'] = [{k:e[k] for k in ['name','source_sha256','source_bytes','patch']} for e in editions]
+                    patches.extend((e['patch'], e['path'], target) for e in editions)
             else:
                 recipes.append(dict(f, kind='steam', source=source, sha256=expected, bytes=(original/source).stat().st_size))
         elif f['sha256'] in stock_by_hash:
@@ -243,6 +316,11 @@ def main():
             recipes.append(dict(f,kind='package',package=choice['package'],member=choice['member']))
             used_packages.add(choice['package'])
 
+    if args.classic_source:
+        classic = args.classic_source.resolve()
+        assert classic.is_dir() and not classic.is_symlink(), 'Use --classic-source with the PC 1.0 US file folder'
+        added = classic_alternatives(recipes, classic, project/'game', patches)
+        assert added, 'No PC 1.0 US alternative was found in --classic-source'
     add_payload('scripts/sa_delirium_bootstrap.dll', sdk/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime; bundled third-party Rust notices required')
     add_payload('Documentation/Original/FxsFuncs-1.1/Leiame.txt',fxs_readme,[],'Original FxsFuncs supplied readme and compilation permission')
     izzy = args.izzy_source.resolve()
@@ -337,7 +415,7 @@ def main():
             payload[recipe['path']]=data
             receipts.append(dict(path=recipe['path'],original_package=pid,original_url=package.get('url'),original_member=recipe['member'],permission='Original third-party component; preserve author credits, original notices and separate terms'))
         recipes=converted
-        patches=[p for p in patches if any(f.get('patch')==p[0] for f in recipes)]
+        patches=[p for p in patches if p[0] in patch_names(recipes)]
         used_packages={f['package'] for f in recipes if f['kind'] in {'package','package_delta'}}
     browser_package = None
     if any(packages[p].get('resolver')=='browser' for p in used_packages):
@@ -368,7 +446,7 @@ def main():
         else:path.write_bytes(data)
     with tempfile.TemporaryDirectory(prefix='patch-input-',dir=out) as temp:
         for name, source, target in patches:
-            assert sha(target)==next(f['sha256'] for f in recipes if f.get('patch')==name)
+            assert sha(target)==patch_names(recipes)[name]
             if not isinstance(source,Path):
                 path=Path(temp)/'original';path.write_bytes(source);source=path
             patch=helpers/'patches'/name
@@ -392,6 +470,7 @@ def main():
             if path.is_file() and path.suffix.lower() in {'.exe','.dll','.txt'}:shutil.copy2(path,helpers/path.name)
     subprocess.run([sys.executable,str(Path(__file__).with_name('Prepare-PlatformSupport.py')),'--project',str(project),'--out',str(helpers/'directx')],check=True,stdout=subprocess.DEVNULL)
     profile=dict(frozen)
+    if editions:profile['accepted_steam_executable_sha256']=[e['source_sha256'] for e in editions]
     profile.update(profile='steam-owned-iso-'+args.preset+'-'+args.version,source_kind='owned_steam_plus_owned_xbox360_iso',files=[{k:f[k] for k in ['path','bytes','sha256','components']} for f in recipes],total_bytes=plan['bytes'],notes=['Steam originals are read locally; IV resources are generated from the owner ISO.','Mod plugins are embedded except automatic original Urbanize download.' if args.embed_mods else 'Original author distributions are downloaded and source-checked before local preparation.'])
     for c in profile['components']:
         c['requested']=bool(c['requested'] and c['id'] not in ['rosa-project-evolved','proper-player-retex','gta-iv-textures-and-hq-roads'] and (args.preset!='classic' or c['id'] in classic_components))

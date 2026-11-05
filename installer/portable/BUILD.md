@@ -30,6 +30,19 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
    unaccounted files and emits source-checked Steam deltas and embedded files
    and their redistribution basis. It never embeds game executables, game IMG
    banks, owner saves, generated IV resources, RoSA or the GTA V HUD.
+   The game, not the store, is the source. --classic-source with the PC 1.0 US
+   versions of the files that differ from Steam (the gtasa-open-downgrader
+   output layout, tools/downgrade-output) adds each as an accepted original of
+   its recipe: identical outputs are copied, the executable needs one small
+   delta. A PC copy outside a Steam library installs to its own folder
+   (Standalone.cs) with shortcuts and is only read.
+   To accept another Steam build of gta-sa.exe (German R2, or a future Steam
+   update), pass --steam-edition "Name=C:/owned/copy/gta-sa.exe" once per build.
+   Only the executable differs between those builds, so the package gains one
+   verified delta to the same 1.0 output and the profile lists the extra hash.
+   Every other Steam file must still match the stock reference. Install and
+   restore journal the exact executable found. Editions.cs only names known
+   builds for the user; acceptance always comes from the manifest.
 8. Build-PortableSetup.ps1 embeds the manifest, freshly compiled current Steam
    launcher and small verified tools ZIP. No development sidecar is used.
 

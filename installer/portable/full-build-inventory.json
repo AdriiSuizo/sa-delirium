@@ -8,7 +8,7 @@
     "package": 233,
     "package_delta": 3
   },
-  "bytes": 6585637988,
+  "bytes": 6585638890,
   "packages": [
     "urbanize-21217a20e7"
   ],
@@ -132,6 +132,10 @@
     },
     {
       "path": "Documentation/Licenses/FxsFuncs-Permission.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/GrinchTrainer-License.txt",
       "permission": "Required original license notice"
     },
     {
@@ -22633,10 +22637,6 @@
       "original_url": "https://github.com/ThirteenAG/III.VC.SA.WindowedMode/releases/download/v3.0.1/III.VC.SA.WindowedMode.zip",
       "original_member": "readme.md",
       "permission": "Original third-party component; preserve author credits, original notices and separate terms"
-    },
-    {
-      "path": "Documentation/Licenses/GrinchTrainer-License.txt",
-      "permission": "Required original GrinchTrainer1.0 noncommercial unmodified redistribution agreement"
     }
   ]
 }

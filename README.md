@@ -1,7 +1,9 @@
 # SA Delirium
 
-San Andreas clásico de Steam con Delirium, fixes, aspecto PS2, extras de desarrollo
-y Lively Vehicle Physics1.6 de Izzy. Se instala con un asistente y se abre con **Jugar** en Steam.
+San Andreas clásico con Delirium, fixes, aspecto PS2, extras de desarrollo
+y Lively Vehicle Physics1.6 de Izzy. Se instala con un asistente desde tu copia del
+juego, de Steam o de PC 1.0 US. Con Steam se abre con **Jugar**; con otra copia, con
+el acceso directo **SA Delirium**.
 Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automáticamente de su autor.
 
 ## Instalar
@@ -9,12 +11,19 @@ Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automát
 Descarga **SA-Delirium-0.3.1-Setup.exe** o el RAR de la
 [entrega0.3.1](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.1).
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
-elige la ISO si falta su ruta y pulsa **Instalar**. Después usa **Jugar**.
+si tu juego está en otra carpeta, elígela. Elige la ISO si falta su ruta y pulsa
+**Instalar**.
 
-Necesitas Windows10/11 x64 con .NET Framework4.8, tu **GTA San Andreas clásico
-de Steam, AppID12120**, y una **ISO compatible propia de GTA IV para Xbox360**.
-La Definitive Edition y otras ediciones de SA no son esta entrega. La instalación
-verifica la versión; si Steam cambia los archivos, se detiene con un error.
+Necesitas Windows10/11 x64 con .NET Framework4.8, tu **GTA San Andreas clásico**
+y una **ISO compatible propia de GTA IV para Xbox360**. Sirve la copia de Steam
+(AppID12120) o una de PC 1.0 US, incluida una copia de Steam ya degradada. Lo que
+cuenta es el juego: cada archivo se comprueba por su huella frente a su versión de
+Steam o de PC 1.0. Con una copia 1.0 se conserva su radio completa; con Steam
+queda la radio que Steam distribuye, sin las canciones que Rockstar retiró. Al elegir la
+carpeta, el asistente dice qué edición ha encontrado y por qué sirve o no: Steam,
+alemana, PC 1.0, otras versiones de disco, Definitive Edition o un ejecutable
+desconocido, cuyo código SHA-256 muestra para poder añadirlo. Si algún archivo está
+modificado o falta, se detiene sin tocar nada y dice cuál.
 No necesitas la carpeta de desarrollo ni otra instalación de GTA IV de PC.
 Solo Urbanize requiere conexión durante la instalación; el asistente lo descarga
 automáticamente de su distribución original, sin pedir otro archivo. Los recursos de GTA IV
@@ -54,14 +63,16 @@ locales verificados. Se instalan sus readmes/licencia y se acredita a
 
 ## Partidas, restauración y diagnóstico
 
-El mod crea su perfil independiente en **SA** dentro de la carpeta de Steam.
-Se adapta la versión interna del juego para los plugins y se respalda el
+Con Steam, el mod crea su perfil independiente en **SA** dentro de la carpeta de
+Steam. Se adapta la versión interna del juego para los plugins y se respalda el
 `gta-sa.exe` original. Un lanzador espera a que termine el juego para mantener
-su sesión en Steam. La carpeta de desarrollo y las partidas de Documentos se
+su sesión en Steam. Con otra copia, el perfil se crea en la carpeta del mod que elijas, por
+defecto `%LOCALAPPDATA%/SA-Delirium/Juego/SA`, con accesos directos en el escritorio y en
+el menú Inicio; la carpeta de tu juego solo se lee. La carpeta de desarrollo y las partidas de Documentos se
 conservan. El instalador no incluye ni importa partidas del autor.
 
-Para desinstalar, abre el mismo asistente y pulsa **Restaurar Steam**. Recupera
-el ejecutable anterior y conserva el perfil y sus partidas en el respaldo
+Para desinstalar, abre el mismo asistente y pulsa **Restaurar**. Con Steam recupera
+el ejecutable anterior; con otra copia quita los accesos directos. En ambos casos conserva el perfil y sus partidas en el respaldo
 `SA-Delirium-backups`. Si existe una instalación anterior, restáurala primero;
 no se actualizan perfiles encima de otros. Conserva siempre tus respaldos.
 Verificar archivos desde Steam puede reemplazar el lanzador: restaura primero
