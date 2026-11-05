@@ -1,6 +1,8 @@
 # Créditos
 
 - **AdriiSuizo** dirige la integración y el proyecto.
+- **Izzy / Izzys Mods**, autora de **Lively Vehicle Physics 1.6**. Incluido con su permiso explícito, conservando su ASI, configuración y readme originales. [Publicación de la autora](https://libertycity.net/files/gta-san-andreas/246038-izzys-lively-vehicle-physics-1-6.html).
+- **FxsFuncs 1.1 Build 46 (47 fix)**, de Junior_Djjr, con soporte de Ezekiel. ASI original incluido según su permiso para compilaciones, con su readme y créditos. [Página original](https://www.mixmods.com.br/2025/06/fxsfuncs/).
 - **Ultimate ASI Loader 10.0.2**, de ThirteenAG y colaboradores. Cargador y API de superposición virtual incluidos bajo licencia MIT. [Proyecto](https://github.com/ThirteenAG/Ultimate-ASI-Loader/tree/v10.0.2)
 - **Delirium Physics 0.6.0**, de PVCPC y colaboradores. SDK del preparador, GPLv3 con el permiso adicional incluido en `bootstrap/COPYING`. [Código del SDK](https://github.com/PVCPC/delirium-physics/tree/93eed4d6a0aafa2e84526730ea1f54dab48ac7d4)
 - **Delirium Physics**, motor adaptado conservado en `vendor`, con la corrección de pivotes de la versión 0.6.0. Sus fuentes, procedencia y modificaciones están documentadas allí; no incluye los recursos de GTA IV.
@@ -12,7 +14,19 @@
 - **Open Limit Adjuster**, de ThirteenAG, LINK/2012 y colaboradores, MIT. El backend Steam de almacenamiento de modelos sigue su contrato de construcción, direcciones estables y limpieza nativa; no se copia el ASI de otra versión del juego. Referencia fijada `e454bfaf7edf4d293e533401b0a03330cde80906`; aviso en `licenses/OpenLimitAdjuster-MIT.txt`. [Fuente](https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/blob/e454bfaf7edf4d293e533401b0a03330cde80906/source/ModelStores.cpp).
 - **SkyGfx**, de aap y colaboradores. Referencia técnica de la modulación de color PS2. [Proyecto](https://github.com/aap/skygfx)
 
-Desarrollo asistido por Codex. GTA San Andreas y GTA IV pertenecen a sus titulares.
+Desarrollo asistido por OpenAI Codex (familia GPT-6). GTA San Andreas y GTA IV pertenecen a sus titulares.
+
+El perfil portátil clásico incluye los fixes, SkyGfx Extended1.7 de aap y
+Junior_Djjr, el timecycle PS2 leído de Steam, Project2DFX, NextGen Remaster Effects
+de Ezekiel/Junior_Djjr y Enhance ParticleTXD de Junior_Djjr. Conserva los créditos,
+readmes y licencias originales en `Documentation/Original` y
+`Documentation/Licenses`. Los plugins se incluyen en el instalador; sus autores
+conservan sus derechos y sus términos individuales. La lista de orígenes está en
+`installer/portable/source-catalog.json` y el inventario de construcción.
+Se incluyen los avisos originales de las dependencias Rust, DXVK (zlib),
+Framerate Vigilante y PortableGTA (MIT), plugin-sdk (zlib), 7-Zip y DirectSetup.
+RoSA/Proper Player Retex, GTA IV Textures and HQ Roads, el HUD de GTA V y los
+extras HD/trainer/Urbanize no forman parte de este perfil.
 
 ## Optional local visual data
 

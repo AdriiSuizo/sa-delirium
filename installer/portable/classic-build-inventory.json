@@ -1,0 +1,2561 @@
+{
+  "status": "source_accounted_see_VALIDATION_for_gameplay_scope",
+  "files": 908,
+  "kinds": {
+    "steam_delta": 4,
+    "steam": 412,
+    "payload": 492
+  },
+  "bytes": 5000039365,
+  "packages": [],
+  "unresolved": [],
+  "embedded_permissions": [
+    {
+      "path": "d3d9.dll",
+      "permission": "DXVK-zlib.txt; https://github.com/doitsujin/dxvk/releases/tag/v3.1.1"
+    },
+    {
+      "path": "DeliriumSA.ini",
+      "permission": "Own authored Delirium configuration"
+    },
+    {
+      "path": "dxvk.conf",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "global.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "GTASA.WidescreenFixLegacy.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "modloader/.data/config.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "modloader/.data/plugins/plugins.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "modloader/FramerateVigilante/Framerate Vigilante.url",
+      "permission": "FramerateVigilante-MIT.txt; https://github.com/GTAmodding/FramerateVigilante"
+    },
+    {
+      "path": "modloader/FramerateVigilante/FramerateVigilante.ini",
+      "permission": "FramerateVigilante-MIT.txt; https://github.com/GTAmodding/FramerateVigilante"
+    },
+    {
+      "path": "modloader/FramerateVigilante/FramerateVigilante.SA.asi",
+      "permission": "FramerateVigilante-MIT.txt; https://github.com/GTAmodding/FramerateVigilante"
+    },
+    {
+      "path": "modloader/FxsFuncs/FxsFuncs.asi",
+      "permission": "Explicit original author compilation permission; original supplied1.1 ASI unchanged"
+    },
+    {
+      "path": "modloader/FxsFuncs/FxsFuncs.ini",
+      "permission": "FxsFuncs author permits compilation; profile effects configuration"
+    },
+    {
+      "path": "modloader/modloader.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "modloader/PortableGTA/portablegta.asi",
+      "permission": "PortableGTA-MIT.txt; https://github.com/GTAmodding/miscmods"
+    },
+    {
+      "path": "modloader/Project2DFX/salodlights.cfg",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "scripts/DeliriumSA.asi",
+      "permission": "Own authored SA adapter, shipping hooks only"
+    },
+    {
+      "path": "scripts/ExeUnprotect.asi",
+      "permission": "Ultimate-ASI-Loader-MIT.txt; https://github.com/ThirteenAG/Ultimate-ASI-Loader"
+    },
+    {
+      "path": "scripts/GTASA.WidescreenFix.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "scripts/GTASA.WidescreenFixLegacy.ini",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "scripts/III.VC.SA.WindowedMode.cfg",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "scripts/RendererProfile.txt",
+      "permission": "Authored distribution configuration"
+    },
+    {
+      "path": "scripts/sa_delirium_bootstrap.dll",
+      "permission": "Own clean ISO/SDK runtime; bundled third-party Rust notices required"
+    },
+    {
+      "path": "Documentation/Original/FxsFuncs-1.1/Leiame.txt",
+      "permission": "Original FxsFuncs supplied readme and compilation permission"
+    },
+    {
+      "path": "modloader/Izzy's Lively Vehicle Physics/LivelyVehiclePhysics.asi",
+      "permission": "Explicit Izzy author permission supplied2026-11-05; original ASI/config/readme unchanged"
+    },
+    {
+      "path": "modloader/Izzy's Lively Vehicle Physics/LivelyVehiclePhysics.ini",
+      "permission": "Explicit Izzy author permission supplied2026-11-05; original ASI/config/readme unchanged"
+    },
+    {
+      "path": "modloader/Izzy's Lively Vehicle Physics/README_or_dont.txt",
+      "permission": "Explicit Izzy author permission supplied2026-11-05; original ASI/config/readme unchanged"
+    },
+    {
+      "path": "Documentation/Licenses/DXVK-zlib.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/FramerateVigilante-MIT.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/FxsFuncs-Permission.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/mutants-0.0.3-MIT.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/PortableGTA-MIT.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Ultimate-ASI-Loader-MIT.txt",
+      "permission": "Required original license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Project/mutants-MIT.txt",
+      "permission": "Required retained third-party notice"
+    },
+    {
+      "path": "Documentation/Licenses/Project/OpenLimitAdjuster-MIT.txt",
+      "permission": "Required retained third-party notice"
+    },
+    {
+      "path": "Documentation/Licenses/Project/Rust-Dependencies.txt",
+      "permission": "Required retained third-party notice"
+    },
+    {
+      "path": "Documentation/Licenses/Project/SilentPatch-MIT.txt",
+      "permission": "Required retained third-party notice"
+    },
+    {
+      "path": "Documentation/Licenses/Project/Ultimate-ASI-Loader.txt",
+      "permission": "Required retained third-party notice"
+    },
+    {
+      "path": "Documentation/Licenses/Project/Xenia-BSD-3-Clause.txt",
+      "permission": "Required retained third-party notice"
+    },
+    {
+      "path": "Documentation/README.md",
+      "permission": "Distribution install and restore instructions"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/adler2-2.0.1/LICENSE-0BSD",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/adler2-2.0.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/adler2-2.0.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/aes-0.8.4/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/aes-0.8.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/approx-0.5.1/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/arrayvec-0.7.8/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/arrayvec-0.7.8/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/assert_type_match-0.1.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/assert_type_match-0.1.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/async-channel-2.5.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/async-channel-2.5.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/async-executor-1.14.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/async-executor-1.14.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/async-task-4.7.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/async-task-4.7.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/atomic-waker-1.1.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/atomic-waker-1.1.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/atomic-waker-1.1.2/LICENSE-THIRD-PARTY",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/autocfg-1.5.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/autocfg-1.5.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_app-0.20.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_app-0.20.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_derive-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_derive-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ecs-0.20.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ecs-0.20.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ecs_macro_logic-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ecs_macro_logic-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ecs_macros-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ecs_macros-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_macro_utils-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_macro_utils-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_math-0.20.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_math-0.20.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_platform-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_platform-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ptr-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_ptr-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_reflect-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_reflect-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_reflect_derive-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_reflect_derive-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_tasks-0.20.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_tasks-0.20.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_transform-0.20.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_transform-0.20.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_utils-0.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bevy_utils-0.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bitflags-2.13.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bitflags-2.13.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/blake3-1.8.7/LICENSE_A2",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/blake3-1.8.7/LICENSE_A2LLVM",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/blake3-1.8.7/LICENSE_CC0",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bumpalo-3.20.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bumpalo-3.20.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bytemuck-1.25.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bytemuck-1.25.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bytemuck-1.25.2/LICENSE-ZLIB",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bytemuck_derive-1.12.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bytemuck_derive-1.12.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/bytemuck_derive-1.12.1/LICENSE-ZLIB",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cc-1.11.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cc-1.11.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cfg-if-1.0.5/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cfg-if-1.0.5/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cipher-0.4.4/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cipher-0.4.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/concurrent-queue-2.5.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/concurrent-queue-2.5.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/constant_time_eq-0.4.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/constant_time_eq-0.4.2/LICENSE-CC0",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/constant_time_eq-0.4.2/LICENSE-MIT0",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/convert_case-0.10.0/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cpufeatures-0.2.17/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cpufeatures-0.2.17/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cpufeatures-0.3.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/cpufeatures-0.3.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/critical-section-1.2.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/critical-section-1.2.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/crossbeam-queue-0.3.14/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/crossbeam-queue-0.3.14/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/crossbeam-utils-0.8.23/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/crossbeam-utils-0.8.23/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/crypto-common-0.1.7/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/crypto-common-0.1.7/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/ctrlc-3.5.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/ctrlc-3.5.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/delirium-0.1.0/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/delirium-data-0.1.1/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/delirium-data-0.1.2/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/delirium-sdk-0.1.0/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/dependency-licenses.json",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/derive_more-2.1.1/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/derive_more-impl-2.1.1/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/disqualified-1.1.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/disqualified-1.1.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/downcast-rs-2.0.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/downcast-rs-2.0.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/equivalent-1.0.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/equivalent-1.0.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/erased-serde-0.4.11/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/erased-serde-0.4.11/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/event-listener-5.4.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/event-listener-5.4.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/event-listener-strategy-0.5.4/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/event-listener-strategy-0.5.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/fastrand-2.5.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/fastrand-2.5.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/find-msvc-tools-0.1.15/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/find-msvc-tools-0.1.15/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/fixedbitset-0.5.7/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/fixedbitset-0.5.7/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/foldhash-0.2.0/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-core-0.3.34/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-core-0.3.34/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-io-0.3.34/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-io-0.3.34/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-lite-2.6.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-lite-2.6.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/futures-lite-2.6.1/LICENSE-THIRD-PARTY",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/generic-array-0.14.7/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/getrandom-0.4.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/getrandom-0.4.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/glam-0.33.12/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/glam-0.33.12/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/hashbrown-0.16.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/hashbrown-0.16.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/hashbrown-0.17.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/hashbrown-0.17.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/indexmap-2.14.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/indexmap-2.14.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/inout-0.1.4/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/inout-0.1.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/itoa-1.0.18/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/itoa-1.0.18/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/libmimalloc-sys-0.1.49/LICENSE.txt",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/log-0.4.35/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/log-0.4.35/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/lsc4-combat-0.1.0/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/memchr-2.8.3/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/memchr-2.8.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/mimalloc-0.1.52/LICENSE.txt",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/MinHook-BSD.txt",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/miniz_oxide-0.8.9/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/miniz_oxide-0.8.9/LICENSE-APACHE.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/miniz_oxide-0.8.9/LICENSE-MIT.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/miniz_oxide-0.8.9/LICENSE-ZLIB.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/mutants-0.0.3/mutants-0.0.3-MIT.txt",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/naga-types-30.0.1/LICENSE.APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/naga-types-30.0.1/LICENSE.MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/nonmax-0.5.5/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/nonmax-0.5.5/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/num-traits-0.2.19/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/num-traits-0.2.19/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/once_cell-1.21.4/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/once_cell-1.21.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/parking-2.2.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/parking-2.2.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/parking-2.2.1/LICENSE-THIRD-PARTY",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/pin-project-lite-0.2.17/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/pin-project-lite-0.2.17/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/portable-atomic-1.15.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/portable-atomic-1.15.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/proc-macro2-1.0.107/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/proc-macro2-1.0.107/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/quote-1.0.47/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/quote-1.0.47/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rand-0.10.3/COPYRIGHT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rand-0.10.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rand-0.10.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rand_core-0.10.1/COPYRIGHT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rand_core-0.10.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rand_core-0.10.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/raw-window-handle-0.6.2/LICENSE-APACHE.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/raw-window-handle-0.6.2/LICENSE-MIT.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/raw-window-handle-0.6.2/LICENSE-ZLIB.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rustc-hash-1.1.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rustc-hash-1.1.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rustc-hash-2.1.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rustc-hash-2.1.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rustc_version-0.4.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/rustc_version-0.4.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/sa-combat-0.1.0/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/sa-delirium-bootstrap-0.1.0/COPYING",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/SA-Delirium-GPL-3.0.txt",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/SA-Delirium-License.md",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/semver-1.0.28/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/semver-1.0.28/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde-1.0.229/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde-1.0.229/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde_core-1.0.229/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde_core-1.0.229/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde_derive-1.0.229/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde_derive-1.0.229/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde_json-1.0.154/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/serde_json-1.0.154/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/shlex-2.0.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/shlex-2.0.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/slab-0.4.12/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/slotmap-1.1.1/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/smallvec-1.16.4/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/smallvec-1.16.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/smol_str-0.2.2/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/smol_str-0.2.2/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/spin-0.12.3/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/static_assertions-1.1.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/static_assertions-1.1.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/syn-2.0.119/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/syn-2.0.119/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/syn-3.0.9/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/syn-3.0.9/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/thiserror-2.0.21/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/thiserror-2.0.21/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/thiserror-impl-2.0.21/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/thiserror-impl-2.0.21/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/thread_local-1.1.10/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/thread_local-1.1.10/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/toml_datetime-1.1.2+spec-1.1.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/toml_datetime-1.1.2+spec-1.1.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/toml_edit-0.25.17+spec-1.1.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/toml_edit-0.25.17+spec-1.1.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/toml_parser-1.1.5+spec-1.1.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/toml_parser-1.1.5+spec-1.1.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/tracing-0.1.44/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/tracing-core-0.1.36/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/typeid-1.0.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/typeid-1.0.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/typenum-1.20.1/LICENSE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/typenum-1.20.1/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/typenum-1.20.1/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-ident-1.0.27/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-ident-1.0.27/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-ident-1.0.27/LICENSE-UNICODE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-segmentation-1.13.3/COPYRIGHT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-segmentation-1.13.3/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-segmentation-1.13.3/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-xid-0.2.6/COPYRIGHT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-xid-0.2.6/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unicode-xid-0.2.6/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unsynn-0.3.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/unsynn-0.3.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/uuid-1.29.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/uuid-1.29.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/variadics_please-2.0.0/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/variadics_please-2.0.0/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/version_check-0.9.5/LICENSE-APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/version_check-0.9.5/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/wgpu-types-30.0.1/LICENSE.APACHE",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/wgpu-types-30.0.1/LICENSE.MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/windows-link-0.2.1/license-apache-2.0",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/windows-link-0.2.1/license-mit",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/windows-sys-0.61.2/license-apache-2.0",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/windows-sys-0.61.2/license-mit",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/winnow-1.0.4/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/Xenia-BSD-3-Clause.txt",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/Rust/zmij-1.0.23/LICENSE-MIT",
+      "permission": "Original dependency license notice"
+    },
+    {
+      "path": "Documentation/Licenses/plugin-sdk-Zlib.txt",
+      "permission": "Unmodified public ABI interface header license"
+    },
+    {
+      "path": "Documentation/CREDITS.md",
+      "permission": "Project credits and original author links"
+    },
+    {
+      "path": "Documentation/Corresponding-Source.txt",
+      "permission": "Authored source availability notice"
+    },
+    {
+      "path": "bass.dll",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "bass.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "cleo/CLEO+.cleo",
+      "original_package": "cleo-plus-raw",
+      "original_url": "https://github.com/JuniorDjjr/CLEOPlus/releases/download/v1.2.0/CLEO%2B.cleo",
+      "original_member": "@file",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "cleo/FileSystemOperations.cleo",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "cleo/FileSystemOperations.cleo",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "cleo/IniFiles.cleo",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "cleo/IniFiles.cleo",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "cleo/IntOperations.cleo",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "cleo/IntOperations.cleo",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "CLEO.asi",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "CLEO.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "GInputSA.asi",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "GInputSA.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "GInputSA.ini",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "GInputSA.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "III.VC.SA.LimitAdjuster.asi",
+      "original_package": "limit-adjuster",
+      "original_url": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/releases/download/v2.0.3/III.VC.SA.LimitAdjuster.zip",
+      "original_member": "III.VC.SA.LimitAdjuster.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "III.VC.SA.LimitAdjuster.ini",
+      "original_package": "limit-adjuster",
+      "original_url": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/releases/download/v2.0.3/III.VC.SA.LimitAdjuster.zip",
+      "original_member": "III.VC.SA.LimitAdjuster.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "models/ps3btns.txd",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "models/ps3btns.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "models/sixaxis.txd",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "models/sixaxis.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "models/x360btns.txd",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "models/x360btns.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/CHANGELOG.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/CHANGELOG.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/Command Line Arguments.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/Command Line Arguments.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/Leia-me.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/Leia-me.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/LICENSE",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/LICENSE",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/licenses/boost.txt",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/licenses/boost.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/licenses/cereal.txt",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/licenses/cereal.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/licenses/tinympl.txt",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/licenses/tinympl.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/licenses/utf8-cpp.txt",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/licenses/utf8-cpp.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.asi.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.asi.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.asi.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.asi.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.bank.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.bank.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.bank.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.bank.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.data.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.data.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.data.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.data.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.dmaudio.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.dmaudio.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.dmaudio.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.dmaudio.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.fx.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.fx.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.fx.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.fx.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.movies.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.movies.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.movies.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.movies.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.scm.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.scm.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.scm.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.scm.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.sprites.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.sprites.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.sprites.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.sprites.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.stream.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.stream.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.stream.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.stream.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.text.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.text.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.text.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.text.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.tracks.dll",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.tracks.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/plugins/gta3/std.tracks.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/plugins/gta3/std.tracks.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/Profiles.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/Profiles.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/Readme.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/Readme.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/.data/text/1033/menu.fxt",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/text/1033/menu.fxt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/Enhance ParticleTXD/cleo/Enhance ParticleTXD (Junior_Djjr).cs",
+      "original_package": "particle-c10d83c847",
+      "original_url": "https://drive.usercontent.google.com/download?id=0B1sAJQAUfOOYR0ZtMnNwUFJFOG8&export=download",
+      "original_member": "cleo (EN)/cleo/Enhance ParticleTXD (Junior_Djjr).cs",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/Enhance ParticleTXD/cleo/Enhance ParticleTXD.ini",
+      "original_package": "particle-c10d83c847",
+      "original_url": "https://drive.usercontent.google.com/download?id=0B1sAJQAUfOOYR0ZtMnNwUFJFOG8&export=download",
+      "original_member": "cleo (EN)/cleo/Enhance ParticleTXD.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/CLEO/Effects Mod - missions fx.cs",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/CLEO/Effects Mod - missions fx.cs",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/data/object.dat",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/data/object.dat",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/arch_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/arch_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/arch_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/arch_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/arch_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/arch_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/atr_bl_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/atr_bl_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/atr_bl_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/atr_bl_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/atr_bl_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/atr_bl_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/atrex_bl_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/atrex_bl_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/atrex_bl_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/atrex_bl_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/atrex_bl_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/atrex_bl_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/badlnds_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/badlnds_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/badlnds_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/badlnds_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bistr_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bistr_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bistr_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bistr_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bistr_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bistr_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bistr_4.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bistr_4.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bistr_5.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bistr_5.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bld1_bhls.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bld1_bhls.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bld2_bhls.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bld2_bhls.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bnk_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bnk_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bnk_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bnk_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/bnk_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/bnk_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/clbnk_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/clbnk_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/clbnk_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/clbnk_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/clbnk_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/clbnk_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/conc_bounce1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/conc_bounce1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/conc_bounce1x.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/conc_bounce1x.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/conc_bounce2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/conc_bounce2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/conc_bounce2x.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/conc_bounce2x.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/d_short.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/d_short.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/d_short2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/d_short2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/d_tall.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/d_tall.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/d_tall2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/d_tall2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/d_tall_t.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/d_tall_t.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/d_tall_t2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/d_tall_t2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dana_bh.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dana_bh.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dana_bh2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dana_bh2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dana_bh3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dana_bh3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dana_cnc1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dana_cnc1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dana_cnc2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dana_cnc2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dana_cnc3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dana_cnc3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/dr_dc1x.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/dr_dc1x.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/effects.col",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/effects.col",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/effects.ide",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/effects.ide",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/effects.IPL",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/effects.IPL",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/effects.txd",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/effects.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/endfl_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/endfl_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/endfl_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/endfl_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/endfl_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/endfl_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/fog_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/fog_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/fog_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/fog_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/fog_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/fog_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/fog_4.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/fog_4.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/grey_imp1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/grey_imp1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/grey_imp2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/grey_imp2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/gtadat.txt",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/gtadat.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/jz_cn_hls1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/jz_cn_hls1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/jz_cn_hls2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/jz_cn_hls2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/jz_wd_hls.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/jz_wd_hls.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/jz_wd_hls2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/jz_wd_hls2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/jz_wd_hls3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/jz_wd_hls3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/losz_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/losz_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/losz_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/losz_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/losz_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/losz_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/losz_4.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/losz_4.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/losz_5.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/losz_5.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/losz_6.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/losz_6.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/manydrums.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/manydrums.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mbys_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mbys_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mbys_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mbys_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mbys_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mbys_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mdgmns_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mdgmns_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mdgmns_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mdgmns_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mdgmns_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mdgmns_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mdgrf_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mdgrf_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mdgrf_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mdgrf_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mdgrf_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mdgrf_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mit_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mit_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mit_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mit_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mit_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mit_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/motgls.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/motgls.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mtl_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mtl_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mtl_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mtl_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mtl_3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mtl_3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mtl_rf.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mtl_rf.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/mtl_sd.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/mtl_sd.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/outr_1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/outr_1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/outr_2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/outr_2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/p_blowp.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/p_blowp.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/pierwd.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/pierwd.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/pln_clds.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/pln_clds.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/plnalrm.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/plnalrm.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/plnalrm2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/plnalrm2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/pool_refl.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/pool_refl.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/vaultfx.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/vaultfx.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves0.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves0.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves0x.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves0x.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves0x2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves0x2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves1.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves1.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves2.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves2.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves3.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves3.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves4.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves4.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves5.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves5.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/Map/waves6.dff",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/Map/waves6.dff",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/models/effects.fxp",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/models/effects.fxp",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/models/effectsPC.txd",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/models/effectsPC.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/NextGen Effects/models/particle.txd",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "NextGen Effects/models/particle.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/Project2DFX/SALodLights.asi",
+      "original_package": "project2dfx-3defd60348",
+      "original_url": "https://github.com/ThirteenAG/III.VC.SA.IV.Project2DFX/releases/download/gtasa/SA.Project2DFX.zip",
+      "original_member": "SALodLights.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/Project2DFX/SALodLights.dat",
+      "original_package": "project2dfx-3defd60348",
+      "original_url": "https://github.com/ThirteenAG/III.VC.SA.IV.Project2DFX/releases/download/gtasa/SA.Project2DFX.zip",
+      "original_member": "SALodLights.dat",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/data/colorcycle.dat",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/data/colorcycle.dat",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/models/Mobile_details.txd",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/models/Mobile_details.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/models/texdb.txt",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/models/texdb.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/neo/carTweakingTable.dat",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/neo/carTweakingTable.dat",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/neo/neo.txd",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/neo/neo.txd",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx.asi",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx1.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx1.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx2.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx2.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx3.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx3.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx4.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx4.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx5.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx5.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/skygfx6.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/skygfx6.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "modloader/SkyGfx/stream.ini",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "SkyGfx/stream.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "scripts/GTASA.WidescreenFix.asi",
+      "original_package": "widescreen-563078bfae",
+      "original_url": "https://github.com/ThirteenAG/WidescreenFixesPack/releases/download/gtasa/GTASA.WidescreenFix.zip",
+      "original_member": "scripts/GTASA.WidescreenFix.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "scripts/III.VC.SA.WindowedMode.asi",
+      "original_package": "window-05eb663868",
+      "original_url": "https://github.com/ThirteenAG/III.VC.SA.WindowedMode/releases/download/v3.0.1/III.VC.SA.WindowedMode.zip",
+      "original_member": "III.VC.SA.WindowedMode.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "scripts/modloader.asi",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "SilentPatchSA.asi",
+      "original_package": "silentpatch-0837bbdc05",
+      "original_url": "https://github.com/CookiePLMonster/SilentPatch/releases/download/1.1-BUILD34.1-SA/SilentPatchSA.zip",
+      "original_member": "SilentPatchSA.asi",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "SilentPatchSA.ini",
+      "original_package": "silentpatch-0837bbdc05",
+      "original_url": "https://github.com/CookiePLMonster/SilentPatch/releases/download/1.1-BUILD34.1-SA/SilentPatchSA.zip",
+      "original_member": "SilentPatchSA.ini",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "vorbisFile.dll",
+      "original_package": "ual-c8cb367641",
+      "original_url": "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/v10.0.2/Ultimate-ASI-Loader-NoPDB.zip",
+      "original_member": "dinput8.dll",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/SA_-_NextGen_Remaster_Effects-102a2bc1cb/Leiame (ou morra).txt",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "Leiame (ou morra).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/SA_-_NextGen_Remaster_Effects-102a2bc1cb/Readme (or die).txt",
+      "original_package": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "original_url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "original_member": "Readme (or die).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/cleo-aca8a1ca9d/cleo_readme/ASI Loader ReadMe.txt",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "cleo_readme/ASI Loader ReadMe.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/cleo-aca8a1ca9d/cleo_readme/README.md",
+      "original_package": "cleo-aca8a1ca9d",
+      "original_url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "original_member": "cleo_readme/README.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/ginput-b6d03e3322/GInputAPI (for modders)/ReadMe.txt",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "GInputAPI (for modders)/ReadMe.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/ginput-b6d03e3322/ReadMe.txt",
+      "original_package": "ginput-b6d03e3322",
+      "original_url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "original_member": "ReadMe.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/modloader-3bb0e3d656/Readme.txt",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "Readme.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/modloader-3bb0e3d656/modloader/.data/Readme.md",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/Readme.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/modloader-3bb0e3d656/modloader/.data/LICENSE",
+      "original_package": "modloader-3bb0e3d656",
+      "original_url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "original_member": "modloader/.data/LICENSE",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/particle-c10d83c847/Leiame (ou morra).txt",
+      "original_package": "particle-c10d83c847",
+      "original_url": "https://drive.usercontent.google.com/download?id=0B1sAJQAUfOOYR0ZtMnNwUFJFOG8&export=download",
+      "original_member": "Leiame (ou morra).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/particle-c10d83c847/Readme (or die).txt",
+      "original_package": "particle-c10d83c847",
+      "original_url": "https://drive.usercontent.google.com/download?id=0B1sAJQAUfOOYR0ZtMnNwUFJFOG8&export=download",
+      "original_member": "Readme (or die).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/silentpatch-0837bbdc05/ReadMe.txt",
+      "original_package": "silentpatch-0837bbdc05",
+      "original_url": "https://github.com/CookiePLMonster/SilentPatch/releases/download/1.1-BUILD34.1-SA/SilentPatchSA.zip",
+      "original_member": "ReadMe.txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/skygfx-extended/Leiame (ou morra).txt",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "Leiame (ou morra).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/skygfx-extended/Readme (or die).txt",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "Readme (or die).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/skygfx-extended/Readme (ORIGINAL).txt",
+      "original_package": "skygfx-extended",
+      "original_url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "original_member": "Readme (ORIGINAL).txt",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    },
+    {
+      "path": "Documentation/Original/window-05eb663868/readme.md",
+      "original_package": "window-05eb663868",
+      "original_url": "https://github.com/ThirteenAG/III.VC.SA.WindowedMode/releases/download/v3.0.1/III.VC.SA.WindowedMode.zip",
+      "original_member": "readme.md",
+      "permission": "Original third-party component; preserve author credits, original notices and separate terms"
+    }
+  ]
+}

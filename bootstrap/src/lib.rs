@@ -35,7 +35,7 @@ const BODY: &str = "fred-build.txt";
 // the canonical idle body; never silently accept the older body's 21 parts.
 const CACHE: &str = "DeliriumSA-local-v3";
 const PARTS: i32 = 21;
-const MISSING_ISO: &str = "Pon la ISO de GTA IV de Xbox 360 junto a gta-sa.exe para el primer arranque";
+const MISSING_ISO: &str = "Selecciona tu ISO de GTA IV para Xbox 360 en el instalador para preparar Delirium";
 
 fn disc_file(disc: &Disc, path: &str, limit: u64) -> Result<Vec<u8>, String> {
     match disc.len(path) {
@@ -169,12 +169,12 @@ fn iso_path(root: &Path) -> Result<PathBuf, String> {
     match images.as_slice() {
         [image] => Ok(image.clone()),
         [] => Err(MISSING_ISO.into()),
-        _ => Err("Deja una sola ISO de GTA IV de Xbox 360 junto a gta-sa.exe".into()),
+        _ => Err("Hay varias ISO; selecciona la de GTA IV para Xbox 360 en el instalador".into()),
     }
 }
 
-fn import(root: &Path, cache: &Path) -> Result<(), String> {
-    let disc = Disc::open(&iso_path(root)?)?;
+fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
+    let disc = Disc::open(iso)?;
     let xex_bytes = disc_file(&disc, "default.xex", 32 << 20)?;
     // Xenia's BSD-licensed format constant is bundled with its notice. The
     // owner's program still comes exclusively from the supplied retail ISO.
@@ -229,9 +229,16 @@ fn import(root: &Path, cache: &Path) -> Result<(), String> {
 }
 
 pub fn prepare(root: &Path) -> Result<&'static str, String> {
+    prepare_with_iso(root, None)
+}
+
+/// Installer entry point: read the owner's ISO in place. Never copy a multi-GB
+/// image into the game directory or require the author's development folder.
+/// An existing complete cache can be reopened after the image is disconnected.
+pub fn prepare_with_iso(root: &Path, supplied_iso: Option<&Path>) -> Result<&'static str, String> {
     publish_ready(false)?;
-    if !root.join("gta-sa.exe").is_file() {
-        return Err("La carpeta no contiene gta-sa.exe".into());
+    if !root.join("gta-sa.exe").is_file() && !root.join("gta_sa.exe").is_file() {
+        return Err("La carpeta no contiene el ejecutable de GTA San Andreas".into());
     }
     let cache = root.join(CACHE);
     match cache.try_exists() {
@@ -241,7 +248,12 @@ pub fn prepare(root: &Path) -> Result<&'static str, String> {
             Ok("cache_ready")
         }
         Ok(false) => {
-            import(root, &cache)?;
+            let located;
+            let iso = match supplied_iso {
+                Some(path) => path,
+                None => { located = iso_path(root)?; &located },
+            };
+            import(root, &cache, iso)?;
             // Publish only after the complete staging tree has been renamed.
             publish_ready(true)?;
             Ok("imported_iso")

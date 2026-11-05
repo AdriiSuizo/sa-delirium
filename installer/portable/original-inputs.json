@@ -1,0 +1,85 @@
+[
+  {
+    "id": "ual",
+    "filename": "ual.zip",
+    "url": "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/v10.0.2/Ultimate-ASI-Loader-NoPDB.zip",
+    "sha256": "c8cb367641de962cb10be44786359a23be013c4f96962eb8120ff237f1561139"
+  },
+  {
+    "id": "window",
+    "filename": "window.zip",
+    "url": "https://github.com/ThirteenAG/III.VC.SA.WindowedMode/releases/download/v3.0.1/III.VC.SA.WindowedMode.zip"
+  },
+  {
+    "id": "cleo",
+    "filename": "cleo.zip",
+    "url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip"
+  },
+  {
+    "id": "cleo-plus",
+    "filename": "CLEO+.cleo",
+    "url": "https://github.com/JuniorDjjr/CLEOPlus/releases/download/v1.2.0/CLEO%2B.cleo"
+  },
+  {
+    "id": "modloader",
+    "filename": "modloader.zip",
+    "url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip"
+  },
+  {
+    "id": "silentpatch",
+    "filename": "silentpatch.zip",
+    "url": "https://github.com/CookiePLMonster/SilentPatch/releases/download/1.1-BUILD34.1-SA/SilentPatchSA.zip",
+    "sha256": "0837bbdc0548a4a952f924adefd2bb6eacc866407f153844fe1f56995668c42c"
+  },
+  {
+    "id": "ginput",
+    "filename": "ginput.zip",
+    "url": "https://silent.rockstarvision.com/uploads/GInputSA.zip"
+  },
+  {
+    "id": "widescreen",
+    "filename": "widescreen.zip",
+    "url": "https://github.com/ThirteenAG/WidescreenFixesPack/releases/download/gtasa/GTASA.WidescreenFix.zip",
+    "sha256": "563078bfae5ad93be548d9378d4a97809762fb3a8dfdf0ef65e6023beadeb3ae"
+  },
+  {
+    "id": "trainer",
+    "filename": "trainer.7z",
+    "url": "https://github.com/user-grinch/GrinchTrainer-III-VC-SA/releases/download/1.0/GrinchTrainerSA.7z"
+  },
+  {
+    "id": "urbanize",
+    "filename": "urbanize.zip",
+    "url": "https://drive.usercontent.google.com/download?id=1KzkFfTDO1DeEcq1PcsdshYpaBKciTB5E&export=download"
+  },
+  {
+    "id": "limit-adjuster",
+    "filename": "limit-adjuster.zip",
+    "url": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/releases/download/v2.0.3/III.VC.SA.LimitAdjuster.zip",
+    "resolver": "direct",
+    "sha256": "0c3a3faa708e0ca124473fa69df5ed9fa7746316c5ed4dfbf134d8f0c5be2f5d"
+  },
+  {
+    "id": "skygfx",
+    "filename": "skygfx.zip",
+    "url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+    "resolver": "sharemods_form"
+  },
+  {
+    "id": "portablegta",
+    "filename": "portablegta.7z",
+    "url": "https://sharemods.com/lkin1m2msdem/PortableGTA.7z.html",
+    "resolver": "sharemods_form"
+  },
+  {
+    "id": "framerate",
+    "filename": "framerate.zip",
+    "url": "https://sharemods.com/s1rxdti1yntv/Framerate_Vigilante.zip.html",
+    "resolver": "sharemods_form"
+  },
+  {
+    "id": "exeunprotect",
+    "filename": "exeunprotect.zip",
+    "url": "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/Win32-latest/ExeUnprotect-Win32.zip"
+  }
+]

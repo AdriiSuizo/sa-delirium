@@ -1,0 +1,72 @@
+{
+  "repository": "https://github.com/DK22Pac/plugin-sdk",
+  "revision": "b55e89b336a81448c1aa1a5b188431c9845ebaa9",
+  "unmodified_interface_headers": true,
+  "files": [
+    {
+      "path": "plugin_sa/game_sa/enums/eTaskType.h",
+      "sha256": "7e6ac89bf95b3549c9d9157a1c9e7c66b5e43205a19ba2d17684b6253f99d5e9"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/errcom.def",
+      "sha256": "2693a101a0dd12d09ad15286ea107c6ddaca644d5f4e1d8315d613941ccb1cb1"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/errcore.def",
+      "sha256": "ef00b6072a818a2275f40e81dff456b0025f0226eabc87c15c01fb3d09a0e167"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rpworld.h",
+      "sha256": "5735612b53dddfaf0265a249696558c03e77fb46cb4b266fe64e6d6f7b7733f8"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rpworld.rpe",
+      "sha256": "8b97ff357377c38ea6f10c33c6f2998d61e6bdafadcecade99c292bb9ac15033"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rwcore.h",
+      "sha256": "a6f302e0dabe3e6e9a57436419b8b44cd876577e749aff9c036b92305277f993"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rwplcore.h",
+      "sha256": "6cb85e85a74bb865e4629adfe601041b44457efd5fdd48300804e27cac9035e6"
+    }
+  ],
+  "checkout_differences": [
+    {
+      "path": "plugin_sa/game_sa/enums/eTaskType.h",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "f6ba42532ff3ac268beb1f617c2516ad1baa8f26d987027c02bedb0a840e0050"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/errcom.def",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "68664d681502d4d0467393191be0e97885aac5a7c481ff58410030ac2e97c111"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/errcore.def",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "9f018f48f7869d9e47c32fbda8024d4469ec8e0119b249a859049df36001f0fc"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rpworld.h",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "58726b0181b6c739429b9a5cd9da5cfd45eeed74f8491a06d3198dce72161e86"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rpworld.rpe",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "ad739b038ac282be51762a192abb31db00f453e8f421f120e3e1d2f5cb41c71c"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rwcore.h",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "52c952a56a4c4e41a1d57607de441d9246a041532671a3994719eaf31bcab14b"
+    },
+    {
+      "path": "plugin_sa/game_sa/rw/rwplcore.h",
+      "checkout_line_endings_only": true,
+      "upstream_sha256": "b6ebef8a48c708185650cd09812e3ff3dbafc67972d7d8cffa3b585efe3bf43c"
+    }
+  ]
+}

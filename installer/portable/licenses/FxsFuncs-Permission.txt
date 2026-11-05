@@ -1,0 +1,9 @@
+FxsFuncs 1.1 Build 46 (47 fix), by Junior_Djjr. Support: Ezekiel.
+
+The original readme permits inclusion in compilations of mods that use it,
+with clear credits and an original mod link, and asks distributors to try to
+keep it updated. The same permission is stated on the author's current page:
+https://www.mixmods.com.br/2025/06/fxsfuncs/
+
+This profile uses the owner-supplied original 1.1 ASI, unchanged, with its
+original readme and the profile's effects settings.

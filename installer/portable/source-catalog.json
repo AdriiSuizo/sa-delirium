@@ -1,0 +1,411 @@
+{
+  "schema": 1,
+  "packages": [
+    {
+      "id": "cleo-aca8a1ca9d",
+      "filename": "cleo.zip",
+      "bytes": 550990,
+      "sha256": "aca8a1ca9dfc85d6f886b5963388059b2580501219f1f6b891114560552a8560",
+      "url": "https://github.com/cleolibrary/CLEO4/releases/download/v4.4.4/CLEO4.zip",
+      "title": "cleo"
+    },
+    {
+      "id": "ginput-b6d03e3322",
+      "filename": "ginput.zip",
+      "bytes": 230777,
+      "sha256": "b6d03e3322c61eda3c582dda062f3547dd06b73c3ff8298ee4aaf0d81a9ec201",
+      "url": "https://silent.rockstarvision.com/uploads/GInputSA.zip",
+      "title": "ginput"
+    },
+    {
+      "id": "modloader-3bb0e3d656",
+      "filename": "modloader.zip",
+      "bytes": 2691555,
+      "sha256": "3bb0e3d656a55d8c0a7ce98876033e2b9b672e8b7b5596f8044ccaa8f38dc403",
+      "url": "https://github.com/thelink2012/modloader/releases/download/v0.3.10/modloader.zip",
+      "title": "modloader"
+    },
+    {
+      "id": "silentpatch-0837bbdc05",
+      "filename": "silentpatch.zip",
+      "bytes": 229397,
+      "sha256": "0837bbdc0548a4a952f924adefd2bb6eacc866407f153844fe1f56995668c42c",
+      "url": "https://github.com/CookiePLMonster/SilentPatch/releases/download/1.1-BUILD34.1-SA/SilentPatchSA.zip",
+      "title": "silentpatch"
+    },
+    {
+      "id": "trainer-a57f0a7f0d",
+      "filename": "trainer.7z",
+      "bytes": 11148092,
+      "sha256": "a57f0a7f0d00ce9933dc82cca1fa19072aa25eaee2b0f185e549c40a2b7128e7",
+      "url": "https://github.com/user-grinch/GrinchTrainer-III-VC-SA/releases/download/1.0/GrinchTrainerSA.7z",
+      "title": "trainer"
+    },
+    {
+      "id": "ual-c8cb367641",
+      "filename": "ual.zip",
+      "bytes": 1095405,
+      "sha256": "c8cb367641de962cb10be44786359a23be013c4f96962eb8120ff237f1561139",
+      "url": "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/v10.0.2/Ultimate-ASI-Loader-NoPDB.zip",
+      "title": "ual"
+    },
+    {
+      "id": "urbanize-21217a20e7",
+      "filename": "urbanize.zip",
+      "bytes": 8164839,
+      "sha256": "21217a20e768565376048f331a4965fb6d9723df91458f8d2d759b156b3f3008",
+      "url": "https://drive.usercontent.google.com/download?id=1KzkFfTDO1DeEcq1PcsdshYpaBKciTB5E&export=download",
+      "title": "urbanize"
+    },
+    {
+      "id": "widescreen-563078bfae",
+      "filename": "widescreen.zip",
+      "bytes": 8037059,
+      "sha256": "563078bfae5ad93be548d9378d4a97809762fb3a8dfdf0ef65e6023beadeb3ae",
+      "url": "https://github.com/ThirteenAG/WidescreenFixesPack/releases/download/gtasa/GTASA.WidescreenFix.zip",
+      "title": "widescreen"
+    },
+    {
+      "id": "window-05eb663868",
+      "filename": "window.zip",
+      "bytes": 2645302,
+      "sha256": "05eb663868c6fd2d63316a591401ab7edd650aecd12ca48e40710d9675af9184",
+      "url": "https://github.com/ThirteenAG/III.VC.SA.WindowedMode/releases/download/v3.0.1/III.VC.SA.WindowedMode.zip",
+      "title": "window"
+    },
+    {
+      "id": "Advanced_Aiming_Mod-5d2429cb62",
+      "filename": "Advanced_Aiming_Mod.7z",
+      "bytes": 70005,
+      "sha256": "5d2429cb62db4f8f8616edb9d7a73172578d1a3609dadfd826839ad8646b8c43",
+      "url": "https://sharemods.com/ekfp0ll7momd/Advanced_Aiming_Mod.7z.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "sharemods.com"
+      ],
+      "download_hosts": [
+        "sharemods.com",
+        "cloudflarestorage.com",
+        "ovh.net"
+      ],
+      "auto_click_selectors": [
+        "form[name='F1'] button#downloadbtn",
+        "a#downloadbtn",
+        "a.btn.btn-primary[href]"
+      ],
+      "title": "Advanced Aiming Mod 1.4"
+    },
+    {
+      "id": "aim-presets-16a8858361",
+      "filename": "aim-presets.rar",
+      "bytes": 738998,
+      "sha256": "16a88583616d8b83418b639c18a105b1e4a3f844cbf0c2b82e7f337df7df468a",
+      "url": "https://files.gtainside.com/202410/1728763334_Advanced Aiming Mod Presets.rar",
+      "title": "aim-presets"
+    },
+    {
+      "id": "brightened-c95f1882bf",
+      "filename": "brightened.zip",
+      "bytes": 192247360,
+      "url": "https://libertycity.net/files/gta-san-andreas/224293-sa-brightened-project-v2-0-final.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "libertycity.net",
+        "libertycity.ru"
+      ],
+      "download_hosts": [
+        "libertycity.net",
+        "libertycity.ru",
+        "libertycitycdn.com"
+      ],
+      "auto_click_selectors": [
+        ".download_page .downl .download:not(.lcmods)",
+        ".download_files_list .internal a[data-hash=\"599603d8b21ff99baa06892d02a1821e\"]:not(.lcmods)",
+        ".waiting_page .nbut"
+      ],
+      "password": "libertycity",
+      "sha256": "c95f1882bfeba41fe7d0dc2bdfe158d95654f99452de8ffedd4d363498c3d21a",
+      "title": "SA Brightened Project 2.0 Final"
+    },
+    {
+      "id": "bsor-lod-27a229f4a3",
+      "filename": "bsor-lod.rar",
+      "bytes": 491734,
+      "sha256": "27a229f4a3a7ea3e12543d3aee539379fc8662f7fc549160e3099c05686e45e5",
+      "url": "https://files.gtainside.com/202501/1737622901_BSOR Five Stars LOD Vegetation 06.rar",
+      "title": "bsor-lod"
+    },
+    {
+      "id": "bsor-7963d2c19b",
+      "filename": "bsor.zip",
+      "bytes": 40947840,
+      "sha256": "7963d2c19bf6e80d07099b3585db6c4aa0a20e8be7e3d884f755291375ae2a0f",
+      "url": "https://files.gtainside.com/202407/1721751491_BSOR_Vegetation.zip",
+      "title": "bsor"
+    },
+    {
+      "id": "FxsFuncs-5ccb842a3f",
+      "filename": "FxsFuncs.7z",
+      "bytes": 197003,
+      "sha256": "5ccb842a3f087325f6c66c2fe34343bd4c9b2ebe4a7ef7b890464cf34a35a375",
+      "url": "https://sharemods.com/1ly65k5xchjr/FxsFuncs.7z.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "sharemods.com"
+      ],
+      "download_hosts": [
+        "sharemods.com",
+        "cloudflarestorage.com",
+        "ovh.net"
+      ],
+      "auto_click_selectors": [
+        "form[name='F1'] button#downloadbtn",
+        "a#downloadbtn",
+        "a.btn.btn-primary[href]"
+      ],
+      "title": "FxsFuncs",
+      "security_blocked": true,
+      "security_note": "Defender removed the2026-11-05 download asTrojan:Script/Ulthar.A!ml before hashverification. No bypass, restore or retry. Pending user scope decision/review."
+    },
+    {
+      "id": "grass-c82eb56959",
+      "filename": "grass.7z",
+      "bytes": 2702046,
+      "sha256": "c82eb56959a27b558939dc352c042d170018cddd866075291a85276a772712d3",
+      "url": "https://files.gtainside.com/202303/1677950296_Next-Gen Grass.7z",
+      "title": "grass"
+    },
+    {
+      "id": "gtaiv-textures-c1d0ceabf1",
+      "filename": "gtaiv-textures.rar",
+      "bytes": 559932647,
+      "sha256": "c1d0ceabf14aa06358ef09772668ed7bcd6747f1f8020c103571c996146dea0c",
+      "url": "https://libertycity.net/files/gta-san-andreas/143604-gta-iv-textures-real-hq-roads-fixed.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "libertycity.net",
+        "libertycity.ru"
+      ],
+      "download_hosts": [
+        "libertycity.net",
+        "libertycity.ru",
+        "libertycitycdn.com"
+      ],
+      "auto_click_selectors": [
+        ".download_page .downl .download:not(.lcmods)",
+        ".download_files_list .internal a[title^=\"Download\"]:not(.lcmods)",
+        ".waiting_page .nbut"
+      ],
+      "title": "gtaiv-textures"
+    },
+    {
+      "id": "Improved_Lamps-9b19c3d5d5",
+      "filename": "Improved_Lamps.7z",
+      "bytes": 7748105,
+      "sha256": "9b19c3d5d5eaa52a05bd5b4224f95797b9f7af355857a08cb10268a8c5d9bce6",
+      "url": "https://sharemods.com/iwbbggdxsnhy/Improved_Lamps.7z.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "sharemods.com"
+      ],
+      "download_hosts": [
+        "sharemods.com",
+        "cloudflarestorage.com",
+        "ovh.net"
+      ],
+      "auto_click_selectors": [
+        "form[name='F1'] button#downloadbtn",
+        "a#downloadbtn",
+        "a.btn.btn-primary[href]"
+      ],
+      "title": "Improved Lamps"
+    },
+    {
+      "id": "jefferson-e5fd966b60",
+      "filename": "jefferson.rar",
+      "bytes": 230444062,
+      "sha256": "e5fd966b60a2c9affb7d3b1d38465ff53b20aac1bc2d9b087e31065211349f96",
+      "url": "https://files.gtainside.com/201904/1554327031_JeffersonRetextured.rar",
+      "title": "jefferson"
+    },
+    {
+      "id": "LOD_Vegetation-f830592c4b",
+      "filename": "LOD_Vegetation.7z",
+      "bytes": 1078576,
+      "sha256": "f830592c4b1cd063ec214c819fb59a46137502a4a3888cd9a5c59ad6e940e0ba",
+      "url": "https://sharemods.com/7u9q36epczhn/LOD_Vegetation.7z.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "sharemods.com"
+      ],
+      "download_hosts": [
+        "sharemods.com",
+        "cloudflarestorage.com",
+        "ovh.net"
+      ],
+      "auto_click_selectors": [
+        "form[name='F1'] button#downloadbtn",
+        "a#downloadbtn",
+        "a.btn.btn-primary[href]"
+      ],
+      "title": "LOD Vegetation"
+    },
+    {
+      "id": "neon-d202e17b7c",
+      "filename": "neon.zip",
+      "bytes": 2913415,
+      "sha256": "d202e17b7c355af9e47a071d07fbb8fc74838a1a00ba9189281d8b423e2926e5",
+      "url": "https://files.gtainside.com/202301/1672854476_NVE_Xeon.zip",
+      "title": "neon"
+    },
+    {
+      "id": "parallax-d0f126d4bb",
+      "filename": "parallax.rar",
+      "bytes": 81247239,
+      "sha256": "d0f126d4bb746b8e41f375f0013c8b387336a1cc840df9e45ddacfbea73a4f02",
+      "url": "https://libertycity.net/files/gta-san-andreas/202590-parallax-interior-like-in-high.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "libertycity.net",
+        "libertycity.ru"
+      ],
+      "download_hosts": [
+        "libertycity.net",
+        "libertycity.ru",
+        "libertycitycdn.com"
+      ],
+      "auto_click_selectors": [
+        ".download_page .downl .download:not(.lcmods)",
+        ".download_files_list .internal a[title^=\"Download\"]:not(.lcmods)",
+        ".waiting_page .nbut"
+      ],
+      "title": "parallax"
+    },
+    {
+      "id": "particle-c10d83c847",
+      "filename": "particle.7z",
+      "bytes": 125177,
+      "sha256": "c10d83c847a01250b6422f4c5ef1b48121f50b7eca2510eb5f0d4a3366a84fad",
+      "url": "https://drive.usercontent.google.com/download?id=0B1sAJQAUfOOYR0ZtMnNwUFJFOG8&export=download",
+      "title": "particle"
+    },
+    {
+      "id": "project2dfx-3defd60348",
+      "filename": "project2dfx.zip",
+      "bytes": 3981091,
+      "sha256": "ed9184961f65240211ef812e44ac72b9b17b7921aaaf1589046e4486a459b191",
+      "url": "https://github.com/ThirteenAG/III.VC.SA.IV.Project2DFX/releases/download/gtasa/SA.Project2DFX.zip",
+      "title": "project2dfx"
+    },
+    {
+      "id": "rubbish-c4e0a2ce6a",
+      "filename": "rubbish.rar",
+      "bytes": 173609,
+      "sha256": "c4e0a2ce6a6fce54b69a4504d7fa579c3d21ffef219dc482221475863cd1b9cd",
+      "url": "https://files.gtainside.com/202401/1736759065_v2.0.rar",
+      "title": "rubbish"
+    },
+    {
+      "id": "SA_-_NextGen_Remaster_Effects-102a2bc1cb",
+      "filename": "SA_-_NextGen_Remaster_Effects.7z",
+      "bytes": 3836369,
+      "sha256": "102a2bc1cb9be4e21b9f83c61e7bc6906c10901566cd2ac3fe5a99c3a4d6de66",
+      "url": "https://sharemods.com/l0oi1e2w49d1/SA_-_NextGen_Remaster_Effects.7z.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "sharemods.com"
+      ],
+      "download_hosts": [
+        "sharemods.com",
+        "cloudflarestorage.com",
+        "ovh.net"
+      ],
+      "auto_click_selectors": [
+        "form[name='F1'] button#downloadbtn",
+        "a#downloadbtn",
+        "a.btn.btn-primary[href]"
+      ],
+      "title": "SA - NextGen Remaster Effects"
+    },
+    {
+      "id": "skins-2aa371fddf",
+      "filename": "skins.zip",
+      "bytes": 291232031,
+      "sha256": "2aa371fddf7c4ba8d3ca8c0fc71a30d4d59de4b7035e3991e85cd216f4260de2",
+      "url": "https://files.gtainside.com/201608/1488415253_299 HD skins pack.zip",
+      "title": "skins"
+    },
+    {
+      "id": "weapons-3a579a162d",
+      "filename": "weapons.7z",
+      "bytes": 64557312,
+      "sha256": "3a579a162d25b33f259b4204f5b31522c403089aec445d5ddcfc4684d9eb95f8",
+      "url": "https://drive.usercontent.google.com/download?id=1fAxvXqia40TEKuFvyDw-KGaQZEIBf3Wo&export=download",
+      "title": "weapons"
+    },
+    {
+      "id": "1446753631_Weapons gta v -b49e9011d7",
+      "filename": "1446753631_Weapons gta v .rar",
+      "bytes": 9291881,
+      "sha256": "b49e9011d72787735fbb51204dec22cf1b57230903d63406e98e44d42d42edcc",
+      "url": "https://files.gtainside.com/201511/1446753631_Weapons gta v .rar",
+      "title": "GTA V Weapons"
+    },
+    {
+      "id": "1488415253_299 HD skins pack-2aa371fddf",
+      "filename": "1488415253_299 HD skins pack.zip",
+      "bytes": 291232031,
+      "sha256": "2aa371fddf7c4ba8d3ca8c0fc71a30d4d59de4b7035e3991e85cd216f4260de2",
+      "url": "https://files.gtainside.com/201608/1488415253_299 HD skins pack.zip",
+      "title": "1488415253 299 HD skins pack"
+    },
+    {
+      "id": "sa-brightened-project-v2-0-final_1749946570_68170-5b7f690a0a",
+      "filename": "sa-brightened-project-v2-0-final_1749946570_68170.zip",
+      "bytes": 192244939,
+      "sha256": "5b7f690a0a582e51a67da63c26810b3103faf0c3a98789963ce5f2a4c41f666e",
+      "parent": "brightened-c95f1882bf",
+      "member": "sa-brightened-project-v2-0-final_1749946570_68170.zip",
+      "title": "SA Brightened Project 2.0 Final"
+    },
+    {
+      "id": "cleo-plus-raw",
+      "filename": "CLEO+.cleo",
+      "bytes": 661288,
+      "sha256": "ff4d164f13f2c6be32d28c93c713ee4c7ee44065fe70ec972cf0b483cf5f642d",
+      "url": "https://github.com/JuniorDjjr/CLEOPlus/releases/download/v1.2.0/CLEO%2B.cleo",
+      "format": "raw",
+      "title": "cleo-plus-raw"
+    },
+    {
+      "id": "limit-adjuster",
+      "filename": "limit-adjuster.zip",
+      "url": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/releases/download/v2.0.3/III.VC.SA.LimitAdjuster.zip",
+      "sha256": "0c3a3faa708e0ca124473fa69df5ed9fa7746316c5ed4dfbf134d8f0c5be2f5d",
+      "bytes": 485343,
+      "title": "limit-adjuster"
+    },
+    {
+      "id": "skygfx-extended",
+      "filename": "SA_-_SkyGfx_Extended.zip",
+      "sha256": "a8b19761defe6d80d2569c1bd796df877b8cab71f7eb5799df5c2baa3f3bace5",
+      "bytes": 670206,
+      "url": "https://sharemods.com/stxvlyt5j4q4/SA_-_SkyGfx_Extended.zip.html",
+      "resolver": "browser",
+      "page_hosts": [
+        "sharemods.com"
+      ],
+      "download_hosts": [
+        "sharemods.com",
+        "cloudflarestorage.com",
+        "ovh.net"
+      ],
+      "auto_click_selectors": [
+        "form[name='F1'] button#downloadbtn",
+        "a#downloadbtn",
+        "a.btn.btn-primary[href]"
+      ],
+      "title": "skygfx-extended"
+    }
+  ]
+}

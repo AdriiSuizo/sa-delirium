@@ -29,6 +29,14 @@ def main():
     ap.add_argument('--out', type=Path, required=True)
     ap.add_argument('--bridge', type=Path)
     ap.add_argument('--steam', action='store_true')
+    ap.add_argument('--resource-dir', default='DeliriumSA')
+    ap.add_argument('--iso-runtime', action='store_true')
+    ap.add_argument('--new-game', action='store_true', help='First installation: native new-game menu, no save import or physical fixture')
+    ap.add_argument('--without-izzy', action='store_true')
+    ap.add_argument('--izzy-sha256', help='Require the exact approved author ASI to be installed and loaded')
+    ap.add_argument('--fxs-sha256', help='Require the exact selected effects ASI')
+    ap.add_argument('--fire-effects', action='store_true', help='Fire actual owned-game pistol rounds and verify ammunition decreases')
+    ap.add_argument('--scenario', choices=['melee', 'bike-shot', 'bicycle-shot', 'car-contact', 'native-shot'], default='melee')
     args = ap.parse_args()
     target = args.target.resolve()
     game = target / 'SA'
@@ -37,8 +45,12 @@ def main():
     before_pids = set(psutil.pids())
     bridge = game / 'scripts/GameTestBridge.asi'
     assert not bridge.exists()
+    if args.without_izzy:
+        assert not list((game / 'modloader').rglob('LivelyVehiclePhysics.asi'))
     save = game / 'userfiles/GTASAsf2.b'
-    save_sha, save_mode = sha(save), save.stat().st_mode
+    save_sha, save_mode = (sha(save), save.stat().st_mode) if save.exists() else (None, None)
+    if args.new_game:
+        assert args.bridge and not list((game / 'userfiles').glob('GTASAsf*.b')), 'Use a fresh profile without any owner saves'
     env = os.environ.copy()
     env['GTASA_TEST_SAVE_SLOT'] = '2'
     if args.bridge:
@@ -52,9 +64,12 @@ def main():
     startup.wShowWindow = subprocess.SW_HIDE
     owned = []
     report = {'target': str(target), 'steam_launch': args.steam, 'bridge': bool(args.bridge),
-              'source_save_sha256': save_sha, 'observations': []}
+              'source_save_sha256': save_sha, 'observations': [], 'scenario': args.scenario,
+              'adapter_sha256': sha(game / 'scripts/DeliriumSA.asi')}
+    if args.iso_runtime:
+        report['sdk_sha256'] = sha(game / 'scripts/sa_delirium_bootstrap.dll')
     try:
-        if args.bridge:
+        if args.bridge and save.exists():
             save.chmod(save_mode & ~stat.S_IWRITE)
         if args.steam:
             subprocess.run([r'C:\Program Files (x86)\Steam\steam.exe', '-applaunch', '12120'], startupinfo=startup, check=True)
@@ -89,7 +104,30 @@ def main():
         report['modules'] = sorted({m.path for m in child.memory_maps() if m.path.lower().endswith(('.asi', '.cleo', '.dll'))})
         assert not any('v_hud_by' in p.lower() for p in report['modules'])
         assert not any('sastandalone.asi' in p.lower() for p in report['modules'])
+        if args.without_izzy:
+            assert not any(p.lower().endswith('livelyvehiclephysics.asi') for p in report['modules'])
+        if args.izzy_sha256:
+            # Delirium initializes before Mod Loader finishes its ASI stage.
+            # Wait for the real module, rather than treating that early snapshot
+            # as the complete loaded profile.
+            izzy_deadline = time.monotonic() + 30
+            while time.monotonic() < izzy_deadline:
+                assert child.is_running(), 'Game exited during Mod Loader startup'
+                report['modules'] = sorted({m.path for m in child.memory_maps() if m.path.lower().endswith(('.asi', '.cleo', '.dll'))})
+                izzy = [Path(p) for p in report['modules'] if p.lower().endswith('livelyvehiclephysics.asi')]
+                if izzy:
+                    break
+                time.sleep(.25)
+            assert len(izzy) == 1 and sha(izzy[0]) == args.izzy_sha256, 'Author ASI missing, duplicated or changed'
+            report['izzy_sha256'] = sha(izzy[0])
+        if args.fxs_sha256:
+            effects=[Path(p) for p in report['modules'] if p.lower().endswith('fxsfuncs.asi')]
+            assert len(effects)==1 and sha(effects[0])==args.fxs_sha256
+            report['fxs_sha256']=sha(effects[0])
         assert any(p.lower().endswith('deliriumsa.asi') for p in report['modules'])
+        if args.iso_runtime:
+            assert any(p.lower().endswith('sa_delirium_bootstrap.dll') for p in report['modules'])
+            assert not any(p.lower().endswith('delirium_physics.dll') for p in report['modules'])
         if args.bridge:
             folder = target / 'logs/bridge'
             # The adapter initializes before the first-run renderer/window.
@@ -103,9 +141,10 @@ def main():
                 time.sleep(.25)
             else:
                 raise RuntimeError('Main-thread bridge readiness timeout')
-            def command(action, mode=0):
+            def command(action, mode=0, **fields):
                 command_id = time.time_ns() // 1_000_000
                 body = {'pid': child.pid, 'id': command_id, 'action': action, 'mode': mode}
+                body.update(fields)
                 temp = folder / 'command.json.tmp'
                 temp.write_text(json.dumps(body), encoding='ascii')
                 os.replace(temp, folder / 'command.json')
@@ -119,7 +158,7 @@ def main():
                         raise RuntimeError('Owned game exited')
                     time.sleep(.1)
                 raise RuntimeError('Command not acknowledged: ' + action)
-            command('load_test_save')
+            command('start_new_game' if args.new_game else 'load_test_save')
             end = time.monotonic() + 120
             while time.monotonic() < end:
                 state = read(folder / 'state.json')
@@ -137,19 +176,102 @@ def main():
             else:
                 raise RuntimeError('Checkpoint load timeout: ' + json.dumps(state))
             start_state = command('observe')
-            physics = read(game / 'DeliriumSA/state.json')
+            if args.new_game:
+                for _ in range(15):
+                    time.sleep(1)
+                    report['observations'].append(read(game / args.resource_dir / 'state.json'))
+                state = command('probe_visual_frame')
+                if state.get('result') == 'visual_frame_ok':
+                    from PIL import Image
+                    Image.open(folder / f'visual-frame-{child.pid}.bmp').convert('RGB').resize((1280, 720)).save(args.out / 'first-game.png')
+                final = command('observe')
+                assert final['frame'] > start_state['frame'] and final['game_time_ms'] > start_state['game_time_ms']
+                assert final['player_present'] and final['health'] > 0 and final['input_isolated']
+                assert report['observations'][-1].get('errors', 1) == 0
+                assert not list((game / 'userfiles').glob('GTASAsf*.b'))
+                report.update(status='first_new_game_intro_smoke', final=final)
+                shutil.copy2(session / 'events.jsonl', args.out / 'events.jsonl')
+                return
+            physics = read(game / args.resource_dir / 'state.json')
             if physics.get('area') == 3:
-                command('probe_house_transition')
-                time.sleep(8)
+                # A just-loaded checkpoint can still be in a natural phone
+                # event. Let the native event finish; never clear mission flags.
+                boundary_deadline = time.monotonic() + 90
+                while time.monotonic() < boundary_deadline:
+                    transition = command('probe_house_transition')
+                    if transition.get('result') == 'native_house_transition_started':
+                        break
+                    if transition.get('result') != 'transition_rejected_on_mission':
+                        raise RuntimeError('Native house transition refused: ' + json.dumps(transition))
+                    time.sleep(1)
+                else:
+                    raise RuntimeError('Native mission/phone event did not release the house transition')
+                while time.monotonic() < boundary_deadline:
+                    physics = read(game / args.resource_dir / 'state.json')
+                    if physics.get('area') == 0 and physics.get('playing'):
+                        break
+                    time.sleep(.25)
+                else:
+                    raise RuntimeError('Native house transition did not reach the outdoor world')
             time.sleep(4)
+            if args.scenario == 'native-shot':
+                # The native enex state remains3 until CJ leaves its trigger.
+                # Move away through the existing bounded CEntity::Teleport
+                # bridge command, then let CEntryExitManager reset its own state.
+                threshold_deadline = time.monotonic() + 15
+                while time.monotonic() < threshold_deadline:
+                    threshold = command('probe_house_clear_threshold')
+                    if threshold.get('result') == 'native_house_threshold_cleared':
+                        break
+                    if threshold.get('result') != 'threshold_transition_active':
+                        raise RuntimeError('Native enex threshold could not be cleared: ' + json.dumps(threshold))
+                    time.sleep(.25)
+                else:
+                    raise RuntimeError('Native enex remained active')
+                time.sleep(1)
             command('probe_visual_scene', 0)
             command('probe_visual_camera')
-            command('probe_vehicle_reaction', 150)
+            if args.fire_effects:
+                aim=command('probe_aim_start',22)
+                assert aim.get('result')=='aim_native_sample_started',aim
+                time.sleep(.5)
+                ammo=command('probe_native_ammo');before=int(ammo['result'].removeprefix('native_ammo_'))
+                for _ in range(4):
+                    firing=command('probe_aim_fire');assert firing.get('result')=='aim_native_fire_sample_started',firing
+                    time.sleep(.5)
+                ammo=command('probe_native_ammo');after=int(ammo['result'].removeprefix('native_ammo_'))
+                assert 0<=after<before,(before,after)
+                report['native_rounds_fired']=before-after
+                command('probe_aim_stop');time.sleep(.5)
+            if args.scenario not in ('melee', 'native-shot'):
+                grove = command('probe_grove_street')
+                assert grove.get('result') == 'grove_scene_result_0', grove
+                time.sleep(2)
+            if args.scenario == 'car-contact':
+                car = command('probe_vehicle_reaction', 139)  # Native model445 sedan
+                assert int(car.get('result', '').removeprefix('vehicle_reaction_result_')) > 0, car
+            setup_mode, impact_mode = {'melee': (150, 152), 'bike-shot': (20, 30),
+                                      'bicycle-shot': (21, 30), 'car-contact': (133, 134), 'native-shot': (0, 0)}[args.scenario]
+            native = args.scenario == 'native-shot'
+            setup = command('prepare_native_impact') if native else command('probe_vehicle_reaction', setup_mode)
+            prefix = 'native_impact_result_' if native else 'vehicle_reaction_result_'
+            if not setup.get('result', '').startswith(prefix) or int(setup['result'][len(prefix):]) <= 0:
+                raise RuntimeError('Physics fixture was refused before any impact: ' + json.dumps(setup))
+            target_ref = int(setup['result'][len(prefix):])
             time.sleep(.7)
-            command('probe_vehicle_reaction', 152)
-            for _ in range(15):
-                time.sleep(1)
-                report['observations'].append(read(game / 'DeliriumSA/state.json'))
+            if args.scenario not in ('melee', 'native-shot'):
+                focus = command('probe_delirium_focus', ref=target_ref)
+                assert focus.get('result') == 'delirium_focus_result_0', focus
+            impact = command('fire_native_impact') if native else command('probe_vehicle_reaction', impact_mode)
+            assert impact.get('result') == prefix + str(target_ref), impact
+            for sample in range(60):
+                time.sleep(.25)
+                report['observations'].append(read(game / args.resource_dir / 'state.json'))
+                if args.scenario != 'melee' and sample in (1, 5, 11, 31):
+                    frame = command('probe_visual_frame')
+                    if frame.get('result') == 'visual_frame_ok':
+                        from PIL import Image
+                        Image.open(folder / f'visual-frame-{child.pid}.bmp').convert('RGB').resize((1280, 720)).save(args.out / f'impact-{sample:02d}.png')
             state = command('probe_visual_frame')
             if state['result'] == 'visual_frame_ok':
                 from PIL import Image
@@ -185,8 +307,9 @@ def main():
         if args.bridge and bridge.exists():
             assert sha(bridge) == sha(args.bridge)
             bridge.unlink()
-        save.chmod(save_mode)
-        report['save_preserved'] = sha(save) == save_sha
+        if save_mode is not None:
+            save.chmod(save_mode)
+        report['save_preserved'] = (sha(save) if save.exists() else None) == save_sha
         assert report['save_preserved']
         (args.out / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
         print(json.dumps({'status': report.get('status'), 'report': str(args.out / 'report.json'), 'error': report.get('error')}), flush=True)
