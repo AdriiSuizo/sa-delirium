@@ -628,7 +628,7 @@ static void __fastcall damage(DamageEvent* hitEvent,void*,void*p){originalDamage
 #include "RoadPoseSeeds.hpp"
 #include "StandingContacts.hpp"
 #include "AudioStreamDirectory.hpp"
-static const char* audioStreamDirectoryStatus="not_installed";
+static const char* audioStreamDirectoryStatus="not_installed";static const char* audioStreamLengthGuardStatus="not_installed";
 static void acceptedDamage(DamageEvent* hitEvent,void*p){
     if(combatDelivering)return; // authored sweep delivers native damage once
     const float amount=hitEvent->response.health+hitEvent->response.armour;
@@ -1400,6 +1400,7 @@ static DWORD WINAPI setup(void*){
         collision->debugMesh=folder/"collision-mesh.bin";
     initializeCombat();
     event(std::string("audio_stream_directory_")+audioStreamDirectoryStatus);
+    event(std::string("audio_stream_length_guard_")+audioStreamLengthGuardStatus);
     auto hook=[](void* target,void* replacement,void** original){return MH_CreateHook(target,replacement,original)==MH_OK;};
     auto initialized=MH_Initialize();if(initialized!=MH_OK&&initialized!=MH_ERROR_ALREADY_INITIALIZED){status="hook_init_failed";event(status);return 0;}
     // CGame.cpp addrof(CGame::Process) = 0x53BEE0; 0x53BFA0 is inside its body, not an entry point.
@@ -1459,5 +1460,5 @@ static DWORD WINAPI setup(void*){
     if(MH_ApplyQueued()!=MH_OK){status="hook_enable_failed";event(status);return 0;}
     status="real_engine_ready";ready=true;event("initialized",-1,-1,applyBones?"bone_application_enabled":"shadow_validation_only");report();return 0;
 }
-extern "C" __declspec(dllexport) void InitializeASI(){static bool started=false;if(started)return;started=true;audioStreamDirectoryStatus=audio_stream_directory::install();HMODULE pinned=nullptr;GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&InitializeASI),&pinned);if(auto t=CreateThread(nullptr,0,&setup,nullptr,0,nullptr))CloseHandle(t);}
+extern "C" __declspec(dllexport) void InitializeASI(){static bool started=false;if(started)return;started=true;audioStreamDirectoryStatus=audio_stream_directory::install();audioStreamLengthGuardStatus=audio_stream_directory::installLengthGuard();HMODULE pinned=nullptr;GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&InitializeASI),&pinned);if(auto t=CreateThread(nullptr,0,&setup,nullptr,0,nullptr))CloseHandle(t);}
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD why,LPVOID){if(why==DLL_PROCESS_ATTACH)DisableThreadLibraryCalls(instance);return TRUE;}

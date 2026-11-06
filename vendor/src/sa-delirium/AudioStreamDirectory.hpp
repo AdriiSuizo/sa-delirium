@@ -79,4 +79,38 @@ inline const char* install(){
     FlushInstructionCache(GetCurrentProcess(),site,5);
     return "installed";
 }
+
+// A track that starts part-way (the radio picks a random position) is placed
+// with "position % length" in CAEStreamThread::MainLoop (0x4F145C..0x4F1466:
+// mov ecx,eax / mov eax,[esp+1Ch] / xor edx,edx / div ecx), where eax is the
+// decoder's GetStreamLengthMs (vtable +8). With some of Steam's streams the
+// decoder reports 0 and the division crashed the game (06/11, Ryder, leaving
+// Grove Street: modloader.log "Integer division by zero" at 0x4F1464). A
+// track of unknown length now starts at its beginning; every other track is
+// placed exactly as before.
+constexpr uintptr_t StartOffsetSite=0x4F145C;
+constexpr std::uint8_t StartOffsetBytes[10]{0x8B,0xC8,0x8B,0x44,0x24,0x1C,0x33,0xD2,0xF7,0xF1};
+__declspec(naked) inline void startOffsetInTrack(){
+    __asm {
+        mov ecx,eax
+        mov eax,[esp+0x20]  // the caller's [esp+1Ch], past this return address
+        xor edx,edx
+        test ecx,ecx
+        jz unknownLength
+        div ecx
+    unknownLength:
+        ret
+    }
+}
+inline const char* installLengthGuard(){
+    auto* site=reinterpret_cast<std::uint8_t*>(StartOffsetSite);
+    if(std::memcmp(site,StartOffsetBytes,sizeof(StartOffsetBytes))!=0)return "already_different";
+    DWORD old=0;
+    if(!VirtualProtect(site,sizeof(StartOffsetBytes),PAGE_EXECUTE_READWRITE,&old))return "failed";
+    const std::int32_t call=static_cast<std::int32_t>(reinterpret_cast<uintptr_t>(&startOffsetInTrack)-(StartOffsetSite+5));
+    site[0]=0xE8;std::memcpy(site+1,&call,4);std::memset(site+5,0x90,5);
+    VirtualProtect(site,sizeof(StartOffsetBytes),old,&old);
+    FlushInstructionCache(GetCurrentProcess(),site,sizeof(StartOffsetBytes));
+    return "installed";
+}
 }
