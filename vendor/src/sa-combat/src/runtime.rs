@@ -18,7 +18,9 @@ pub const EXIT_INTENT:u32=128;
 // Explicit controlled fixtures only: retains AI reactions and stance but makes
 // no autonomous attack choice. The live host never sets this outside a probe.
 pub const PROBE_PASSIVE:u32=256;
-fn weapon(club:bool)->WeaponView{WeaponView{fire:"MELEE",name:if club{"BASEBALLBAT"}else{"UNARMED"},damage_type:"MELEE",slot:if club{"MELEE"}else{"UNARMED"},held:Held{kind:club as u32,flags:if club{1<<9}else{0},between_shots:0}}}
+fn club_weapon(club:bool)->WeaponView{WeaponView{fire:"MELEE",name:if club{"BASEBALLBAT"}else{"UNARMED"},damage_type:"MELEE",slot:if club{"MELEE"}else{"UNARMED"},held:Held{kind:club as u32,flags:if club{1<<9}else{0},between_shots:0}}}
+// A held blade (SA knife / katana) is IV's KNIFE: type 3, weaponinfo MELEE_BLADE (+0x20 bit 10), the action table's `knife` class.
+fn weapon(club:bool,blade:bool)->WeaponView{if club&&blade{WeaponView{fire:"MELEE",name:"KNIFE",damage_type:"MELEE",slot:"MELEE",held:Held{kind:3,flags:1<<10,between_shots:0}}}else{club_weapon(club)}}
 pub struct Actor{
     pub rig:Rig,pub player:bool,pub me:Me,pub pad:Pad,pub melee:Melee,
     pub frame:[f32;FRAME_FLOATS],pub native:Vec<Pose>,pub pose:Vec<Pose>,pub state:[f32;STATE_FLOATS],
@@ -29,6 +31,11 @@ pub struct Actor{
     gym_contact:Option<u32>,paired_gym:Option<(u32,usize)>,
     pub decision:crate::npc_decision::NpcDecision,decision_input:Option<(u32,crate::npc_decision::Input)>,bravery:u8,
     club:Option<(Vec3,Vec3,f32,f32)>,
+    /// The held weapon is a blade (`feed_weapon`): IV KNIFE instead of BASEBALLBAT.
+    blade:bool,
+    /// This actor's DisarmOpponent has taken its foe's weapon and the host is swapping it into this actor's hands: the
+    /// weapon change must not restart the disarm's own clip (`feed_club`). Lapses with the move.
+    taking:bool,
 }
 
 #[cfg(test)]mod health_order_regressions{
@@ -119,7 +126,7 @@ impl Actor {
             me:(!self.player).then_some(self.me),bones:ct::POINT_BONES.map(|id|self.at(id)),
             task:m.map(|m|(d.reaction_identity(d.table.results[m.result].name),Some((m.clip_t,m.step)))),
             block:m.is_some_and(|m|d.table.results[m.result].is_a_block),velocity:Vec3::from_slice(&self.frame[12..]),
-            flags_240:self.flags_240,from_idle:self.melee.from_idle,on_stairs:false,weapon:Some(weapon(self.club.is_some()).held),struck:m.is_some_and(|m|m.struck),
+            flags_240:self.flags_240,from_idle:self.melee.from_idle,on_stairs:false,weapon:Some(weapon(self.club.is_some(),self.blade).held),struck:m.is_some_and(|m|m.struck),
             frame_box:ct::frag_box(self.pos()-Vec3::Z,self.heading,self.capsules().iter().map(|&(a,b,r,_)|(a,b,r))),}
     }
     fn capsules(&self)->Vec<(Vec3,Vec3,f32,u16)>{
@@ -179,9 +186,10 @@ impl Runtime {
         let me=Me{attack:p.personality.attack,defend:p.personality.defend,martial:p.personality.melee_percent,groups:p.groups,go:false,
             moves:d.groups.iter().position(|g|g.name.eq_ignore_ascii_case(&p.personality.move_group)).map_or(-1,|i|i as i32)};
         let pose=rig.bind.clone();self.actors.insert(id,Actor{rig,player,me,pad:Pad::default(),melee:Melee::default(),frame:[0.;FRAME_FLOATS],
-            native:pose.clone(),pose:pose.clone(),state:[0.;STATE_FLOATS],flags:0,target:u32::MAX,heading:0.,flags_240:0,phase:0.,wait:None,blend:0.,previous:None,under:pose,last_seen:0,key:String::new(),waiting:true,drift:None,alternate_recoil_target:None,alternate_hook_target:None,gym_contact:None,paired_gym:None,decision:Default::default(),decision_input:None,bravery:p.personality.bravery,club:None});Ok(())
+            native:pose.clone(),pose:pose.clone(),state:[0.;STATE_FLOATS],flags:0,target:u32::MAX,heading:0.,flags_240:0,phase:0.,wait:None,blend:0.,previous:None,under:pose,last_seen:0,key:String::new(),waiting:true,drift:None,alternate_recoil_target:None,alternate_hook_target:None,gym_contact:None,paired_gym:None,decision:Default::default(),decision_input:None,bravery:p.personality.bravery,club:None,blade:false,taking:false});Ok(())
     }
-    pub fn feed_club(&mut self,id:u32,bounds:Option<&[f32]>)->Result<(),String>{
+    pub fn feed_club(&mut self,id:u32,bounds:Option<&[f32]>)->Result<(),String>{self.feed_weapon(id,bounds,false)}
+    pub fn feed_weapon(&mut self,id:u32,bounds:Option<&[f32]>,blade:bool)->Result<(),String>{
         let a=self.actors.get_mut(&id).ok_or("unregistered fighter")?;
         let club=match bounds {
             Some(b) if b.len()==8&&b.iter().all(|v|v.is_finite())&&b[6]>0.&&(0.0..=1.0).contains(&b[7])=>
@@ -189,8 +197,10 @@ impl Runtime {
             None=>None,
             _=>return Err("invalid club bounds".into()),
         };
-        if a.club!=club&&!a.receiving(){a.melee=Melee::default();a.previous=None;a.wait=None;}
-        a.club=club;Ok(())
+        if a.melee.mv.is_none(){a.taking=false;}
+        let blade=blade&&club.is_some();
+        if (a.club!=club||a.blade!=blade)&&!a.receiving()&&!a.taking{a.melee=Melee::default();a.previous=None;a.wait=None;}
+        a.club=club;a.blade=blade;Ok(())
     }
     pub fn feed(&mut self,id:u32,f:&[f32],pose:&[f32],now:u32)->Result<(),String>{
         let a=self.actors.get_mut(&id).ok_or("unregistered fighter")?;
@@ -282,7 +292,7 @@ impl Runtime {
                 let target=match targets.get(&a.target){Some(&t) if t==id=>ct::TaskTarget::Me,Some(t)=>foes.get(t).copied().map_or(ct::TaskTarget::Nobody,ct::TaskTarget::Ped),None=>ct::TaskTarget::Nobody};
                 Some(ct::FoeTask{target,lock,given,block:f.block,struck:f.struck})
             });
-            let w=weapon(a.club.is_some());let ctx=ct::Ctx{pad:&pads[&id],pos:a.pos(),health:a.frame[4],weapon:&w,foe,me:(!a.player).then_some(a.me),lock_on:a.flags&LOCK!=0,
+            let w=weapon(a.club.is_some(),a.blade);let ctx=ct::Ctx{pad:&pads[&id],pos:a.pos(),health:a.frame[4],weapon:&w,foe,me:(!a.player).then_some(a.me),lock_on:a.flags&LOCK!=0,
                 flags_240:a.flags_240,on_stairs:false,bones:ct::POINT_BONES.map(|b|a.at(b)),lies:a.lies(&self.bank),foe_pad:foe.filter(|f|f.player).and_then(|_|pads.get(&a.target)),foe_task,in_hand:true};
             a.melee.step(d,&ctx,&mut a.heading,dt,&|k|self.bank.clips.get(k),&mut||self.rng.next());
             a.state[12]=a.melee.took as u8 as f32;a.state[13]=request_by.map_or(-1.,|id|id as f32);
@@ -436,7 +446,7 @@ impl Runtime {
                 if !valid{self.actors.get_mut(&id).unwrap().melee.mv=None;continue}
             }
             let Some(a)=self.actors.get_mut(&target).filter(|a|a.flags&(DOWN|DEAD)==0&&(a.flags&PHYSICAL==0||a.flags&DRIVEN!=0))else{continue};
-            let result=ct::react(d,&a.foe(d,&self.bank),a.player,Some(&weapon(a.club.is_some())),a.melee.mv.as_ref(),&blow,false,[a.melee.on,false],ct::Pick::Forced{pad:a.player.then_some(&pads[&target].controls)},&mut||self.rng.next());
+            let result=ct::react(d,&a.foe(d,&self.bank),a.player,Some(&weapon(a.club.is_some(),a.blade)),a.melee.mv.as_ref(),&blow,false,[a.melee.on,false],ct::Pick::Forced{pad:a.player.then_some(&pads[&target].controls)},&mut||self.rng.next());
             if let Some(action)=result.action {
                 ct::play_result(&mut a.melee.mv,d,action,a.player,&|k|self.bank.clips.get(k).map(|c|c.duration));
                 if let Some(m)=a.melee.mv.as_mut(){m.given=true;m.swing=false;
@@ -496,6 +506,16 @@ impl Runtime {
             // measured-pose/inertia handoff, without a new strike impulse.
             h[8]=if release{-1.}else{a.state[4]};h[15]=1.;self.hits.push(h);
         }
+        // DisarmOpponent (meleetask.rs 0x822BF448: "his target's weapon is his and it goes from the ped"): at the disarm
+        // clip's 0x200 event, locked on its target (`Melee::disarm_foe`), a club-holding foe's weapon changes hands.
+        // Hit kind 3 (h[15]): h[0] the taker, h[1] the foe; no damage, no reaction (that is the forced Hit_disarmed_*).
+        // Last in the list so the health receipts' indices above are untouched. The host owns the SA weapon swap.
+        let takes:Vec<_>=self.actors.iter().filter(|(_,a)|a.state[0]>0.&&a.melee.disarm_foe&&a.last_seen==now)
+            .filter_map(|(&id,a)|{let v=self.actors.get(&a.target)?;(a.target!=id&&v.club.is_some()&&v.flags&DEAD==0&&v.last_seen==now).then_some((id,a.target,v.at(0x36a1).unwrap_or(v.pos())))}).collect();
+        for (id,target,at) in takes{
+            if let Some(a)=self.actors.get_mut(&id){a.taking=true;}
+            let mut h=[0.;HIT_FLOATS];h[0]=id as f32;h[1]=target as f32;h[2]=0x36a1 as f32;h[4..7].copy_from_slice(&at.to_array());h[8]=-1.;h[15]=3.;self.hits.push(h);
+        }
         Ok(())
     }
     fn resolve_contacts(&mut self,d:&Data,pads:&BTreeMap<u32,Pad>,contacts:Vec<(u32,u32,u16,Vec3,f32,u32,Vec3,f32)>,mut health_host:Option<&mut dyn crate::melee_health::Boundary>)->Result<(),String>{
@@ -517,7 +537,7 @@ impl Runtime {
             // The source health transaction includes guard/helmet/head KO. Raw
             // authored damage is NOT a prediction of death or a ragdoll trigger.
             let select=|health:f32,rng:&mut Rand|{let mut me=before;me.health=health;
-                ct::react(d,&me,a.player,Some(&weapon(a.club.is_some())),a.melee.mv.as_ref(),&blow,!a.player||health<100.,a.decision.reaction_tasks(),pick,&mut||rng.next())};
+                ct::react(d,&me,a.player,Some(&weapon(a.club.is_some(),a.blade)),a.melee.mv.as_ref(),&blow,!a.player||health<100.,a.decision.reaction_tasks(),pick,&mut||rng.next())};
             let physical=a.flags&(DOWN|DEAD)!=0||(a.flags&PHYSICAL!=0&&a.flags&DRIVEN==0);
             let reaction=if let Some(receipt)=candidate.as_mut(){
                 let mut trial=Rand::new(receipt.rng_after);let reaction=select(receipt.after.health,&mut trial);
@@ -557,4 +577,67 @@ impl Runtime {
         Ok(())
     }
 
+}
+
+#[cfg(test)]mod disarm_regressions{
+    use super::*;use lsc4_combat::actiontable::Action;
+    // The whole host-side chain of the player's weapon take, on the real table, clips and rig: the disarm result's forced
+    // reaction puts the club foe on Hit_disarmed_bat_Res; at the clip's 0x200 event, locked on, one kind-3 record names
+    // taker and foe; the weapon swap (host) must not restart the taker's clip.
+    fn world(lock:bool,club:bool)->(Runtime,Data){
+        static INIT:std::sync::Once=std::sync::Once::new();let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        INIT.call_once(||assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(root.join("game/DeliriumSA/fred.xrt")).unwrap()))));
+        let dir=root.join("game/DeliriumSA/combat");let read=|n:&str|std::fs::read(dir.join(n)).unwrap();
+        let d=Data::load(&read("meleeanims.dat"),&read("action_table.csv"),&read("pedpersonality.dat")).unwrap();
+        let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+        let mut r=Runtime::new(Bank::load(&dir).unwrap());r.register(&d,1,true,"player",rig.clone()).unwrap();r.register(&d,2,false,"ig_roman",rig).unwrap();
+        if club{r.feed_club(2,Some(&[0.,0.,0.,0.,0.,0.9,0.04,0.1])).unwrap();}
+        let bank=&r.bank;let a=r.actors.get_mut(&1).unwrap();a.melee.on=true;
+        ct::play_result(&mut a.melee.mv,&d,&Action{move_:hash("Disarm_Bat_Res"),..Default::default()},true,&|k|bank.clips.get(k).map(|c|c.duration));
+        a.flags=FIGHT|PLAYER|if lock{LOCK}else{0};
+        (r,d)
+    }
+    fn frame(r:&mut Runtime,d:&Data,f:u32,lock:bool)->Vec<[f32;HIT_FLOATS]>{
+        let now=100+f*17;
+        for (&id,a) in &mut r.actors{
+            a.frame[..3].copy_from_slice(&if id==1{[0.,0.,1.]}else{[0.,1.,1.]});a.frame[3]=if id==1{0.}else{std::f32::consts::PI};a.frame[4]=200.;
+            a.flags=if id==1{FIGHT|PLAYER|if lock{LOCK}else{0}}else{FIGHT|PROBE_PASSIVE|(a.flags&PHYSICAL)};
+            a.heading=if id==1{a.heading}else{std::f32::consts::PI};a.target=if id==1{2}else{1};a.last_seen=now;
+            a.pad.feed(0,[127,127],[0,0],now.saturating_sub(17));a.pad.feed(0,[127,127],[0,0],now);
+        }
+        r.advance(d,now,0.017).unwrap();r.finish(d).unwrap();r.hits.iter().copied().filter(|h|h[15]==3.).collect()
+    }
+    #[test]
+    fn the_disarm_result_hands_the_club_over_once_and_survives_the_swap(){
+        let (mut r,d)=world(true,true);let (mut takes,mut seen_reaction,mut at)=(vec![],false,0);
+        for f in 0..140{
+            takes.extend(frame(&mut r,&d,f,true).into_iter().map(|h|(f,h)));
+            if takes.len()==1&&at==0{
+                at=f;
+                // The host now swaps weapons: the new club in the taker's hands, the foe's gone.
+                r.feed_club(1,Some(&[0.,0.,0.,0.,0.,0.9,0.04,0.1])).unwrap();r.feed_club(2,None).unwrap();
+                assert!(r.actors[&1].melee.mv.is_some(),"the weapon swap restarted the disarm clip");
+            }
+            seen_reaction|=r.actors[&2].melee.mv.as_ref().is_some_and(|m|d.table.results[m.result].name==hash("Hit_disarmed_bat_Res"));
+        }
+        assert!(seen_reaction,"the club foe never played Hit_disarmed_bat_Res");
+        assert_eq!(takes.len(),1,"one 0x200 event, one take: {takes:?}");
+        let h=takes[0].1;assert_eq!((h[0],h[1],h[15]),(1.,2.,3.));assert!((50..65).contains(&takes[0].0),"0x200 (frame 29 of 55 at 30 Hz, 0.97 s) is about frame 57 at 17 ms, got {}",takes[0].0);
+        // The taker finishes the clip and goes on armed: the move ends by itself.
+        assert!(r.actors[&1].melee.mv.is_none()||r.actors[&1].melee.mv.as_ref().is_some_and(|m|m.clip_t<m.dur));
+    }
+    #[test]
+    fn nothing_is_taken_unlocked_or_from_a_bare_handed_foe(){
+        for (lock,club) in [(false,true),(true,false)]{
+            let (mut r,d)=world(lock,club);
+            for f in 0..140{assert!(frame(&mut r,&d,f,lock).is_empty(),"lock {lock} club {club}: took a weapon");}
+        }
+    }
+    #[test]
+    fn without_the_guard_a_weapon_change_restarts_the_clip(){
+        // The control for the guard: an unrelated weapon change (no take) still resets the task, as before.
+        let (mut r,d)=world(true,true);for f in 0..10{frame(&mut r,&d,f,true);}
+        assert!(r.actors[&1].melee.mv.is_some());r.feed_club(1,Some(&[0.,0.,0.,0.,0.,0.9,0.04,0.1])).unwrap();
+        assert!(r.actors[&1].melee.mv.is_none());
+    }
 }

@@ -10,7 +10,7 @@ fn main(){
     for model in [0,7]{
         let values:Vec<f32>=std::fs::read_to_string(root.join(format!("model-{model}-fit.txt"))).unwrap().split_whitespace().map(|s|s.parse().unwrap()).collect();
         let points:Vec<Vec3>=values.chunks_exact(3).map(|v|Vec3::new(v[0],v[1],v[2])).collect();
-        let (fit,out)=build.fit(&frames,&points);
+        let (fit,out)=build.fit_skin(&frames,&points);
         let mut worst_pivot=0.0f32;
         for (k,part) in fit.parts.iter().enumerate(){
             let pivot=if part.parent.is_some(){out[k].translation+out[k].rotation*part.anchor}else{out[k].translation};
@@ -46,12 +46,12 @@ fn main(){
                     let q=Quat::from_rotation_z(yaw);
                     for scale in [0.7,1.0,1.3] {
                         let moved:Vec<Vec3>=p.iter().map(|v| q*(*v*scale)+Vec3::new(2.0,-3.0,0.4)).collect();
-                        let (variant,f)=build.fit(&frames,&moved);
+                        let (variant,f)=build.fit_skin(&frames,&moved);
                         for (k,part) in variant.parts.iter().enumerate(){
                             let pivot=if part.parent.is_some(){f[k].translation+f[k].rotation*part.anchor}else{f[k].translation};
                             assert!(pivot.distance(moved[k])<1e-4,"fit pivot instability model={model} part={k}");
                         }
-                        for k in [10,11,12,13,17] {
+                        for k in [10,11,12,13,14,15,17,18,19] {
                             let error=f[k].rotation.angle_between(q*out[k].rotation).to_degrees();
                             worst=worst.max(error);
                             assert!(error<0.2,"unstable fit model={model} part={k} error={error}");

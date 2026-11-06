@@ -46,11 +46,21 @@ static void retireRecoveryAnimation(Active&a){
     }
     a.ownedAnimation=nullptr;
 }
+// CTaskManager primaries 0..4 (physical response, event temp/nontemp, primary,
+// default) and TASK_SECONDARY_ATTACK (+0x14) by GetTaskType: whether SA's own
+// damage response (e.g. KillCriminal/KillPedOnFoot) survives the body's hold.
+static std::string nativeResponseSlots(void*p){
+    std::string s;void*m=taskManager(p);if(!m)return "none";
+    for(int i=0;i<6;i++){void*t=at<void*>(m,i==5?0x14:i*4);
+        s+=(t?std::to_string(reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[4])(t)):std::string("-"))+(i<5?",":"");}
+    return s;
+}
 static void releaseRecoveryTask(Active& a){
     retireRecoveryAnimation(a);
     auto*p=pedFromRef(a.ref);
     if(p==a.ped&&p&&at<short>(p,0x22)==a.model&&a.ownedTask&&physicalTask(p)==a.ownedTask){
         reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(taskManager(p),nullptr,0,true);
+        event("native_response_slots",a.ref,a.model,"stage=release slots="+nativeResponseSlots(p));
     }
     a.ownedTask=nullptr;
 }
@@ -75,7 +85,7 @@ static bool ensureRecoveryTask(Active&a){
     void*t=reinterpret_cast<void*(__cdecl*)(unsigned)>(0x61A5A0)(0x10);if(!t)return false;
     reinterpret_cast<void*(__thiscall*)(void*)>(0x677F50)(t);
     reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(m,t,0,true);
-    a.ownedTask=t;event("physical_task_acquired",a.ref,a.model);return true;
+    a.ownedTask=t;event("physical_task_acquired",a.ref,a.model,"slots="+nativeResponseSlots(a.ped));return true;
 }
 static bool resumePhysicalContact(Active&a,const char*reason){
     if(!a.recovering&&!a.taskAborted)return false;
@@ -260,7 +270,7 @@ static bool beginRecovery(Active&a){
     releaseVehicle(a,"recovery");
     a.uprightRecovery=upright;
     a.recovering=true;a.recoveryAnimatedOwner=false;a.recoveryPlacementReady=false;
-    a.recoverStart=0;a.recoveryStage=0;a.recoveryNextProbe=0;a.recoverySampleSerial=0;
+    a.recoverStart=0;a.recoveryStage=0;a.recoveryNextProbe=0;a.recoveryWaitSince=0;a.recoverySampleSerial=0;
     a.recoveryDone=false;a.nativeAnimationFinished=false;a.recoveryClearanceLost=false;
     recoveryPlacements.erase(a.ref);
     if(!a.uprightRecovery&&setRecoveryClip(a,112))a.recoveryStage=1;
@@ -307,6 +317,7 @@ static void sampleRecoveryPose(Active&a){
     if(!finite(aligned.p))return;
     recoveryPlacements[a.ref]={a.ped,evaluation->frame,evaluation->serial,transform(*matrix(a.ped))};a.recoveryPlacementReady=true;
 }
+constexpr unsigned RecoveryRoomWaitMs=5000;
 // Called ONLY after current map, vehicles and animated owner obstacles exist.
 // Every other NM body is tested separately with its exact physical components.
 static void commitPendingRecoveryPlacements(){
@@ -336,6 +347,12 @@ static void commitPendingRecoveryPlacements(){
         if(clear)for(auto&[otherRef,other]:agents)if(otherRef!=ref&&!other->preview&&!other->mounted&&
             !(other->recovering&&other->recoveryAnimatedOwner)&&pedFromRef(otherRef)==other->ped){
             const int occupied=nm_agent_recovery_room_obstructed(other->agent,&ivRoot.x);if(occupied!=0){if(occupied<0)ok(occupied);clear=false;why=3;break;}}
+        // A body lying against a car or a kerb found no room for its get-up for
+        // over a minute (Ryder, 06/11), and a mission ped stays down that long.
+        // Past RecoveryRoomWaitMs SA gets the get-up anyway, as it does next to
+        // vehicles: its own ped collision moves the standing body clear.
+        bool forced=false;
+        if(!clear&&why!=1){if(!a.recoveryWaitSince)a.recoveryWaitSince=now;else if(now-a.recoveryWaitSince>=RecoveryRoomWaitMs){clear=true;forced=true;}}
         if(!clear){a.recoveryNextProbe=now+(a.ped==player()?300:2000);
             event("recovery_room_wait",ref,a.model,"physics_retained=1 pose_frozen=0 blocked_by="+std::string(why==1?"no_ground":why==2?"world_or_owner":"agent")+
                 " ground_nz="+std::to_string(ground.normal.z)+" target_vs_body_m="+std::to_string(length(target-a.current[0].p))+
@@ -354,7 +371,7 @@ static void commitPendingRecoveryPlacements(){
         // UpdateAnimations(0), no second evaluation, no callback/time advance.
         if(publishCurrentNativePalette(a.ped))a.rig->incoming(a.ped,a.incoming,a.bones);
         recoveryAligned++;if(a.uprightRecovery)uprightRecoveries++;
-        event("recovery_owner_committed",ref,a.model,"normal_compound=1 nm_wait_ended=1 room_volume=1 current_peer_bounds=1 retained_velocity_mps="+std::to_string(length(a.recoveryVelocity)));
+        event("recovery_owner_committed",ref,a.model,"normal_compound=1 nm_wait_ended=1 room_volume="+std::string(forced?"wait_limit":"1")+" current_peer_bounds=1 retained_velocity_mps="+std::to_string(length(a.recoveryVelocity)));
     }
 }
 static float recoveryWeight(const Active&a){

@@ -30,6 +30,12 @@ static bool nikoEligible(void*p){
     // jump/fall task: that must not cancel the original move/start/stop clock.
     if(!nativeOnFootControl(at<unsigned char>(p,0x46D)))return false;
     if(combatWeapon(p)>1&&(at<unsigned char>(p,0x46C)&0x10))return false;
+    // Guns: SA's player aim lives in the secondary attack slot (CTaskManager
+    // +0x14, CTaskSimpleUseGun from CTaskSimplePlayerOnFoot::ProcessPlayerWeapon)
+    // and bIsAimingGun is never set for it (06/11 session: a shotgun shot with
+    // this layer still turning CJ to the stick). Aiming strafes natively, as
+    // IV turns the body to the camera while aiming (gta4-viewer main.rs:2519).
+    if(const int w=combatWeapon(p);w>=22&&w<=38)if(auto*m=taskManager(p);m&&at<void*>(m,0x14))return false;
     // Positive list: swimming, jumping, getting up, climbing, phone and vehicle
     // tasks cannot accidentally acquire this palette. Physical calls still work.
     return nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_GO_TO_POINT||

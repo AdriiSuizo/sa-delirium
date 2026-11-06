@@ -3,6 +3,28 @@ static int expansionTarget=-1;
 static int expansionAttacker=-1;
 static int bumpProbeWalker=-1;static V bumpProbeGoal{};
 static int rearTrafficBike=-1;
+// Mode 236 (tests only): police response to an NPC attacker.
+static int copProbeCop=-1,copProbeAttacker=-1;static unsigned copProbeUntil=0,copProbeNext=0,copProbeHitAt=0;static std::string copProbeLast;
+static std::string probeTaskChain(void*p){
+    std::string s;auto*m=taskManager(p);void*t=m?reinterpret_cast<void*(__thiscall*)(void*)>(0x681720)(m):nullptr;
+    for(int d=0;t&&d<16;d++){auto*v=at<void**>(t,0);s+=(s.empty()?"":">")+std::to_string(reinterpret_cast<int(__thiscall*)(void*)>(v[4])(t));t=reinterpret_cast<void*(__thiscall*)(void*)>(v[2])(t);}
+    return s.empty()?"none":s;
+}
+static void tickCopProbe(){
+    if(!copProbeUntil)return;const unsigned now=gameTime();
+    if(now>copProbeUntil){copProbeUntil=0;return;}
+    void*cop=pedFromRef(copProbeCop),*attacker=pedFromRef(copProbeAttacker);if(!cop)return;
+    if(copProbeHitAt&&now>=copProbeHitAt&&attacker){
+        copProbeHitAt=0;const int weapon=std::max(0,combatWeapon(attacker));
+        combatDelivering=true;reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(cop,attacker,weapon,10,3,0);combatDelivering=false;
+        event("probe_cop_hit",copProbeCop,at<short>(cop,0x22),"attacker="+std::to_string(copProbeAttacker)+" weapon="+std::to_string(weapon)+" health_after="+std::to_string(at<float>(cop,0x540)));
+    }
+    const std::string chain=probeTaskChain(cop);if(chain==copProbeLast&&now<copProbeNext)return;
+    copProbeLast=chain;copProbeNext=now+1000;
+    event("probe_cop_response",copProbeCop,at<short>(cop,0x22),"tasks="+chain+" weapon="+std::to_string(combatWeapon(cop))+" health="+std::to_string(at<float>(cop,0x540))+
+        " attacker_tasks="+(attacker?probeTaskChain(attacker):std::string("gone"))+" attacker_health="+(attacker?std::to_string(at<float>(attacker,0x540)):std::string("0"))+
+        " distance_m="+(attacker?std::to_string(length(position(attacker)-position(cop))):std::string("-1")));
+}
 static int carBikeApproach=0; // 0 rear, 1 right, 2 front, 3 left (modes 261..264)
 static int expansionFixture(int mode){
     if(mode>=253&&mode<=255){
@@ -107,8 +129,8 @@ static int expansionFixture(int mode){
         event("probe_car_bike_coast",probeBikePed,at<short>(rider,0x22),"speed_mps="+std::to_string(speed)+" car_x="+std::to_string(position(car).x)+" car_y="+std::to_string(position(car).y)+" bike_x="+std::to_string(position(bike).x)+" bike_y="+std::to_string(position(bike).y)+" synthetic_damage=0");return probeBikePed;
     }
     if(mode==249){
-        if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0)||!player()||inVehicle(player()))return -249;
-        const int ref=carFixture(445);auto*car=vehicleFromRef(ref);if(!car)return -249;
+        if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0)||!player()||inVehicle(player()))return -239;
+        const int ref=carFixture(445);auto*car=vehicleFromRef(ref);if(!car)return -239;
         const V here=position(player());teleport(car,here+V{-5.f,0,0});
         reinterpret_cast<void(__thiscall*)(void*,void*,bool)>(0x6B3780)(car,nullptr,false);
         event("probe_native_car_explosion",reference(player()),0,"vehicle="+std::to_string(ref)+" native_blow_up=1");return reference(player());
@@ -177,6 +199,25 @@ static int expansionFixture(int mode){
         if(!w||!target||!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -176;
         const float side=mode==176?.25f:-.25f;V start=position(w);start.x=position(target).x+side;bumpProbeGoal.x=start.x;teleport(w,start);
         event("probe_standing_bump_side",bumpProbeWalker,0,"lateral_m="+std::to_string(side));return bumpProbeWalker;
+    }
+    if(mode==236){
+        // Tests only: an ambient civilian hits an ambient cop; tickCopProbe logs the cop's
+        // native response. GTASA_PROBE_ATTACKER_WEAPON=n arms the civilian (unset = fists).
+        if(!combatAllowed()||!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -236;
+        combatProbeUntil=0;combatClear();
+        if(expansionFixture(80)<0)return -237;void*attacker=pedFromRef(expansionTarget);if(!attacker)return -238;
+        reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(280,2);reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
+        void*cop=reinterpret_cast<void*(__cdecl*)(int,unsigned,const V&,bool)>(0x612710)(6,280,position(attacker)+V{1.4f,0,0},true);
+        if(!cop)return -239;
+        {char w[8]{};if(GetEnvironmentVariableA("GTASA_PROBE_ATTACKER_WEAPON",w,8)){const int type=std::atoi(w);
+            reinterpret_cast<int(__thiscall*)(void*,int,unsigned,bool)>(0x5E6080)(attacker,type,200,true);reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E6280)(attacker,type);}}
+        // An ambient civilian told to kill a cop flees him instead, so the blow is delivered the way an IV
+        // melee hit is (CombatRuntime: GenerateDamageEvent with the attacker as source) one second in.
+        copProbeCop=reference(cop);copProbeAttacker=reference(attacker);copProbeUntil=gameTime()+20000;copProbeNext=0;copProbeLast.clear();
+        copProbeHitAt=gameTime()+1000;
+        watchSessionPed(cop);watchSessionPed(attacker);
+        event("probe_cop_setup",copProbeCop,280,"attacker="+std::to_string(copProbeAttacker)+" cop_weapon="+std::to_string(combatWeapon(cop))+" attacker_weapon="+std::to_string(combatWeapon(attacker)));
+        return copProbeCop;
     }
     if(mode==172||mode==173){
         if(!combatAllowed()||!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -172;
@@ -325,6 +366,20 @@ static int expansionFixture(int mode){
             combatProbeUntil=0;if(expansionFixture(80)<0)return -157;return expansionFixture(132);
         }else if(mode>=158&&mode<=163){
             if(expansionFixture(150)<0)return -158;void*npc=pedFromRef(expansionTarget);
+            // Tests only: GTASA_PROBE_FOE_COP=1 swaps the fixture for an ambient cop (AddPed type 6, model 280) at its place;
+            // the civilian is parked 40 m away.
+            if(npc&&GetEnvironmentVariableA("GTASA_PROBE_FOE_COP",nullptr,0)){
+                reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(280,2);reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
+                void*cop=reinterpret_cast<void*(__cdecl*)(int,unsigned,const V&,bool)>(0x612710)(6,280,position(npc),true);if(!cop)return -158;
+                reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(cop,at<float>(npc,0x558));at<float>(cop,0x558)=at<float>(cop,0x55C)=at<float>(npc,0x558);
+                teleport(npc,position(npc)+V{40.f,0,0});npc=cop;expansionTarget=combatProbeTarget=reference(cop);watchSessionPed(cop);DeliriumSA_ProbeFocus(expansionTarget);
+                event("probe_foe_cop",expansionTarget,280,"ped_type="+std::to_string(at<int>(cop,0x598)));
+            }
+            // Tests only: GTASA_PROBE_FOE_WEAPON=2..8 arms the attacker with that melee weapon for the IV disarm counter.
+            {char w[8]{};if(npc&&GetEnvironmentVariableA("GTASA_PROBE_FOE_WEAPON",w,8)){const int type=std::atoi(w);
+                if(type>=2&&type<=8){reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(331+type,2);reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);} // melee models 333 golf .. 339 katana
+                reinterpret_cast<int(__thiscall*)(void*,int,unsigned,bool)>(0x5E6080)(npc,type,1,true);reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E6280)(npc,type);
+                event("probe_foe_weapon",expansionTarget,at<short>(npc,0x22),"weapon="+std::to_string(type));}}
             void*task=reinterpret_cast<void*(__cdecl*)(unsigned)>(0x61A5A0)(0x38);
             reinterpret_cast<void(__thiscall*)(void*,void*,int,int,int,int,char)>(0x620E30)(task,player(),-1,0,0,0,1);
             reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(taskManager(npc),task,3,true);
@@ -351,6 +406,14 @@ static int expansionFixture(int mode){
         void*car=vehicleFromRef(probeCar);if(!car||!player()||inVehicle(player()))return -140;
         ProbeScript seat(0x036A);seat.integer(reference(player()));seat.integer(probeCar);seat.run();
         if(!inVehicle(player())||at<void*>(car,0x460)!=player())return -140;
+        // Tests only: GTASA_PROBE_CAR_PASSENGER=1 seats a civilian in the front passenger seat (CREATE_CHAR_AS_PASSENGER
+        // seat 0) and marks it ambient (+0x484 = 1), the occupant IV's windscreen rule lets fly.
+        if(GetEnvironmentVariableA("GTASA_PROBE_CAR_PASSENGER",nullptr,0)){
+            ProbeScript rider(0x01C8);rider.integer(probeCar);rider.integer(4);rider.integer(7);rider.integer(0);rider.result();
+            const int ref=rider.run();void*ped=pedFromRef(ref);
+            if(ped){at<unsigned char>(ped,0x484)=1;watchSessionPed(ped);}
+            event("probe_car_passenger",ref,7,"in_front_seat="+std::to_string(ped&&at<void*>(car,0x464)==ped));
+        }
         // Driver/streaming performance must use the game's player camera,
         // rather than the body/car midpoint camera of the observer fixture.
         roadProbeCameraUntil=0;

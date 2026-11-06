@@ -26,7 +26,8 @@ impl Shove {
         let clip=bank.clips.get(self.key)?;let mut out:Vec<Pose>=vec![];
         for (i,&sa) in self.rig.ids.iter().enumerate(){
             let tracked=iv_bone(sa).is_some_and(|id|clip.tracks.iter().any(|t|t.bone==id&&t.kind<=1));
-            let weight=if tracked&&(sa==5||sa==8||(21..=36).contains(&sa)){self.player.weight}else{0.};
+            // IV mask 8 is HEAD_NECK_AND_ARMS: neck (4) included.
+            let weight=if tracked&&(sa==4||sa==5||sa==8||(21..=36).contains(&sa)){self.player.weight}else{0.};
             let t=if let Some(p)=self.rig.parents[i]{
                 let a=under[p].inverse().mul(under[i]);let b=over[p].inverse().mul(over[i]);
                 let mut local=a.mix(b,weight);local.p=a.p;out[p].mul(local)
@@ -50,7 +51,7 @@ impl Shove {
   for(i,&id)in s.rig.ids.iter().enumerate(){
    let local=|pose:&[Pose]|s.rig.parents[i].map_or(pose[i],|p|pose[p].inverse().mul(pose[i]));
    let a=local(&under);let b=local(&out);
-   if id<=4||id>=41||(21..=26).contains(&id){assert!(a.p.distance(b.p)<1e-5);assert!(a.q.dot(b.q).abs()>0.99999,"untouched channel {id}");}
+   if id<=3||id>=41||(21..=26).contains(&id){assert!(a.p.distance(b.p)<1e-5);assert!(a.q.dot(b.q).abs()>0.99999,"untouched channel {id}");}
    if (31..=36).contains(&id){arm_motion=arm_motion.max(1.-a.q.dot(b.q).abs());}
   }
   assert!(arm_motion>0.001,"tracked left arm must actually move");

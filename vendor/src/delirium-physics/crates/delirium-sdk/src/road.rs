@@ -84,11 +84,15 @@ pub unsafe extern "C" fn nm_agent_road_contact(a: *mut NmAgent, w: *const NmWorl
         drop: None, vz: a.agent.doll.vel(0).0.z, tough: false, player_cut: false, player: flags & 2 != 0,
         mission: flags & 4 != 0, quick_relax: false, agility: 3, gun: false,
         place: a.agent.doll.com().0, vel: a.agent.doll.com().1, standing_on: None };
-    // SA already delivered its native damage. Calling bump::damage here as
-    // well would damage twice. Unknown SA agility is explicitly neutral (3).
+    // SA keeps its native damage (never applied twice) and unknown SA agility is neutral (3). `health_iv` is the ped's
+    // health BEFORE this hit: SA's lethal run-over damage (100) had zeroed it, so every fast hit took IV's dying branch
+    // (roll-up/relax) where IV's own does not: 82465360's damage comes from this solved impulse (`bump::damage`,
+    // viewer peds.rs:3903..3925) and only a ped it kills dies; the rest brace (<= 400 N s) or roll up.
     let around = bump::Around { touching: vec![car], player: None, blend: None, sit: None, die: None, accepts: true };
     let mut rand = RAND.lock().unwrap_or_else(|e| e.into_inner());
-    let Some(made) = bump::react(&ped, &imp, &around, 0.0, health_iv <= 0.0, health_iv, &mut rand, || None) else { return 0 };
+    let amount = bump::damage(&ped, &imp, &mut rand).map_or(0.0, |(amount, _)| amount);
+    let health = health_iv - amount;
+    let Some(made) = bump::react(&ped, &imp, &around, amount, !(health > 0.0), health, &mut rand, || None) else { return 0 };
     let mut roll_ms = 0;
     let result = match made.task {
         bump::Task::Brace { weak, .. } => {

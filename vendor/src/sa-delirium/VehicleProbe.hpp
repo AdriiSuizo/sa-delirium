@@ -85,8 +85,9 @@ static int armedCombatFixture(int mode){
 }
 static int carFixture(int model=400){
     if(vehicleFromRef(probeCar))return probeCar;
+    {char name[8]{};if(model==400&&GetEnvironmentVariableA("GTASA_PROBE_CAR_MODEL",name,8))model=std::atoi(name);} // tests: 415 Cheetah
     const V here=position(player());if(here.x<2400||here.x>2460||here.y<-1700||here.y>-1600)return -1;
-    if(model!=400&&model!=445)return -1;
+    if(model!=400&&model!=445&&model!=415)return -1;
     reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(model,2);
     reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
     ProbeScript car(0x00A5);car.integer(model);car.number(2430.f);car.number(-1668.f);car.number(here.z);car.result();probeCar=car.run();return probeCar;

@@ -145,11 +145,19 @@ static void applyWheelBodyLoads(){
 }
 static void applyVehicleBodyFeedback(Active&a,float dt){
     std::array<int,256> ids;std::array<float,256*6> values;
+    // Diagnostics only (run-overs going under the car): GTASA_ROAD_TRACE=1.
+    static const bool trace=GetEnvironmentVariableA("GTASA_ROAD_TRACE",nullptr,0)>0;
+    const bool tracing=trace&&!a.preview&&gameTime()-a.start<600;
+    const auto vec=[](V v){return std::to_string(v.x)+","+std::to_string(v.y)+","+std::to_string(v.z);};
+    if(tracing){std::string parts;for(int k:{0,3,7,10,12}){V lin{},ang{};nm_agent_get_part_velocity(a.agent,k,&lin.x,&ang.x);parts+=" p"+std::to_string(k)+"="+vec(a.current[k].p)+" v"+std::to_string(k)+"="+vec(lin);}
+        std::string cars;for(auto&v:collision->vehicles)if(v.entity&&v.ref>=0&&length(position(v.entity)-a.current[0].p)<8.f){cars+=" car"+std::to_string(v.ref)+"="+vec(position(v.entity))+" cv="+vec(at<V>(v.entity,0x44)*50.f)+" cspin="+vec(at<V>(v.entity,0x50)*50.f)+" frame="+vec(v.frame.p)+" fv="+vec(v.velocity);break;}
+        event("road_trace_step",a.ref,a.model,"t_ms="+std::to_string(gameTime()-a.start)+" dt="+std::to_string(dt)+parts+cars);}
     for(;;){
         const int count=nm_agent_take_obstacle_impulses(a.agent,ids.data(),values.data(),256);if(count<0){ok(count);break;}
         for(int i=0;i<count;i++){
             const V j{values[6*i],values[6*i+1],values[6*i+2]},p{values[6*i+3],values[6*i+4],values[6*i+5]};
             if(!finite(j)||!finite(p))continue;
+            if(tracing)event("road_trace_impulse",a.ref,a.model,"id="+std::to_string(ids[i])+" j="+vec(j)+" p="+vec(p)+" owner="+std::to_string(nm_world_obstacle_owner(collision->world,ids[i])!=0));
             if(!a.preview){
                 observeSolvedAnimatedContact(a,ids[i],j,p,dt);
                 // Finite owners already received their aggregate result ONCE.

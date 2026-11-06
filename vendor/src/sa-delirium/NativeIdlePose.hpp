@@ -11,6 +11,15 @@ static void sampleNativeIdlePose(void*p){
     // SDK ANIM_DEFAULT_IDLE_STANCE=3 and CAnimBlendAssociation::blend=0x18.
     auto*idle=reinterpret_cast<void*(__cdecl*)(void*,unsigned)>(0x4D68B0)(clump,3);
     if(!idle||at<float>(idle,0x18)<.99f)return;
+    // A full-weight idle can still sit under another clip (Ryder's script
+    // smoking overlay bent the head 25 degrees): that is not a neutral pose.
+    {void*assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump);
+     for(int count=0;assoc&&count<64;count++){
+         const short id=at<short>(assoc,0x2C);
+         const bool facial=at<unsigned short>(assoc,0xE)==0&&id>=154&&id<=161; // FACSURP..FACGUM: face only
+         if(assoc!=idle&&!facial&&at<float>(assoc,0x18)>.05f)return;
+         assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+     }}
     auto*intelligence=at<void*>(p,0x47C);
     if(intelligence&&at<void*>(static_cast<unsigned char*>(intelligence)+4,0x14))return; // secondary attack task
     auto*h=hierarchy(p);if(!h||!h->nodes||!h->matrices||h->num<20||h->num>128)return;

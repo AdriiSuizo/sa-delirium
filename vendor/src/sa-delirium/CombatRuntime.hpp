@@ -6,6 +6,7 @@
 #include "CombatTaskRetirement.hpp"
 #include "CombatPoseEpoch.hpp"
 #include "CombatClub.hpp"
+#include "MeleeDisarm.hpp"
 // Live host of the pinned IV controller. No desktop input, root teleports or SA kick.
 struct CombatActor {
     void*ped=nullptr;int model=-1,target=-1;unsigned traceAt=0,movementTraceAt=0;
@@ -240,8 +241,11 @@ static void combatPrepare(){
            (gameTime()-combatProbeGymStart)%180<40)combatInput.buttons|=0x80u;
         if(combatProbeTimedDodge){
             const auto foe=fighters.find(combatProbeTarget);
-            if(foe!=fighters.end()&&foe->second.state[4]>=0&&foe->second.state[5]>.35f&&foe->second.state[5]<.42f)combatInput.buttons|=0x40u;
+            // Tests only: GTASA_PROBE_DODGE_PHASE=x moves the block press to the foe's swing phase (x, x+0.07); default 0.35 (club swings).
+            static const float dodgeAt=[]{char b[16]{};return GetEnvironmentVariableA("GTASA_PROBE_DODGE_PHASE",b,16)?float(std::atof(b)):.35f;}();
+            if(foe!=fighters.end()&&foe->second.state[4]>=0&&foe->second.state[5]>dodgeAt&&foe->second.state[5]<dodgeAt+.07f)combatInput.buttons|=0x40u;
         }
+        if(combatProbeCounter&&GetEnvironmentVariableA("GTASA_PROBE_LOCK_ON",nullptr,0)){combatInput.aim=true;combatInput.buttons|=1u;} // tests: IV disarm needs lock-on
         if(combatProbeCounter){
             const auto cj=fighters.find(reference(player()));char clip[160]{};nm_combat_clip(combat,reference(player()),clip,sizeof(clip));
             if(cj!=fighters.end()&&std::string(clip).find("dodge_")!=std::string::npos&&cj->second.state[5]>.65f&&cj->second.state[5]<.73f)combatInput.buttons|=0x20u;
@@ -468,7 +472,7 @@ static void combatTick(float dt){
             a->clubClump=clump;a->clubModel=model;a->clubReady=combatClubBounds(clump,a->clubBounds);
             if(club)event("combat_club_geometry",ref,a->model,"weapon="+std::to_string(combatWeapon(p))+" model="+std::to_string(model)+" ready="+std::to_string(a->clubReady));
         }
-        if(!ok(nm_combat_feed_club(combat,ref,a->clubReady?a->clubBounds.data():nullptr)))continue;
+        if(!ok(nm_combat_feed_weapon(combat,ref,a->clubReady?a->clubBounds.data():nullptr,club&&bladeWeapon(combatWeapon(p)))))continue;
         const bool physical=agents.contains(ref)&&!agents[ref]->preview;void*foe=targets.contains(ref)?pedFromRef(targets[ref]):nullptr;
         const bool engaged=foe&&(!club||a->clubReady)&&combatCanFight(p)&&length(position(foe)-pos)<5.5f&&combatClearPath(p,foe);
         const bool receiving=nm_combat_receiving(combat,ref)==1;
@@ -555,6 +559,8 @@ static void combatFinish(){
     const int hits=nm_combat_finish(combat);if(!ok(hits))return;
     for(int i=0;i<hits;i++){float hit[16]{};if(nm_combat_contact(combat,i,hit)!=1)continue;
         const int source=int(hit[0]),target=int(hit[1]),part=combatPart(int(hit[2]));void*p=pedFromRef(target),*by=pedFromRef(source);if(!p||!by||!fighters.contains(target))continue;
+        // Hit kind 3: the taker's DisarmOpponent at its clip's 0x200 event (sa-combat runtime.rs): the foe's weapon changes hands, nothing else.
+        if(hit[15]==3){meleeDisarm(by,p);continue;}
         const int held=combatWeapon(by),weapon=clubWeapon(held)?held:0;
         const float before=at<float>(p,0x540);const V motionBefore=at<V>(p,0x44);const int piece=combatPiece(part);
         const bool motorStart=hit[15]==2;

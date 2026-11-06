@@ -82,13 +82,17 @@ static void observeSolvedExternalPairs(NmGroup*group,float dt){
          if(move>1)for(const auto&o:externalHostOwners)if(o.id==id&&o.animated){victimWalk={o.rows[3],o.rows[4],0};break;}}
         const auto fragment=standingFragmentCapsules(p,victimWalk*frameDt);
         const bool fast=dot(otherVelocity,otherVelocity)>.25f,meets=peerRig&&standingReceiptMeetsFragment(fragment,peerRoot);
+        // IV posts the player's CEventPlayerCollisionWithPed from the body
+        // contact record alone (peds.rs 3745..3790), apart from the ped's NM
+        // wake below: a slow or body-only touch still shoves.
+        if(closing>0&&!agents.contains(reference(p))&&!combatOwns(p)&&!combatOwns(other))startPlayerShove(p);
         if(!fast||closing<=0||!meets)continue;
         if(auto a=agents.find(reference(p));a!=agents.end()){
             if(a->second->recoveryAnimatedOwner)acceptRecoveryPlayerContact(*a->second,other,impulse,dt,otherVelocity);
             continue;
         }
         if(combatOwns(p)||combatOwns(other)||pending.contains(reference(p)))continue;
-        startPlayerShove(p);Request request;request.kind=Reaction::Bump;request.time=gameTime();request.attackerRef=reference(other);
+        Request request;request.kind=Reaction::Bump;request.time=gameTime();request.attackerRef=reference(other);
         request.direction=normal;request.bumpImpulse=impulse;request.bumpDt=dt;request.velocityOverride=true;request.velocity=at<V>(p,0x44);
         pending[reference(p)]=request;event("standing_bump_requested",reference(p),at<short>(p,0x22),"shared_impulse_already_solved=1 health_unchanged=1");
     }

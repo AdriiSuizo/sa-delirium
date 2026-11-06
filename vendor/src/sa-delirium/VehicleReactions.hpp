@@ -1,6 +1,9 @@
 #pragma once
 // Messages drive the real NM behaviours. Vehicle identities always include the
 // SA pool generation; array indices are refreshed before any solver step.
+// SA health read when the car-ped contact was recorded, BEFORE KillPedWithCar's lethal native damage (10/11 session: all
+// 8 fast hits reached road_contact with health 0 and took IV's dying branch, never IV's brace/roll-up by solved impulse).
+static std::map<int,std::pair<unsigned,float>> roadHealthBefore;
 static bool sendMessage(NmAgent* agent){
     const int result=nm_msg_send(agent,collision->world);
     if(result==0)return true;
@@ -104,6 +107,12 @@ static void startReaction(Active& a,const Request& request){
         const V inherited=request.pose?request.pose->velocity*50.f:at<V>(a.ped,0x44)*50.f;
         if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&inherited.x,at<float>(a.ped,0x540)*2.f,a.ped==player()?1u:0u)))
             event("bike_throw_task_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(inherited))+" original_times=2_30 added_launch=0");
+    }else if(request.kind==Reaction::Dive){
+        const V velocity=request.velocity*50.f;
+        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,at<float>(a.ped,0x540)*2.f,1u))){
+            startDivePitch(a,request.direction);
+            event("player_dive_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(velocity))+" couple_ns="+std::to_string(diveCoupleNs));
+        }
     }else if(request.kind==Reaction::BikeFall&&at<float>(a.ped,0x540)<=0){
         // Dead coming off the bike, on its ragdoll with no NM reaction of its own: CTaskComplexDie relaxes it
         // (NMRelax, 0x824CAFF8) and CTaskSimpleDead relaxes at 97. catchFall held the corpse's arms out stiff.
@@ -238,7 +247,8 @@ static void updateVehicleReaction(Active& a){
     const V local=mul(inverse(v->frame),T{{},a.current[10].p}).p;
     const float age=(gameTime()-a.start)*.001f;
     if(a.roadFalling)return;
-    if(speed>9.f||std::abs(local.x)>v->half.x+2.5f||std::abs(local.y)>v->half.y+2.5f||age>5.f){releaseVehicle(a,"speed_distance_or_hold_limit");return;}
+    // IV's NMBrace has no speed release (carscan 15 m/s is its start gate only); 20 keeps a bound for a car that never hits.
+    if(speed>20.f||std::abs(local.x)>v->half.x+2.5f||std::abs(local.y)>v->half.y+2.5f||age>5.f){releaseVehicle(a,"speed_distance_or_hold_limit");return;}
     if(a.kind!=Reaction::Brace&&a.kind!=Reaction::Impact)return;
     // Only approaching, upright peds brace; a fast collision stays catchFall.
     if(!a.brace&&!a.grabbing&&(speed>6.f||a.current[10].p.z-a.current[0].p.z<.2f))return;
@@ -260,7 +270,7 @@ static void updateVehicleReaction(Active& a){
     // Bracing against a body panel must not acquire an invented handle.
 }
 static bool updateVehicleExitTask(Active& a){
-    if(a.kind!=Reaction::VehicleExit&&a.kind!=Reaction::BikeFall)return true;
+    if(a.kind!=Reaction::VehicleExit&&a.kind!=Reaction::BikeFall&&a.kind!=Reaction::Dive)return true;
     float state[4]{};const int phase=nm_agent_vehicle_exit_status(a.agent,state);
     if(a.kind==Reaction::BikeFall&&phase==0)return true; // mounted or dead: no thrown-off task
     if(phase<0){ok(phase);return false;}
@@ -284,12 +294,16 @@ static void selectSolvedRoadReaction(Active& a,float dt){
     // CVehicle::m_pDriver at 0x460; native ownership and native health remain SA's.
     const unsigned flags=(at<void*>(v->entity,0x460)==player()?1u:0u)|(a.ped==player()?2u:0u);
     float report[4]{};
-    const int choice=nm_agent_road_contact(a.agent,collision->world,v->index,at<float>(a.ped,0x540)*2.f,flags,dt,report);
+    // IV decides dying from its own impact damage (the SDK's bump::damage on the solved impulse), so it needs the health
+    // before the hit; SA's native damage was already delivered and stays authoritative for the actual health.
+    float healthBefore=at<float>(a.ped,0x540);
+    if(const auto h=roadHealthBefore.find(a.ref);h!=roadHealthBefore.end()&&gameTime()-h->second.first<2500)healthBefore=std::max(healthBefore,h->second.second);
+    const int choice=nm_agent_road_contact(a.agent,collision->world,v->index,healthBefore*2.f,flags,dt,report);
     if(choice<0){ok(choice);return;}if(!choice){updateVehicleReaction(a);return;}
-    a.roadReaction=choice;a.roadFalling=choice>=2;a.brace=choice==1;a.grabbing=false;a.grabConfirmed=false;
+    a.roadReaction=choice;a.roadFalling=choice>=2;a.brace=choice==1;a.grabbing=false;a.grabConfirmed=false;roadHealthBefore.erase(a.ref);
     event("road_solved_reaction",a.ref,a.model,"task="+std::string(choice==1?"brace":choice==2?"roll_relax":"relax")+
         " vehicle_ref="+std::to_string(v->ref)+" solved_ns="+std::to_string(report[0])+" part="+std::to_string(int(report[1]))+
-        " roll_ms="+std::to_string(int(report[2]))+" minimum_ms="+std::to_string(int(report[3]))+" health_sa="+std::to_string(at<float>(a.ped,0x540))+
+        " roll_ms="+std::to_string(int(report[2]))+" minimum_ms="+std::to_string(int(report[3]))+" health_sa="+std::to_string(at<float>(a.ped,0x540))+" health_before_sa="+std::to_string(healthBefore)+
         " native_damage_preserved=1 added_impulse=0");
     // The world still has the exact obstacle map that generated this contact.
     updateVehicleReaction(a);
@@ -320,7 +334,8 @@ static void readVehicleFeedback(Active& a){
 }
 static void scanApproachingCars(){
     static unsigned lastScan=0;static std::map<int,unsigned> cooldown;
-    const auto now=gameTime();if(now-lastScan<150)return;lastScan=now;
+    // IV scans every frame; the brace zone is 0.75 v (<= 2 m) ahead of the front, a car at 15 m/s crosses it in 0.13 s.
+    const auto now=gameTime();if(now-lastScan<50)return;lastScan=now;
     if(!detectImpacts||!player()||area()!=0||int(agents.size()+pending.size())>=maxActive)return;
     collision->update(physicsWorldOrigin());auto*pool=pedPool();if(!pool)return;
     for(int i=0;i<pool->size;i++)if(!(pool->flags[i]&0x80)){
@@ -330,11 +345,15 @@ static void scanApproachingCars(){
             // Cars, motorbikes and bicycles (subtype 0, 9, 10; each bike's chassis
             // row): a slow bike rolling into a ped gets the same hand on it.
             if(const int subtype=at<int>(v.entity,0x594);v.component||(subtype!=0&&subtype!=9&&subtype!=10))continue;
-            const float speed=length(v.velocity);if(speed<.3f||speed>6.f)continue;
+            // IV carscan.rs (0x8255F968): a ped braces for a vehicle under 15 m/s (was 6), within 0.75 v (at most 2 m) of its
+            // front and no more than 0.25 m wider than it. Its `alarming` rule (the player's driving) bounds the new 6..15 range;
+            // the old slow-traffic scan is kept as it was.
+            const float speed=length(v.velocity);if(speed<.3f||speed>15.f)continue;
+            if(speed>6.f&&at<void*>(v.entity,0x460)!=player())continue;
             const V local=mul(inverse(v.frame),T{{},position(p)}).p;
-            if(std::abs(local.z)>v.half.z+1.2f)continue;
+            if(std::abs(local.z)>v.half.z+1.2f||std::abs(local.x)>v.half.x+.25f)continue;
             const V closest{std::clamp(local.x,-v.half.x,v.half.x),std::clamp(local.y,-v.half.y,v.half.y),local.z};
-            const V gap=local-closest;if(length(gap)>.9f)continue;
+            const V gap=local-closest;if(length(gap)>std::clamp(.75f*speed,.9f,2.f))continue;
             const V relative=rotate(conjugate(v.frame.q),v.velocity-at<V>(p,0x44)*50.f);
             if(dot(gap,relative)<.1f)continue;
             // A ped facing away keeps SA's normal avoidance until an actual

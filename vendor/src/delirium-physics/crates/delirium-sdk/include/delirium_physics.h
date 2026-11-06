@@ -170,7 +170,7 @@ NM_API int32_t nm_character_from_xrt(const char* xrt_path, const char* build_pat
 NM_API int32_t nm_agent_road_preview(NmAgent* a, const NmWorld* w, int32_t weak);
 NM_API int32_t nm_agent_road_cancel(NmAgent* a, const NmWorld* w);
 NM_API int32_t nm_agent_road_arm(NmAgent* a, const NmWorld* w);
-/* Call immediately after a solver step, before replacing obstacle identities. Returns 0 unchanged, 1 brace, 2 roll-up, 3 relax; negatives are SDK errors. report: solved Ns, component, roll milliseconds, minimum task milliseconds. */
+/* Call immediately after a solver step, before replacing obstacle identities. Returns 0 unchanged, 1 brace, 2 roll-up, 3 relax; negatives are SDK errors. report: solved Ns, component, roll milliseconds, minimum task milliseconds. health_iv is the ped's health (IV scale) BEFORE this hit; the SDK derives IV's impact damage from the solved impulse to decide dying. */
 NM_API int32_t nm_agent_road_contact(NmAgent* a, const NmWorld* w, int32_t vehicle, float health_iv, uint32_t flags, float dt, float* report);
 NM_API int32_t nm_agent_road_recovery_ready(const NmAgent* a);
 /* All coordinates are world-space. The original task performs the local conversion. */
@@ -220,6 +220,7 @@ NM_API int32_t nm_combat_register(NmCombat* c, uint32_t id, int32_t player, cons
 NM_API int32_t nm_combat_bind_geometry(NmCombat* c, uint32_t id, const NmBuild* b, const int32_t* nodes, const float* spine, const float* head);
 /* Local longest axis (two XYZ endpoints), centroid radius and origin fraction; null clears the club. */
 NM_API int32_t nm_combat_feed_club(NmCombat* c, uint32_t id, const float* bounds);
+NM_API int32_t nm_combat_feed_weapon(NmCombat* c, uint32_t id, const float* bounds, int32_t blade);
 /* Export the same fitted bounds for deterministic offline reproductions. */
 NM_API int32_t nm_combat_geometry(const NmCombat* c, uint32_t id, char* buf, int32_t len);
 /* Signed clearance of the accepted swept sample to the fitted body surface. Non-positive means contact. Absent for authored damage or a paired start. */

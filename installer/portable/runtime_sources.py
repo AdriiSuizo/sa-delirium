@@ -25,6 +25,7 @@ def strip_fixtures(texts):
     if declaration in a and 'static int traceProbeRider(){' not in a:
         a=a.replace(declaration,'static int traceProbeRider(){return -1;}')
     a=re.sub(r'^.*\btickWheelSmokeProbe\([^\n]*\n','',a,flags=re.M)
+    a=re.sub(r'^.*\btickCopProbe\([^\n]*\n','',a,flags=re.M)
     for name in ['tickPhysicalPeerProbe','tickSolidBodyProbe','tickStaticMeshProbe']:
         a=a.replace('static void '+name+'();','')
     a,count=re.subn(r'^\s*if\(recoveryAllowed\(\)\)\{tickPhysicalPeerProbe\(\);tickSolidBodyProbe\(\);tickStaticMeshProbe\(\);\}\n','\n',a,flags=re.M);assert count==1

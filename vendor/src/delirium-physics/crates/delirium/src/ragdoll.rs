@@ -112,6 +112,10 @@ pub struct PartDef {
     pub size: f32,
     pub heft: f32,
     pub grown: f32,
+    /// Fitted rigs: turns the GTA IV joint frame on the child side so the
+    /// target rig's own rest sits where IV's rest does (Build::fit). Identity
+    /// for an unfitted body.
+    pub recentre: Quat,
 }
 
 impl PartDef {
@@ -148,7 +152,7 @@ impl Build {
                 None if w[delirium_data::kv!(94 int)] == "c" => Limit::Cone { swing: f(delirium_data::kv!(95 int)), twist: f(delirium_data::kv!(96 int)) },
                 None => Limit::Hinge { axis: v(delirium_data::kv!(95 int)), lo: f(delirium_data::kv!(98 int)), hi: f(delirium_data::kv!(328 int)), twist: f(delirium_data::kv!(81 int)) },
             };
-            parts.push(PartDef { size: 1.0, heft: 1.0, grown: 1.0, bone: parts.len(), parent: w[1].parse::<i32>().ok().filter(|&j| j >= 0).map(|j| j as usize), mass: f(2), radius: f(delirium_data::kv!(0 int)), half: f(delirium_data::kv!(1 int)),
+            parts.push(PartDef { size: 1.0, heft: 1.0, grown: 1.0, recentre: Quat::IDENTITY, bone: parts.len(), parent: w[1].parse::<i32>().ok().filter(|&j| j >= 0).map(|j| j as usize), mass: f(2), radius: f(delirium_data::kv!(0 int)), half: f(delirium_data::kv!(1 int)),
                                  offset: Transform::from_translation(v(delirium_data::kv!(2 int))).with_rotation(q(delirium_data::kv!(23 int))), rest: q(delirium_data::kv!(52 int)), anchor_parent: v(delirium_data::kv!(51 int)), anchor: v(delirium_data::kv!(192 int)),
                                  limit, lower: w[delirium_data::kv!(474 int)] == "1", reach: w[delirium_data::kv!(274 int)] == "1", name: w[0].to_string(),
                                  bind: w.iter().position(|&t| t == "B").map_or(q(delirium_data::kv!(435 int)), |k| q(k + 1)), boxed: (w.get(delirium_data::kv!(382 int)) == Some(&"b")).then(|| v(delirium_data::kv!(418 int))),
@@ -183,6 +187,22 @@ impl Build {
     }
 
     pub fn fit(&self, frames: &[Transform], joints: &[Vec3]) -> (Build, Vec<Transform>) {
+        self.fit_with(frames, joints, false)
+    }
+
+    /// fit() onto a skin's bind pose (SA's T-pose), whose elbows and knees
+    /// bend in the body's sagittal plane: each hinge limb is also rolled
+    /// about its own bone so GTA IV's hinge axis lies across that plane.
+    /// Positions alone leave that roll free; the arc fit carried IV's rest
+    /// roll over and SA's real elbow/knee axes came out 28 deg (elbows),
+    /// 14/5 deg (L/R knee) off, measured over 63 dumped skins, so every
+    /// bent limb entered off its hinge (rigid::join snapped it) and the
+    /// upper arms 20-30 deg over their twist limit.
+    pub fn fit_skin(&self, frames: &[Transform], joints: &[Vec3]) -> (Build, Vec<Transform>) {
+        self.fit_with(frames, joints, true)
+    }
+
+    fn fit_with(&self, frames: &[Transform], joints: &[Vec3], skin: bool) -> (Build, Vec<Transform>) {
         let n = self.parts.len();
         let pivot = |k: usize| match self.parts[k].parent {
             Some(_) => frames[k].translation + frames[k].rotation * self.parts[k].anchor,
@@ -193,6 +213,19 @@ impl Build {
             let z = (up - x * up.dot(x)).normalize_or(Vec3::Z);
             Quat::from_mat3(&Mat3::from_cols(x, z.cross(x), z)).normalize()
         };
+        // Skin fit: GTA IV's hinge axes at its rest (world) and the skin's
+        // body forward, from the hips and the trunk's midline.
+        let sagittal = skin.then(|| {
+            let nm = crate::nmrs::joints(self, crate::nmrs::ASSET[self.nm].get()?)?;
+            let side = |tag: &str| (0..n).find(|&c| self.parts[c].parent == Some(0) && self.parts[c].name.contains(tag));
+            let mut top = 0;
+            while let Some(c) = (0..n).find(|&c| self.parts[c].parent == Some(top) && !self.parts[c].name.contains("_L_") && !self.parts[c].name.contains("_R_")) { top = c; }
+            let (l, r) = (side("_L_")?, side("_R_")?);
+            let forward = (joints[top] - joints[0]).cross(joints[l] - joints[r]).try_normalize()?;
+            let mut axis = vec![None; n];
+            for j in nm.iter().filter(|j| !j.three) { axis[j.child] = Some(frames[j.child].rotation * (j.in_child * Vec3::Z)); }
+            Some((forward, axis))
+        }).flatten();
         let (mut size, mut turn) = (vec![1.0f32; n], vec![Quat::IDENTITY; n]);
         for k in 0..n {
             let kids: Vec<usize> = (0..n).filter(|&c| self.parts[c].parent == Some(k)).collect();
@@ -204,7 +237,21 @@ impl Build {
                 [c] => {
                     let (ours, theirs) = (pivot(c) - pivot(k), joints[c] - joints[k]);
                     let arc = Quat::from_rotation_arc((t0 * ours).normalize_or(Vec3::Z), theirs.normalize_or(Vec3::Z));
-                    (theirs.length() / ours.length().max(delirium_data::kv!(68)), (arc * t0).normalize())
+                    let mut t = (arc * t0).normalize();
+                    // Upper arm/thigh of a hinge: roll it (and so its forearm/calf,
+                    // which follows) about the bone until the hinge axis is
+                    // perpendicular to the body's forward direction.
+                    // Arms only: rolling the thigh/calf turns the feet (balance support).
+                    if let Some((forward, Some(h))) = sagittal.as_ref().filter(|_| !self.parts[c].lower).map(|(f, a)| (*f, a[c])) {
+                        let d = theirs.normalize_or(Vec3::Z);
+                        let flat = |v: Vec3| (v - d * v.dot(d)).normalize_or_zero();
+                        let (h, w) = (flat(t * h), flat(d.cross(forward)));
+                        let w = if h.dot(w) < 0.0 { -w } else { w };
+                        if h != Vec3::ZERO && w != Vec3::ZERO {
+                            t = (Quat::from_axis_angle(d, h.cross(w).dot(d).atan2(h.dot(w))) * t).normalize();
+                        }
+                    }
+                    (theirs.length() / ours.length().max(delirium_data::kv!(68)), t)
                 }
                 _ => {
                     let spread = |at: &dyn Fn(usize) -> Vec3| kids.iter().map(|&c| (at(c) - at(k)).length()).sum::<f32>();
@@ -276,6 +323,17 @@ impl Build {
                 build.parts[c].anchor_parent = out[p].rotation.inverse()
                     * (joints[c] - out[p].translation);
                 out[c].translation = joints[c] - out[c].rotation * build.parts[c].anchor;
+                // Trunk and neck: the target rig's rest posture is its neutral
+                // one (SA's neck sits 22-28 deg forward of IV's on the same
+                // chest). Keep IV's limits and drive targets about that rest,
+                // not about IV's, or every entry starts outside the neck/spine
+                // limits and the first steps snap it back. Limbs keep IV's.
+                let name = &self.parts[c].name;
+                if !name.contains("_L_") && !name.contains("_R_") {
+                    let drift = (out[p].rotation.inverse() * out[c].rotation).inverse() * (frames[p].rotation.inverse() * frames[c].rotation);
+                    // An unchanged rest (IV onto IV proportions) keeps IV's exact frames.
+                    if drift.xyz().length() > 1e-5 { build.parts[c].recentre = (drift * self.parts[c].recentre).normalize(); }
+                }
             }
         }
         (build, out)
@@ -322,7 +380,7 @@ impl Build {
             let limit = parent.map_or(Limit::Locked, |q| Limit::from_bone(bone.flags, bone.rot_min, bone.rot_max,
                 frames[q].rotation.inverse() * bind[p.bone].rotation, f.rotation.inverse() * bind[p.bone].rotation));
             let (radius, half) = if p.kind == delirium_data::kv!(0 int) { (p.extent.iter().copied().fold(f32::MAX, f32::min), 0.0) } else { (p.radius, p.half) };
-            PartDef { size: 1.0, heft: 1.0, grown: 1.0, bone: p.bone, parent, mass: p.mass, radius, half,
+            PartDef { size: 1.0, heft: 1.0, grown: 1.0, recentre: Quat::IDENTITY, bone: p.bone, parent, mass: p.mass, radius, half,
                       offset: Transform::from_matrix(bind[p.bone].to_matrix().inverse() * f.to_matrix()),
                       rest, anchor_parent, anchor: f.rotation.inverse() * (joint - f.translation), limit,
                       lower: i == pelvis || ["Thigh", "Calf", "Foot"].iter().any(|l| name.ends_with(l)),

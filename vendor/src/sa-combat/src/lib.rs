@@ -17,6 +17,8 @@ pub mod npc_decision;
 // Source TU8 queue. SA accounting and source task adaptation are separate owners.
 pub mod original_event_queue;
 pub mod melee_health;
+// The player's weapon take (IV DisarmOpponent): chain test; the runtime exports it as a kind-3 hit record.
+pub mod disarm;
 
 pub fn hash(s: &str) -> u32 { lsc4_combat::map::hash_bytes(s.as_bytes(), 0) }
 

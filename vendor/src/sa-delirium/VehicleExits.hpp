@@ -63,7 +63,13 @@ static float exitClearance(void*vehicle,const PoseSeed&pose,int side){
     // while the rollout still has CJ's torso and legs in the cabin.
     for(const auto&t:pose.parts){
         V local=point(inverseFrame,t.p);
-        clearance=std::min(clearance,lateralExitClearance(local.x,c->box.min.x,c->box.max.x,side,.20f));
+        // Out of the bodywork on any side counts: at speed the car can drift
+        // across or ahead of him (measured -6.9 m "lateral" with CJ already
+        // beside the far side), which kept SA's native roll and its jump.
+        const float out=std::max({lateralExitClearance(local.x,c->box.min.x,c->box.max.x,side,.20f),
+            lateralExitClearance(local.x,c->box.min.x,c->box.max.x,-side,.20f),
+            c->box.min.y-local.y-.20f,local.y-c->box.max.y-.20f,local.z-c->box.max.z-.20f});
+        clearance=std::min(clearance,out);
     }
     return clearance;
 }
@@ -110,6 +116,9 @@ static bool __fastcall carJumpOut(void*task,void*,void*ped){
         }
     }
     if(done){event("vehicle_exit_kept_native",pedRef,at<short>(ped,0x22),"body_never_cleared_chassis");exitTransits.erase(pedRef);}
-    else if(pose&&frame!=it->second.poseFrame){it->second.previous=pose;it->second.poseTime=now;it->second.poseFrame=frame;}
+    // A sample from the seat would measure SA's set-ped-out placement (1.3-1.7 m
+    // in one frame) as limb speed: every exit clamped at 3 m/s. Only poses
+    // already out of the seat seed the original two-pose motion.
+    else if(pose&&frame!=it->second.poseFrame&&!inVehicle(ped)){it->second.previous=pose;it->second.poseTime=now;it->second.poseFrame=frame;}
     return done;
 }

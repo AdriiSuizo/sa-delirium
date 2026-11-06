@@ -1,7 +1,10 @@
 #pragma once
 #include <cstdint>
 inline bool firearmDamage(int weapon){return (weapon>=22&&weapon<=34)||weapon==38||weapon==52;}
-inline bool clubWeapon(int weapon){return weapon==3||weapon==5;}
+// Melee weapons the IV controller fights with (SDK eWeaponType): clubs (IV `club`, MELEE_CLUB) golf club 2, nightstick 3,
+// bat 5, shovel 6, pool cue 7; blades (IV `knife`, MELEE_BLADE) knife 4, katana 8.
+inline bool bladeWeapon(int weapon){return weapon==4||weapon==8;}
+inline bool clubWeapon(int weapon){return (weapon>=2&&weapon<=8);}
 struct ShotDamageReceipt {
     std::uint32_t time=0;
     std::uintptr_t source=0;

@@ -16,6 +16,9 @@ inline void* __cdecl findSkin(void* atomic,void* arg){
 }
 // Skinned geometry and its RpSkin (first skinned atomic of the clump).
 struct SkinGeometrySearch{void*geometry=nullptr,*skin=nullptr;};
+inline void* pedSkin(void* ped){void* skin=nullptr;
+    if(void* clump=at<void*>(ped,0x18))reinterpret_cast<void*(__cdecl*)(void*,void*(__cdecl*)(void*,void*),void*)>(0x749B70)(clump,&findSkin,&skin);
+    return skin;}
 inline void* __cdecl findSkinGeometry(void* atomic,void* arg){
     auto&s=*static_cast<SkinGeometrySearch*>(arg);if(s.skin)return atomic;
     if(auto*geometry=at<void*>(atomic,0x18))if(void*skin=reinterpret_cast<void*(__cdecl*)(void*)>(0x7C7550)(geometry)){s.geometry=geometry;s.skin=skin;}
@@ -44,6 +47,7 @@ struct Rig {
     NmBuild* build=nullptr;
     std::vector<int> ids,partForBone,parents;
     std::vector<T> bind;
+    void* skinSource=nullptr; // the RpSkin this rig was fitted from
     std::vector<T> bodyToBone,bindLocal;
     std::array<int,21> node{};
     std::array<T,21> offsets{};
@@ -83,6 +87,7 @@ struct Rig {
         void* skin=nullptr;
         reinterpret_cast<void*(__cdecl*)(void*,void*(__cdecl*)(void*,void*),void*)>(0x749B70)(at<void*>(ped,0x18),&findSkin,&skin);
         if(!skin||reinterpret_cast<unsigned(__cdecl*)(void*)>(0x7C77E0)(skin)<unsigned(h->num))throw std::runtime_error("missing skin bind matrices");
+        skinSource=skin;
         const auto* inverseBind=reinterpret_cast<const M*(__cdecl*)(void*)>(0x7C7810)(skin);
         if(!inverseBind)throw std::runtime_error("no inverse bind data");
         for(int i=0;i<h->num;i++){
@@ -217,8 +222,41 @@ struct Rig {
             const int joint=int(i)==spineBone?9:11;
             const V pivot=mul(parts[joint],inverse(offsets[joint])).p;
             out[i].q=mul(swingBetween(rotate(out[i].q,bindLocal[child].p),pivot-out[i].p),out[i].q);
-        }return out;
+        }
+        // IV draws half of the hand's roll on a forearm roll bone (gta4-data
+        // neckroll.rs:60-61, bones 0x1B/0x1E: forearm roll + 0.5 x hand roll).
+        // SA has none, so catchFall's full wrist twist (IV target 1.0 rad,
+        // nmcf.rs:383, held at the 0.9 limit) read as a broken wrist. Roll the
+        // forearm by half the hand's twist about the forearm axis; the hand keeps
+        // its physical orientation and position.
+        if(!wristRollDisabled())for(const auto[fore,hand]:{std::pair{33,34},std::pair{23,24}}){
+            const int f=index(fore),h=index(hand);if(f<0||h<0||parents[h]!=f)continue;
+            const V axis=normalized(bindLocal[h].p);
+            const Q r=mul(mul(conjugate(out[f].q),out[h].q),conjugate(bindLocal[h].q));
+            const float along=r.x*axis.x+r.y*axis.y+r.z*axis.z;
+            const Q twist=unit(Q{axis.x*along,axis.y*along,axis.z*along,r.w});
+            out[f].q=mul(out[f].q,mix(Q{},twist,.5f));
+            // The wrist's swing (bend) is drawn at most 30 deg from SA's bind
+            // relation: IV's +-0.9 rad soft wrist hangs the hand 60-90 deg
+            // sideways under gravity in Balance/catchFall, read as broken
+            // (Adrii, 06/11 captures). Fingers follow the drawn hand.
+            const Q local=mul(conjugate(out[f].q),out[h].q),rel=mul(local,conjugate(bindLocal[h].q));
+            const float along2=rel.x*axis.x+rel.y*axis.y+rel.z*axis.z;
+            const Q relTwist=unit(Q{axis.x*along2,axis.y*along2,axis.z*along2,rel.w}),swing=mul(rel,conjugate(relTwist));
+            const float angle=2.f*std::acos(std::clamp(std::abs(swing.w),0.f,1.f)),limit=30.f*3.14159265f/180.f;
+            if(angle>limit){
+                const Q kept=mix(Q{},swing,limit/angle);
+                const Q drawn=mul(out[f].q,mul(mul(kept,relTwist),bindLocal[h].q)),delta=mul(drawn,conjugate(out[h].q));
+                for(size_t i=size_t(h);i<ids.size();i++){
+                    int up=int(i);while(up>=0&&up!=h)up=parents[up];if(up!=h)continue;
+                    out[i].q=mul(delta,out[i].q);
+                    if(int(i)!=h)out[i].p=out[parents[i]].p+rotate(out[parents[i]].q,bindLocal[i].p);
+                }
+            }
+        }
+        return out;
     }
+    static bool wristRollDisabled(){static const bool off=GetEnvironmentVariableA("GTASA_RENDER_WRIST_ROLL_OFF",nullptr,0)>0;return off;}
     // A/B diagnostics only: GTASA_RENDER_SPINE_AIM_OFF=1 restores the old write-back.
     static bool spineAimDisabled(){static const bool off=GetEnvironmentVariableA("GTASA_RENDER_SPINE_AIM_OFF",nullptr,0)>0;return off;}
     static Q swingBetween(V from,V to){

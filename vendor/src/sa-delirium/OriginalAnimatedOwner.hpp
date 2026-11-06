@@ -46,6 +46,10 @@ static bool animatedNativePairCurrent(void*p){
 static uint64_t animatedExternalId(int ref){return (2ull<<32)|uint32_t(ref);}
 static bool animatedExternalEligible(void*p){
     if(!p||!matrix(p)||inVehicle(p)||!validPed(p,false,false,p==player()))return false;
+    // SA's own ignore-this-entity (CPhysical +0x128: set while jumping out of
+    // or being knocked by a car). As a 25 kg island body CJ collided with the
+    // car he was leaving and was moved ~1.5 m in one frame before his ragdoll.
+    if(at<void*>(p,0x128))return false;
     const auto active=agents.find(reference(p));
     return active==agents.end()?animatedNativePairCurrent(p):(active->second->ped==p&&active->second->recovering&&active->second->recoveryAnimatedOwner);
 }
@@ -106,6 +110,30 @@ static void commitAnimatedExternalOwner(const HostExternalOwner&o,const float*r,
                 " fraction="+std::to_string(o.fraction)+" accumulated_velocity_integrated=1 fallback_world_sweep="+std::to_string(fallback)+" native_ground_support="+std::to_string(!sourceGround)+" source_world_verified="+std::to_string(sourceGround)+" articulated_animation_energy=0");}
     }
 }
+// Adaptation requested by the user (06/11), beyond IV: a stumbling or
+// falling body (NPC or CJ) that walks into a standing ped makes that ped
+// react with the same original bump/Balance as a push from the player. IV only
+// transmits momentum between NPCs. The impulse already entered the shared
+// island; this only selects the reaction, once per pair and second.
+static void requestPeerBump(Active&a,void*peer,float amount,float dt){
+    if(!recoveryAllowed()||a.recovering||a.preview||dt<=0||dt>.1f||!validPed(peer)||inVehicle(peer)||
+       agents.contains(reference(peer))||pending.contains(reference(peer))||combatOwns(peer))return;
+    V d=position(peer)-a.current[0].p;d.z=0;const float span=length(d);if(span<1.e-3f)return;d=d*(1.f/span);
+    // The moving body must be the one coming in (a ped walking into a still
+    // corpse is not pushed by it), then IV reason 10's gate (speed^2 > 0.25).
+    const float own=dot(a.renderVelocity[0],d),closing=own-dot(at<V>(peer,0x44)*50.f,d);
+    if(own<=.3f||closing<=.5f)return;
+    int bumping=0;for(const auto&[ref,b]:agents)if(b->kind==Reaction::Bump&&!b->recovering)bumping++;
+    if(bumping>=8)return;
+    static std::map<std::pair<int,int>,unsigned> last;const auto key=std::make_pair(a.ref,reference(peer));
+    if(const auto i=last.find(key);i!=last.end()&&gameTime()-i->second<1000)return;
+    last[key]=gameTime();
+    for(auto i=last.begin();i!=last.end();)if(gameTime()-i->second>5000)i=last.erase(i);else ++i;
+    Request request;request.kind=Reaction::Bump;request.time=gameTime();request.attackerRef=a.ref;
+    request.direction=d;request.bumpImpulse=amount;request.bumpDt=dt;request.velocityOverride=true;request.velocity=at<V>(peer,0x44);
+    pending[reference(peer)]=request;
+    event("peer_bump_requested",reference(peer),at<short>(peer,0x22),"by="+std::to_string(a.ref)+" closing_mps="+std::to_string(closing)+" impulse_ns="+std::to_string(amount)+" shared_impulse_already_solved=1");
+}
 // Called with a solved per-contact receipt, before vehicle-only filtering.
 // A receipt selects behaviour; its impulse has ALREADY entered the shared
 // island and must never be sent through ApplyMoveForce again.
@@ -117,7 +145,7 @@ static void observeSolvedAnimatedContact(Active&a,int obstacle,V impulse,V point
         if(a.recovering)acceptRecoveryPlayerContact(a,peer,amount,dt,at<V>(peer,0x44)*50.f);
         if(!a.recovering)ok(nm_agent_ped_bump_touch(a.agent));
         if(a.current[10].p.z-a.current[0].p.z>.30f)startPlayerShove(a.ped);
-    }
+    }else requestPeerBump(a,peer,amount,dt);
     // Recovery selection consumes a semantic BlendFromNM context in the
     // response bridge. Geometry alone cannot manufacture CatchFall or cancel
     // a native get-up. Ordinary contact still transmits physical momentum.

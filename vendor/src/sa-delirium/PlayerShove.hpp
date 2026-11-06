@@ -24,6 +24,30 @@ static void startPlayerShove(void*other){
     if(GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0)&&shoveFrames.empty())
         for(unsigned delay:{17u,50u,100u,150u,250u,400u})shoveFrames.push_back(gameTime()+delay);
 }
+// IV: the shove event itself (CEventPlayerCollisionWithPed, peds.rs ~4883, collision scanner 0x82462A08) only follows a body contact, but the
+// player's own scanner (0x82461A78, events.rs `walks_into`) already looks half a second ahead: the walk of 0.5 s must be over 0.1 squared flat, the
+// ped more than 0.25 along his forward row, his line meeting the ped's sphere. Same test here with the answer 0x82471158 (shove_begin) as the gate,
+// so the arm goes up on the approach. ADAPTED: the sphere is 1 m in IV (its radius is for the ped's evasive step); a shove needs the bodies to
+// meet, so it is 0.25 + 0.25 (pedbodies PARTS torso/capsule radius) + 0.02 (pedbodies BREAK, the contact distance) = 0.52 m.
+static void scanPlayerShoveAhead(){
+    static const bool off=GetEnvironmentVariableA("GTASA_NO_SHOVE_LEADIN",nullptr,0)>0;
+    auto*p=player();auto*pool=pedPool();
+    if(off||!p||!pool||shoveClip||!playing()||!combatAllowed()||!matrix(p)||inVehicle(p)||agents.contains(reference(p))||combatOwns(p))return;
+    V velocity=at<V>(p,0x44);
+    {const uint64_t id=animatedExternalId(reference(p));for(const auto&o:externalHostOwners)if(o.id==id&&o.animated){velocity={o.rows[3],o.rows[4],0};break;}}
+    velocity.z=0;const V pos=position(p),walk=velocity*.5f,forward=matrix(p)->up;
+    if(!finite(velocity)||walk.x*walk.x+walk.y*walk.y<=.1f)return;
+    void*best=nullptr;float bestAlong=1e9f,miss=0;
+    for(int i=0;i<pool->size;i++)if(!(pool->flags[i]&128)){
+        void*o=pool->objects+i*0x7C4;if(o==p||!validPed(o)||inVehicle(o)||agents.contains(reference(o)))continue;
+        const V off2=position(o)-pos;const float along=dot(forward,off2),den=dot(walk,walk);if(along<=.25f||along>=bestAlong)continue;
+        const float t=std::clamp(dot(off2,walk)/den,0.f,1.f);const V d=off2-walk*t;const float d2=dot(d,d);
+        if(d2<=.52f*.52f){best=o;bestAlong=along;miss=std::sqrt(d2);}
+    }
+    if(!best)return;
+    startPlayerShove(best);
+    if(shoveClip)event("player_shove_leadin",shovePlayer,0,"other="+std::to_string(reference(best))+" along_m="+std::to_string(bestAlong)+" miss_m="+std::to_string(miss)+" speed_mps="+std::to_string(length(velocity)));
+}
 static void tickPlayerShove(float dt){
     if(!combat)return;
     if(!recoveryAllowed())shoveFrames.clear();
@@ -36,6 +60,7 @@ static void tickPlayerShove(float dt){
     if(shoveClip<0){ok(shoveClip);shoveClip=0;}
     if(previous&&!shoveClip){event("player_shove_finished",shovePlayer,0);shoveRig.reset();}
     if(!playing()||!pedFromRef(shoveLastPeer))shoveLastPeer=-1;
+    if(!shoveClip)scanPlayerShoveAhead();
 }
 static void renderPlayerShove(void*p){
     if(p!=player()||reference(p)!=shovePlayer||!shoveRig||!shoveClip||combatOwns(p)||agents.contains(reference(p)))return;

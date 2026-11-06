@@ -223,6 +223,14 @@ pub unsafe extern "C" fn nm_combat_feed_club(c:*mut NmCombat,id:u32,bounds:*cons
     let bounds=(!bounds.is_null()).then(||unsafe{std::slice::from_raw_parts(bounds,8)});
     match r.feed_club(id,bounds){Ok(())=>0,Err(e)=>fail(NM_E_ARG,e)}
 }
+/// As nm_combat_feed_club, with blade != 0 when the held weapon is a blade (IV KNIFE, the action table's `knife` class).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_combat_feed_weapon(c:*mut NmCombat,id:u32,bounds:*const f32,blade:i32)->i32{
+    let Some(c)=(unsafe{combat_mut(c)})else{return fail(NM_E_ARG,"null combat")};
+    let Some(r)=c.1.as_mut()else{return fail(NM_E_ARG,"combat runtime is not enabled")};
+    let bounds=(!bounds.is_null()).then(||unsafe{std::slice::from_raw_parts(bounds,8)});
+    match r.feed_weapon(id,bounds,blade!=0){Ok(())=>0,Err(e)=>fail(NM_E_ARG,e)}
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_combat_feed(c: *mut NmCombat, id: u32, now: u32, frame: *const f32, pose: *const f32, count: i32) -> i32 {

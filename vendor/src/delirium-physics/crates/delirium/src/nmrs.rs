@@ -112,7 +112,10 @@ pub fn joints(build: &Build, asset: &[nm_asset::Joint]) -> Option<Vec<JointDef>>
         let x0 = if j.three { ours(j.lean_axis) } else { z.cross(Vec3::Z) };
         let x = (x0 - z * x0.dot(z)).normalize_or(z.any_orthonormal_vector());
         let frame = Quat::from_mat3(&Mat3::from_cols(x, z.cross(x), z)).normalize();
-        let (in_parent, in_child) = ((zero[parent].inverse() * frame).normalize(), (zero[child].inverse() * frame).normalize());
+        let (in_parent, mut in_child) = ((zero[parent].inverse() * frame).normalize(), (zero[child].inverse() * frame).normalize());
+        // A fitted rig's trunk/neck rest is IV's rest (Build::fit recentre).
+        let turn = build.parts[child].recentre;
+        if j.three && turn != Quat::IDENTITY { in_child = (turn * in_child).normalize(); }
         let (rage_parent, rage_child) = rage_frames(j.three, &j.limits, in_parent, in_child);
         let (lp, lc) = (crate::nmdbm::rage_link(build.nm, parent).inverse(), crate::nmdbm::rage_link(build.nm, child).inverse());
         let rows = |q: Quat| { let m = Mat3::from_quat(q.normalize()); [m.row(0), m.row(1), m.row(2)] };

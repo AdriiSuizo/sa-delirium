@@ -83,7 +83,7 @@ static void __fastcall collisionRecord(void*self,void*,void*other){
     pending[ref].playerVehicle=playerImpact;
     if(auto seed=beforePedPose.find(ref);seed!=beforePedPose.end())pending[ref].pose=seed->second;
     if(beforePedVelocity.count(ref)){pending[ref].velocityOverride=true;pending[ref].velocity=beforePedVelocity[ref];}
-    nativeVehicleContacts++;lastContactReaction[ref]=gameTime();
+    nativeVehicleContacts++;lastContactReaction[ref]=gameTime();roadHealthBefore[ref]={gameTime(),at<float>(ped,0x540)};
     event("accepted_vehicle_contact",ref,at<short>(ped,0x22),"vehicle_ref="+std::to_string(carRef)+" closing_mps="+std::to_string(speed)+" native_health="+std::to_string(at<float>(ped,0x540)));
 }
 // KillPedWithCar applies an additional force to the car AFTER generic contact

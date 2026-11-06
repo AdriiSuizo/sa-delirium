@@ -1,5 +1,16 @@
 # Historial
 
+## 0.3.5 · combate, policía y choques como en GTA IV
+
+- Arreglados tres cierres del juego: en la tienda (GInput y Grinch Trainer cambiaban a la vez la misma lectura del mando), al salir del juego y al reiniciar una partida. El trainer va sin modificar.
+- Pelea como en GTA IV: CJ puede quitar el arma cuerpo a cuerpo a los NPC y a los policías si esquiva su golpe y contraataca con el objetivo fijado. Vale para bate, porra, palo de golf, pala, taco, cuchillo y katana; los NPC con cuchillo o katana pelean con los movimientos de cuchillo de GTA IV.
+- Policía como en GTA IV: un policía al que ataca un NPC, aunque vaya armado, saca la pistola y va a por él en vez de huir. Se apaga con `IVPoliceResponse=0` en `[Combat]`.
+- Choques como en GTA IV: en un choque de frente fuerte, CJ y los NPC de los asientos delanteros salen disparados por el parabrisas. Se apaga con `WindscreenEjection=0` en `[Vehicle]`.
+- Atropellos: los peatones ruedan por el capó y el parabrisas en vez de pasar por debajo del coche.
+- CJ: se tira de cabeza solo con Círculo en el aire (no con dos Cuadrados), con su peso real; los empujones a peatones empiezan antes; apunta bien mientras anda; sale rápido del coche; ya no atraviesa el suelo a mucha velocidad.
+- NPC: empujones en cadena entre peatones; muñecas sin dobleces imposibles; Ryder sin el cuello torcido.
+- El menú de Grinch Trainer solo se abre con X + Cuadrado + Círculo.
+
 ## 0.3.4 · sin cierres en la misión de Ryder
 
 - Arreglado un cierre del juego con la copia de Steam: al empezar una pista de radio o de audio a mitad, si su duración salía 0 el juego dividía entre cero (visto en la misión de Ryder al salir de Grove Street). Esa pista empieza ahora desde el principio.

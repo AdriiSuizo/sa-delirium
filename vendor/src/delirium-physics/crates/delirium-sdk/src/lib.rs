@@ -459,7 +459,7 @@ pub unsafe extern "C" fn nm_build_fit(build: *const NmBuild, joints: *const f32)
         fail(NM_E_ARG, "nm_build_fit: nonfinite joints or body without a definable anatomical axis");
         return std::ptr::null_mut();
     }
-    let (mut build, frames) = b.build.fit(&b.frames, &j);
+    let (mut build, frames) = b.build.fit_skin(&b.frames, &j);
     // GTA IV's NM character keeps its own per-part masses (fred's link
     // masses) whatever the skeleton it drives; only shapes, pivots and
     // inertia follow the target bones. The generic fit grew each part's mass
