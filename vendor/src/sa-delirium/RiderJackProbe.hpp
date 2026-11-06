@@ -4,11 +4,13 @@
 static int riderJackAttacker=-1;
 static int riderJackFixture(int mode){
     if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -245;
+    // GTASA_JACK_MOTORCYCLE=1: the same stock jack against a PCJ-600 (461).
+    const bool motorcycle=GetEnvironmentVariableA("GTASA_JACK_MOTORCYCLE",nullptr,0)>0;const int bikeModel=motorcycle?461:481;
     if(mode==247){
         if(inVehicle(player())||vehicleFromRef(probeBike))return -247;
-        for(int model:{481,7})reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(model,2);
+        for(int model:{bikeModel,7})reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(model,2);
         reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
-        ProbeScript bike(0x00A5);bike.integer(481);bike.number(2430.f);bike.number(-1661.f);bike.number(position(player()).z);bike.result();probeBike=bike.run();
+        ProbeScript bike(0x00A5);bike.integer(bikeModel);bike.number(2430.f);bike.number(-1661.f);bike.number(position(player()).z);bike.result();probeBike=bike.run();
         void*v=vehicleFromRef(probeBike);if(!v||!matrix(v))return -247;
         ProbeScript seat(0x036A);seat.integer(reference(player()));seat.integer(probeBike);seat.run();
         if(!ridingBike(player())||at<void*>(v,0x460)!=player())return -247;
@@ -18,7 +20,7 @@ static int riderJackFixture(int mode){
         event("probe_bicycle_jack_prepared",probeBikePed,0,"player_victim=1 attacker_ref="+std::to_string(riderJackAttacker)+" vehicle_ref="+std::to_string(probeBike));return probeBikePed;
     }
     if(mode!=248&&inVehicle(player()))return -245;
-    if(mode==245)return bikeHitFixture(21);
+    if(mode==245)return bikeHitFixture(motorcycle?20:21);
     void*v=vehicleFromRef(probeBike),*p=pedFromRef(probeBikePed);
     void*attacker=mode==248?pedFromRef(riderJackAttacker):player();
     if((mode!=246&&mode!=248)||!v||!p||!attacker||!ridingBike(p)||!matrix(v))return -246;

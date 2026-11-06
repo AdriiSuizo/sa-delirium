@@ -330,7 +330,10 @@ impl Runtime {
             if let Some(m)=&a.melee.mv {let r=&d.table.results[m.result];
                 if let Some((key,flags))=d.clip(r){if let Some(clip)=self.bank.clips.get(&key){
                     let target=self.bank.retarget(&a.rig,&key,m.phase(),flags).ok_or("result sampling failed")?;
-                    a.blend=(a.blend+r.blend_in*dt).clamp(0.,1.);
+                    // IV steps its blend once per 30 Hz frame, so an "instant" factor (the hit pool's 1000) shows
+                    // the new clip one 33 ms frame later. Spread that same 33 ms at SA's frame rate rather than
+                    // popping the body in one 8 ms frame; slower factors are below the cap and unchanged.
+                    a.blend=(a.blend+r.blend_in.min(30.)*dt).clamp(0.,1.);
                     let posed=a.rig.blend(&base,&target,1.,flags);local=a.rig.blend(&a.under,&posed,a.blend,0);
                     let prev=((m.clip_t-m.step)/m.dur).clamp(0.,1.);
                     let delta=(mover(clip,m.phase())-mover(clip,prev))/dt;
@@ -341,14 +344,17 @@ impl Runtime {
             }else{a.blend=(a.blend+2.*dt).clamp(0.,1.);if a.under.len()==local.len(){local=a.rig.blend(&a.under,&local,a.blend,0);}}
             if let Some(home)=a.melee.home {
                 let travel=a.melee.mv.as_ref().and_then(|m|m.key.as_ref().and_then(|k|self.bank.clips.get(k).map(|c|mover(c,m.phase()).y-mover(c,0.).y))).unwrap_or(0.);
-                // Use the original 30 Hz approach budget for club swings and
-                // the alternate follow-up. A shorter SA frame should move the
-                // ped for less time, without also reducing its approach speed.
+                // Use the original 30 Hz approach budget for club swings, the
+                // alternate follow-up and every AI strike. A shorter SA frame
+                // should move the ped for less time, without also reducing its
+                // approach speed: at 120 Hz an AI long hook closed a quarter of
+                // the gap and stopped a hand short of the face.
                 let club_swing = a.club.is_some() && a.melee.mv.as_ref().is_some_and(|m| {
                     let result = &d.table.results[m.result];
                     !m.given && result.strike_bones.iter().any(|&(active, tag, _)| active && tag == 0x4D0)
                 });
-                let rate_step=if (a.alternate_hook_target.is_some()||club_swing)&&!home.push {dt.max(1./30.)} else {dt};
+                let ai_strike = !a.player && a.melee.mv.as_ref().is_some_and(|m| !m.given);
+                let rate_step=if (a.alternate_hook_target.is_some()||club_swing||ai_strike)&&!home.push {dt.max(1./30.)} else {dt};
                 if let Some(y)=home.speed(a.pos(),a.heading,velocity,travel,dt,rate_step){velocity.y=y}
             }
             let rendered_world=Pose{p:a.pos(),q:Quat::from_rotation_z(a.heading)};

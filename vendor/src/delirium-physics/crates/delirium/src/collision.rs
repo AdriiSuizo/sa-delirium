@@ -194,9 +194,14 @@ impl Collision {
     /// flags/materials. Original IV imports and subsequent ordinary adds retain
     /// their exact one-sided semantics.
     pub fn add_two_sided(&mut self,positions:&[[f32;3]],triangles:&[[u32;3]],materials:&[u8]){
-        let first=self.keys.get(&FIXED).and_then(|&i|self.chunks[i as usize].as_ref()).map_or(0,|c|c.triangles.len());
-        self.add(positions,triangles,materials);
-        if let Some(&i)=self.keys.get(&FIXED){if let Some(c)=self.chunks[i as usize].as_mut(){c.host_two_sided[first..].fill(true);}}
+        self.add_chunk_two_sided(FIXED,positions,triangles,materials);
+    }
+    /// The same native host surface, kept as one chunk per host entity so a
+    /// moving map window adds and removes only the entities that changed.
+    pub fn add_chunk_two_sided(&mut self,key:u64,positions:&[[f32;3]],triangles:&[[u32;3]],materials:&[u8]){
+        let first=self.keys.get(&key).and_then(|&i|self.chunks[i as usize].as_ref()).map_or(0,|c|c.triangles.len());
+        self.add_chunk_flagged(key,positions,triangles,materials,&[]);
+        if let Some(&i)=self.keys.get(&key){if let Some(c)=self.chunks[i as usize].as_mut(){c.host_two_sided[first..].fill(true);}}
     }
     pub fn add_floor(&mut self, x: f32, y: f32, z: f32, half: f32, material: u8) {
         let size = (half / delirium_data::kv!(28)).max(1.0);

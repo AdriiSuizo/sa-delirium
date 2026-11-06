@@ -62,7 +62,9 @@ pub unsafe extern "C" fn nm_group_step(g:*mut NmGroup,w:*const NmWorld,dt:f32)->
     Agent::step_group(&mut members,&w.0,dt,&mut g.solver);
     if let(Some(path),Some(started))=(profile,started){
         let elapsed=started.elapsed().as_secs_f64()*1000.;
-        if elapsed>=8. {
+        static LIMIT:std::sync::OnceLock<f64>=std::sync::OnceLock::new();
+        let limit=*LIMIT.get_or_init(||std::env::var("GTASA_PHYSICS_PROFILE_MS").ok().and_then(|v|v.parse().ok()).unwrap_or(8.));
+        if elapsed>=limit {
             let report=serde_json::json!({"pid":std::process::id(),"dt":dt,"members":staged.len(),"elapsed_ms":elapsed,"phase_ms":g.solver.profile_ms,"impulses_stage_ms":g.solver.profile_impulses.0,"impulses_counts":g.solver.profile_impulses.1,"solve_stage_ms":g.solver.profile_solve_ms,"solve_stage_cycles":g.solver.profile_solve_cycles,
                 "owner_pair_prepare_ms":g.solver.profile_pair_prepare_ms,"owner_pair_counts":g.solver.profile_pair_counts,
                 "owners":g.solver.external_placement_diagnostics().iter().map(crate::external_replay::diagnostic).collect::<Vec<_>>()});
@@ -74,7 +76,7 @@ pub unsafe extern "C" fn nm_group_step(g:*mut NmGroup,w:*const NmWorld,dt:f32)->
     }
     drop(members);
     if let Some(error)=g.solver.external_error(){return fail(NM_E_STATE,format!("external island rejected: {error:?}"))}
-    for s in staged {let a=unsafe{&mut *s.agent};a.agent.doll.roll_push=None;a.set.fill(false);}
+    for s in staged {let a=unsafe{&mut *s.agent};a.agent.doll.roll_push=None;a.set.fill(false);crate::end_no_collision_frame(a);}
     0
 }
 /// Physical peer pairs, active manifold points, maximum pre-solve penetration

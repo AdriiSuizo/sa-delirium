@@ -3,6 +3,7 @@ static int expansionTarget=-1;
 static int expansionAttacker=-1;
 static int bumpProbeWalker=-1;static V bumpProbeGoal{};
 static int rearTrafficBike=-1;
+static int carBikeApproach=0; // 0 rear, 1 right, 2 front, 3 left (modes 261..264)
 static int expansionFixture(int mode){
     if(mode>=253&&mode<=255){
         if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -253;
@@ -59,6 +60,7 @@ static int expansionFixture(int mode){
         event("probe_rear_bike_traffic",probeBikePed,at<short>(rider,0x22),"models=492,581,523 native_collision_only=1");
         return probeBikePed;
     }
+    if(mode>=261&&mode<=264){carBikeApproach=mode-261;return 0;}
     if(mode==250){
         if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -250;
         for(int model:{461,7})reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(model,2);
@@ -76,13 +78,25 @@ static int expansionFixture(int mode){
         // crash eligibility. A second moving car supplies the entire impact.
         ProbeScript stop(0x00AD);stop.integer(probeBike);stop.number(0.f);stop.run();
         const int carRef=carFixture(445);void*car=vehicleFromRef(carRef);if(!car)return -250;
-        const V location=position(bike);teleport(car,V{location.x-15.f,location.y,position(car).z});
-        reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(car,-1.57079632679f);
+        // Approach side chosen by mode 261..264 (rear, right, front, left of
+        // the rider). The car faces the bike; only its later coast moves it.
+        const V location=position(bike),forward=matrix(bike)->up,right=matrix(bike)->right;
+        const V away=carBikeApproach==1?right*9.f:carBikeApproach==2?forward*15.f:carBikeApproach==3?right*-9.f:forward*-15.f;
+        teleport(car,V{location.x+away.x,location.y+away.y,position(car).z});
+        reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(car,std::atan2(away.x,-away.y));
         at<V>(car,0x44)={};at<V>(car,0x50)={};
         // CJ must not stand between the approaching car and the motorcycle.
         // Setup only; no continuous steering, damage or speed injection.
-        teleport(player(),position(player())+V{0,-4.f,0});
-        event("probe_car_bike_setup",rider,at<short>(person,0x22),"vehicle="+std::to_string(carRef)+" bike="+std::to_string(probeBike)+" native_collision_only=1");return rider;
+        // Front/rear hits at 45 m/s throw the rider 40-60 m along the road and
+        // SA's CPopulation::ManagePed (0x611FC0) removes a civilian beyond
+        // 54.5 m of CJ: stand CJ down the throw, beside the road. A head-on
+        // car carries the rider on its bonnet for ~80 m (measured), a rear one throws it ~20 m;
+        // the bike must stay inside the 40 m activation radius.
+        // CJ within 25 m: SA's ManagePed removes an off-screen civilian past 25 m
+        // as soon as it leaves the bike (the head-on rider vanished at 35 m, 06/11).
+        if(carBikeApproach==0||carBikeApproach==2)teleport(player(),location-normalized(away)*20.f+right*6.f);
+        else teleport(player(),position(player())+V{0,-4.f,0});
+        event("probe_car_bike_setup",rider,at<short>(person,0x22),"vehicle="+std::to_string(carRef)+" bike="+std::to_string(probeBike)+" approach="+std::string(carBikeApproach==1?"right":carBikeApproach==2?"front":carBikeApproach==3?"left":"rear")+" native_collision_only=1");return rider;
     }
     if(mode==251||mode==252){
         if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -251;
@@ -228,12 +242,14 @@ static int expansionFixture(int mode){
     if(mode==228){
         if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0)||expansionFixture(133)<0)return -228;
         void*first=pedFromRef(expansionTarget);const V base=position(first);teleport(first,base-roadProbeSide*.42f);std::string refs=std::to_string(expansionTarget);
-        for(int i=1;i<8;i++){
+        // GTASA_ROAD_GROUP_COUNT: group size (2..8, default 8).
+        char countText[8]{};const int groupCount=GetEnvironmentVariableA("GTASA_ROAD_GROUP_COUNT",countText,8)?std::clamp(std::atoi(countText),2,8):8;
+        for(int i=1;i<groupCount;i++){
             const int ref=expansionFixture(80);void*p=pedFromRef(ref);if(!p)return -228;
             V dest=base+roadProbeForward*(float(i/2)*1.0f)+roadProbeSide*(i%2?.42f:-.42f);
             teleport(p,dest);at<V>(p,0x44)={};refs+=","+std::to_string(ref);
         }
-        expansionTarget=roadProbePed;event("probe_road_group_setup",roadProbePed,7,"refs="+refs+" count=8 synthetic_damage=0");return roadProbePed;
+        expansionTarget=roadProbePed;event("probe_road_group_setup",roadProbePed,7,"refs="+refs+" count="+std::to_string(groupCount)+" synthetic_damage=0");return roadProbePed;
     }
     if(mode==234||mode==235){
         if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0)||!pedFromRef(expansionTarget))return -234;

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "method": "100 Hz forced original moves, fitted CJ/model 7 bounds, 0.025 m distance grid; switch one grid cell before the middle punch misses. No hit-radius or damage changes.",
+  "method": "100 Hz forced original moves, fitted CJ/model 7 bounds, 0.025 m distance grid; switch one grid cell before the middle punch misses. No hit-radius or damage changes. AI unarmed strikes (examples/calibrate_ai_ranges.rs): the NPC strikes a CJ standing out of stance, same grid; the range ends one cell before the first miss.",
   "rows": [
     {
       "action": "Jab_Act",
@@ -88,6 +88,50 @@
       "range": [
         1.4,
         4.0
+      ]
+    },
+    {
+      "action": "Poor_hook_L_Act",
+      "original": [
+        0.0,
+        1.5
+      ],
+      "range": [
+        0.0,
+        1.3
+      ]
+    },
+    {
+      "action": "Poor_hook_R_Act",
+      "original": [
+        0.0,
+        1.5
+      ],
+      "range": [
+        0.0,
+        1.35
+      ]
+    },
+    {
+      "action": "Poor_hook_L_long_Act",
+      "original": [
+        0.0,
+        2.1
+      ],
+      "range": [
+        0.0,
+        1.775
+      ]
+    },
+    {
+      "action": "Poor_hook_R_long_Act",
+      "original": [
+        0.0,
+        2.1
+      ],
+      "range": [
+        0.0,
+        1.725
       ]
     }
   ],

@@ -19,6 +19,11 @@ def strip_fixtures(texts):
     end=a.index('static DWORD WINAPI setup(void*){',begin)
     a=a[:begin]+'// Distribution build omits scripted fixture exports.\n'+a[end:]
     omitted.append('DeliriumSA_Probe* exports and their fixture-only includes')
+    # The animation trace (GTASA_ANIM_TRACE) also follows the probe rider,
+    # defined with the omitted fixtures: there is none in a distribution build.
+    declaration='static int traceProbeRider();'
+    if declaration in a and 'static int traceProbeRider(){' not in a:
+        a=a.replace(declaration,'static int traceProbeRider(){return -1;}')
     a=re.sub(r'^.*\btickWheelSmokeProbe\([^\n]*\n','',a,flags=re.M)
     for name in ['tickPhysicalPeerProbe','tickSolidBodyProbe','tickStaticMeshProbe']:
         a=a.replace('static void '+name+'();','')

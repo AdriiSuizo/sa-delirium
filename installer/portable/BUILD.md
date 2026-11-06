@@ -43,6 +43,11 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
    Every other Steam file must still match the stock reference. Install and
    restore journal the exact executable found. Editions.cs only names known
    builds for the user; acceptance always comes from the manifest.
+   Before it: build the AVX2 engine (same cargo command with RUSTFLAGS=-C
+   target-cpu=haswell and --target-dir build/bootstrap-portable-avx2 --lib),
+   and the texture fixes with Fix-TxdConflicts.py --game <development game>
+   --only-mods-from full-manifest.json --mods-only --out build/texture-fixes-0.3.3.
+   Refresh vendor/ from development with tools/Refresh-Vendor.py.
 8. Build-PortableSetup.ps1 embeds the manifest, freshly compiled current Steam
    launcher and small verified tools ZIP. No development sidecar is used.
 

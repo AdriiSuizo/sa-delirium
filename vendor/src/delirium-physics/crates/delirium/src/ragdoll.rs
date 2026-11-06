@@ -1172,6 +1172,10 @@ impl Ragdoll {
     }
 }
 
+/// Penetration (m) a part on the ignored vehicle may still have and count as out of it: a resting contact
+/// leaves a few cm, which the solver separates gently; a straddling thigh in the seat is far deeper.
+const NC_OUT: f32 = 0.03;
+
 fn bound_half(p: &PartDef) -> Vec3 {
     p.boxed.unwrap_or(Vec3::new(p.radius, p.half + p.radius, p.radius))
 }
@@ -1238,6 +1242,17 @@ pub struct Ragdoll {
     order: Vec<usize>,
     pub mode: u8,
     normal_support_owners:std::collections::BTreeSet<u64>,
+    /// The external owner its ped collides with no longer (CPhysical +0x1F4,
+    /// 8247EEA8 with flag 0x40: the jump out of a vehicle, 824BD6DC): that
+    /// owner's points are found and dropped (82480B88 at impact stage 1), and
+    /// whether any were found since the flag was last read (+0x1F1 bit 1;
+    /// 8247EF08 ends the exclusion on a frame with none).
+    pub no_collision:Option<u64>,
+    pub no_collision_met:bool,
+    /// Last step's no-collision evidence: 1 owner staged, 2 owner box overlaps the body, 4 a contact or child bound met, 8 a part came out by its own shape.
+    pub no_collision_seen:u8,
+    /// Parts still ignoring `no_collision` (bit per body; all bits until the first staged step picks them).
+    pub no_collision_parts:u32,
     still: [u32; 2],
     pub sleep_tol: [f32; 3],
     pub asleep: bool,
@@ -1365,7 +1380,7 @@ impl Ragdoll {
         }
         Ragdoll { nm: build.nm, pins: vec![None; n], cons: vec![(None, None); n], grips: vec![], grip_target_velocities: vec![], grip_target_owners:vec![], snapped: vec![], grip_load: [0.;4], grip_solved_target: None, gone: 0, grip_rows: vec![], touch: vec![0; n], contact_off: 0, hit: vec![None; n], contact: crate::bump::ContactRecord::new(), ob_hits: vec![], gap_audit: Default::default(), held: vec![vec![]; n], stage_vel: vec![], stage_lt: vec![], roll_push: None, stage_lim: vec![], stiff: vec![], bodies, order, mode: 1, still: [SLEEP_STOP() - 2, SLEEP_SLEEP() - 2],
                   sleep_tol: [SLEEP_V2(), SLEEP_W2(), SLEEP_MEAN2()], asleep: false, age: 0.0, fresh: false, pending: vec![], pairs: vec![], seen: vec![], contact_history: None, coll: vec![], held_pairs: vec![], held_car: vec![], prep_twist: vec![], rigid: None, inertia: None, inst: None, out: vec![(Vec3::ZERO, Vec3::ZERO); n], joint_torque: vec![Vec3::ZERO; n], armature: vec![0.0; n], o, bound_off: Vec3::ZERO,
-                  rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default() }
+                  rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default(), no_collision:None, no_collision_met:false, no_collision_seen:0, no_collision_parts:0 }
     }
 
     pub fn set_body(&mut self, k: usize, x: Vec3, q: Quat, v: Vec3, w: Vec3) {
@@ -1668,6 +1683,17 @@ impl Ragdoll {
 
     fn wake(&mut self) {
         (self.mode, self.asleep) = (1, false);
+    }
+
+    /// A corpse off its simulation where it lies (CTaskSimpleDead's freeze, 0x824C8EF8): asleep until a moving
+    /// obstacle or an awake neighbour wakes it.
+    /// It keeps rage's sleep tolerances from then on (an NM agent has none): a bookkeeping wake returns to sleep on its
+    /// first quiet step, and only real motion keeps it simulated.
+    pub fn freeze(&mut self) {
+        (self.mode, self.asleep) = (2, true);
+        self.sleep_tol = [SLEEP_V2(), SLEEP_W2(), SLEEP_MEAN2()];
+        self.still = [SLEEP_STOP(), SLEEP_SLEEP()];
+        self.bodies.iter_mut().for_each(|b| (b.v, b.w) = (Vec3::ZERO, Vec3::ZERO));
     }
 
     pub fn awake(&self) -> bool {
@@ -2007,7 +2033,10 @@ impl Ragdoll {
         for (_, held) in self.held.iter_mut().enumerate().filter(|&(i, _)| pose[i].is_some() || self.fresh) {
             held.clear();
         }
+        // Parts of the ignored vehicle's riders still inside it this pass, by their own shape (see below).
+        let (mut nc_inside, mut nc_evaluated) = (0u32, 0u32);
         for (i, p) in build.parts.iter().enumerate().filter(|&(i, _)| pose[i].is_none() && !self.fresh) {
+            if i < 32 { nc_evaluated |= 1 << i; }
             let world_tick=audit.timer();
             let (b, tm) = (&self.bodies[i], turns[i]);
             let x = b.x - self.bound_off;
@@ -2166,9 +2195,21 @@ impl Ragdoll {
                             .unwrap_or_else(||moving_child_meets((x,tm),(sc,sh),(cx,cq),last_child,cent,half));
                         meet.then_some((c,cp.shape,half,(cx,cq),last_child))
                     });
+                    // A part inside a closed mesh touches no polygon and gives no point, yet its pair is still
+                    // live (the bounds meet): no_collision must hold until the part is out, or it ends inside
+                    // the seat and the first polygon met from within throws the body out.
+                    let bounds_met=std::cell::Cell::new(false);
+                    let candidates=candidates.inspect(|_|bounds_met.set(true));
                     let manifold_tick=audit.timer();
                     let calls=mesh_manifold::update(&mut self.held_car[s].3,(shape,bound_half(p),(x,tm),a_last),(ob.at-o,rot),candidates);
                     audit.add(2,manifold_tick);for _ in 0..calls{audit.called_manifold();}
+                    if ob.owner.is_some()&&ob.owner==self.no_collision&&self.no_collision_parts>>i&1!=0{
+                        // The vehicle this part collides with no longer: its points are found and dropped (no row, no touch).
+                        let met=bounds_met.get()||!self.held_car[s].3.is_empty();self.no_collision_seen|=if met{4}else{0};
+                        // Enclosed by the mesh (bounds meet, no polygon met) or deeper than NC_OUT: still inside.
+                        if i<32&&((bounds_met.get()&&self.held_car[s].3.is_empty())||self.held_car[s].3.iter().any(|r|r.gap< -NC_OUT)){nc_inside|=1<<i;}
+                        self.held_car[s].3.clear();continue;
+                    }
                     for(k,r)in self.held_car[s].3.iter().enumerate(){
                         let(at,on)=(x+tm*r.local,ob.at-o+rot*r.ground);
                         self.touch[i]|=delirium_data::kv!(7 int);add(at+o,r.n,-r.gap,ob.id);
@@ -2206,6 +2247,11 @@ impl Ragdoll {
                     let manifold_tick=audit.timer();
                     Self::manifold(&mut self.held_car[s].3, (shape, bound_half(p), (x, tm), a_last), side_c);
                     audit.add(2,manifold_tick);audit.called_manifold();
+                    if ob.owner.is_some()&&ob.owner==self.no_collision&&self.no_collision_parts>>i&1!=0{
+                        let met=!self.held_car[s].3.is_empty();self.no_collision_seen|=if met{4}else{0};
+                        if i<32&&self.held_car[s].3.iter().any(|r|r.gap< -NC_OUT){nc_inside|=1<<i;}
+                        self.held_car[s].3.clear();continue;
+                    }
                     for (k, r) in self.held_car[s].3.iter().enumerate() {
                         let (at, on) = (x + tm * r.local, cx + cq * r.ground);
                         self.touch[i] |= delirium_data::kv!(7 int);
@@ -2242,6 +2288,15 @@ impl Ragdoll {
                     hits.push((i, here, gap / dist, (dist - room) * if doll { 0.5 } else { 1.0 }, part_friction(p) * delirium_data::kv!(18), ov, PART_ELASTICITY() * PART_ELASTICITY(), None));
                 }
             }
+        }
+        // A part's exclusion ends once its own shape is out of the vehicle (resting on it counts as out), not
+        // when its bound sphere leaves the boxes: a shot rider slumped onto the tank kept that sphere touching,
+        // ignored the parked bike for good, sank through it and never pushed it over (06/11). Out parts collide
+        // from the next step: the body lies on the bike and its weight, through the finite vehicle owner, tips it.
+        if self.no_collision.is_some() && nc_evaluated != 0 {
+            let before = self.no_collision_parts;
+            self.no_collision_parts &= nc_inside | !nc_evaluated;
+            if self.no_collision_parts != before { self.no_collision_seen |= 8; }
         }
         let self_tick=audit.timer();
         let boxes: Vec<(Vec3, Vec3)> = (0..n_links).map(|k| { let f = (self.bodies[k].x, turns[k]); swept_box(&build.parts[k], f, self.seen.get(k).copied().unwrap_or(f)) }).collect();
@@ -2579,7 +2634,44 @@ impl Ragdoll {
                 (*p, *c) = (None, (None, None));
             }
         }
-        let moving = obstacles.iter().any(|o| o.vel.length() > 0.5 || o.spin.length() > 0.5);
+        // Only a moving obstacle that reaches the body wakes it (a passer-by or a bike's spinning wheel metres
+        // away kept a frozen corpse simulated, and pushing what it lay on, every frame).
+        let (lo, hi) = self.bodies.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(l, h), b| (l.min(b.x + self.o), h.max(b.x + self.o)));
+        let (lo, hi) = (lo - Vec3::splat(0.6), hi + Vec3::splat(0.6));
+        let reaches = |o: &Obstacle| {
+            let r = Mat3::from_quat(o.rot);
+            let e = Mat3::from_cols(r.x_axis.abs(), r.y_axis.abs(), r.z_axis.abs()) * o.half + Vec3::splat(2.0 * o.vel.length() * dt); // two steps of travel
+            (o.centre - e).cmple(hi).all() && lo.cmple(o.centre + e).all()
+        };
+        let moving = obstacles.iter().any(|o| (o.vel.length() > 0.5 || o.spin.length() > 0.5) && reaches(o));
+        // The ignored entity ends only once the bounds no longer touch (SA CPhysical::ProcessCollisionSectorList,
+        // GetIsTouching on the bound sphere; IV 8247EF08). The contact path alone never saw the bike it was set
+        // for: it ended on the first step with the legs still inside the frame, and the next contact threw the
+        // body up out of the bike, up to 8 m (lethal bike falls, 06/11). Per part, as NM bodies are articulated:
+        // only the parts inside the vehicle when it is first staged ignore it, each until its own bound sphere
+        // leaves every component box. A whole-body exclusion let a shot rider's torso sink through the tank.
+        // A step without that vehicle staged (frozen corpse, another world) proves nothing.
+        self.no_collision_seen = 0;
+        if let Some(id) = self.no_collision {
+            let owned: Vec<&Obstacle> = obstacles.iter().filter(|o| o.owner == Some(id)).collect();
+            if owned.is_empty() {
+                self.no_collision_met = true;
+            } else {
+                let mut touching = 0u32;
+                for (k, b) in self.bodies.iter().enumerate().take(32) {
+                    let (c, r) = (b.x + self.o, bound_half(&build.parts[k]).length());
+                    if owned.iter().any(|o| {
+                        let local = Mat3::from_quat(o.rot).transpose() * (c - o.centre);
+                        (local.abs() - o.half).max(Vec3::ZERO).length() < r
+                    }) {
+                        touching |= 1 << k;
+                    }
+                }
+                self.no_collision_parts &= touching;
+                self.no_collision_seen = 1 | if self.no_collision_parts != 0 { 2 } else { 0 };
+                self.no_collision_met |= self.no_collision_parts != 0;
+            }
+        }
         if self.asleep && !moving && self.pending.is_empty() {
             self.out.fill((Vec3::ZERO, Vec3::ZERO));
             return None;
@@ -2985,7 +3077,7 @@ impl Ragdoll {
         if let Some(t)=timer{group.profile_ms[0]=t.elapsed().as_secs_f64()*1000.;}
         let n = ms.len();
         let mut st: Vec<Option<Stage>> = (0..n).map(|_| None).collect();
-        Self::group_wake(ms);
+        Self::group_wake(ms,dt);
         let timer=group.profile_enabled.then(std::time::Instant::now);
         // Full articulated preparation is one independent 21-part character per
         // job. Batching three characters made groups of 2..5 entirely serial.
@@ -3015,16 +3107,25 @@ impl Ragdoll {
         ms.iter().map(reach).collect()
     }
 
-    fn group_wake(ms: &mut [Member]) {
+    fn group_wake(ms: &mut [Member], dt: f32) {
         let n = ms.len();
         let boxes = Self::group_boxes(ms);
         let meet = |i: usize, k: usize| boxes[i].0.cmple(boxes[k].1).all() && boxes[k].0.cmple(boxes[i].1).all();
-        for i in 0..n {
-            for k in 0..n {
-                if i != k && ms[i].doll.asleep && !ms[k].doll.asleep && meet(i, k) {
-                    ms[i].doll.wake();
-                }
-            }
+        // Rage wakes a sleeper from an actual pair, not from whole-body boxes: a body
+        // writhing beside two corpses woke (and re-froze) both on every step.
+        let touch = |i: usize, k: usize| {
+            let (a, b) = (&ms[i], &ms[k]);
+            a.doll.bodies.iter().zip(&a.build.parts).any(|(ba, pa)| {
+                let (xa, ra) = (ba.x + a.doll.o, bound_half(pa).length() + MARGIN());
+                b.doll.bodies.iter().zip(&b.build.parts).any(|(bb, pb)| {
+                    let reach = ra + bound_half(pb).length() + MARGIN() + 2.0 * bb.v.length() * dt;
+                    xa.distance_squared(bb.x + b.doll.o) <= reach * reach
+                })
+            })
+        };
+        let woken: Vec<usize> = (0..n).filter(|&i| ms[i].doll.asleep && (0..n).any(|k| i != k && !ms[k].doll.asleep && meet(i, k) && touch(i, k))).collect();
+        for i in woken {
+            ms[i].doll.wake();
         }
     }
 

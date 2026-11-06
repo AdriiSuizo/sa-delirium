@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.1')
+    ap.add_argument('--version',default='0.3.3')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
@@ -126,6 +126,12 @@ def main():
         editions.append(dict(name=label.strip(), source_sha256=digest, source_bytes=location.stat().st_size,
                              patch=hashlib.sha256(('gta_sa.exe|'+digest).encode()).hexdigest()[:24]+'.pa30', path=location))
     sdk = repo / 'build/bootstrap-portable/i686-pc-windows-msvc/release'
+    # The same engine source built for AVX2/FMA/BMI CPUs; the ASI picks it at
+    # run time (PhysicsEngineVariant.hpp) and keeps the baseline otherwise.
+    sdk_avx2 = repo / 'build/bootstrap-portable-avx2/i686-pc-windows-msvc/release'
+    # Texture dictionaries rejoined where two embedded mods ship one each
+    # (installer/portable/Fix-TxdConflicts.py --game <development game> --only-mods-from full-manifest.json --mods-only --out build/texture-fixes-0.3.3).
+    texture_fixes = repo / 'build/texture-fixes-0.3.3'
     seven = Path(r'C:\Program Files\7-Zip\7z.exe')
     delta = repo / 'build/portable-tools/DeltaTool.exe'
     own_runtime = repo / 'build/portable-production-runtime2/DeliriumSA.asi'
@@ -171,6 +177,7 @@ def main():
         'BSOR_Vegetation': 60, 'NextGen Grass': 70, 'NextGen Effects': 65, 'FxsFuncs': 65,
         'Enhance ParticleTXD': 65, 'Rubbish GTA 4': 65, 'Improved Lamps': 75,
         'Advanced Aiming Mod': 65, 'NeXtGen Remaster Weapons': 65, 'HD Skin Pack 299': 65,
+        'Delirium Texture Fixes': 99,
     }
     if args.preset in {'full','classic'}:
         priorities.pop('GTA V Weapons',None)
@@ -322,6 +329,11 @@ def main():
         added = classic_alternatives(recipes, classic, project/'game', patches)
         assert added, 'No PC 1.0 US alternative was found in --classic-source'
     add_payload('scripts/sa_delirium_bootstrap.dll', sdk/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime; bundled third-party Rust notices required')
+    add_payload('scripts/sa_delirium_bootstrap_avx2.dll', sdk_avx2/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime, same source for AVX2 CPUs; bundled third-party Rust notices required')
+    fixes = sorted(texture_fixes.glob('*.txd'))
+    assert fixes and (texture_fixes/'Delirium-Texture-Fixes.json').is_file(), 'Generate the texture fixes first'
+    for path in fixes+[texture_fixes/'Delirium-Texture-Fixes.json']:
+        add_payload('modloader/Delirium Texture Fixes/'+path.name, path, [], 'Textures of the embedded mods only, rejoined where two of them ship the same dictionary')
     add_payload('Documentation/Original/FxsFuncs-1.1/Leiame.txt',fxs_readme,[],'Original FxsFuncs supplied readme and compilation permission')
     izzy = args.izzy_source.resolve()
     izzy_receipt = read(project/'release-work/evidence/portable-installer/izzy-1.6-owner-input.json')

@@ -15,12 +15,15 @@ static void traceSessionPed(void*p){
     // Nearby rendered pedestrians provide pre-contact evidence without a test fixture.
     if(p==player()||length(position(p)-position(player()))<6.f)watchSessionPed(p);
     const auto w=sessionWatched.find(ref);if(w==sessionWatched.end()||now-w->second>10000)return;
-    if(sessionSampled.contains(ref)&&now-sessionSampled[ref]<50)return;sessionSampled[ref]=now;
+    // GTASA_POSE_TRACE_EVERY_FRAME=1 (diagnostic only): one row per rendered
+    // frame instead of 20 Hz, to measure the drawn pose's update cadence.
+    static const bool everyFrame=GetEnvironmentVariableA("GTASA_POSE_TRACE_EVERY_FRAME",nullptr,0)>0;
+    if(!everyFrame&&sessionSampled.contains(ref)&&now-sessionSampled[ref]<50)return;sessionSampled[ref]=now;
     auto*h=hierarchy(p);if(!h||!h->nodes||!h->matrices||h->num<1||h->num>128)return;
     const auto a=agents.find(ref);const auto attack=meleeAttack(p);
     auto number=[](std::ostringstream&s,float v){if(std::isfinite(v))s<<v;else s<<"null";};
     auto vector=[&](std::ostringstream&s,V v){s<<'[';number(s,v.x);s<<',';number(s,v.y);s<<',';number(s,v.z);s<<']';};
-    std::ostringstream s;s<<std::setprecision(7)<<"{\"pid\":"<<GetCurrentProcessId()<<",\"wall_ms\":"<<now<<",\"time_ms\":"<<gameTime()<<",\"ref\":"<<ref<<",\"model\":"<<at<short>(p,0x22)
+    LARGE_INTEGER qpc{};QueryPerformanceCounter(&qpc);std::ostringstream s;s<<std::setprecision(everyFrame?11:7)<<"{\"qpc\":"<<qpc.QuadPart<<",\"pid\":"<<GetCurrentProcessId()<<",\"wall_ms\":"<<now<<",\"time_ms\":"<<gameTime()<<",\"frame\":"<<*reinterpret_cast<unsigned*>(0xB7CB4C)<<",\"ref\":"<<ref<<",\"model\":"<<at<short>(p,0x22)
         <<",\"health\":";number(s,at<float>(p,0x540));s<<",\"root\":";vector(s,position(p));s<<",\"velocity_mps\":";vector(s,at<V>(p,0x44)*50.f);
     // Native movement velocity is deliberately not the NM body's velocity.
     // Record the actual solver COM separately; never infer a frozen body from

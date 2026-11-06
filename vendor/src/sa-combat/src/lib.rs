@@ -47,9 +47,9 @@ impl Data {
         for row in p.rows{
             if !seen.insert(hash(&row.action))||row.range.iter().any(|x|!x.is_finite()||*x<0.)||row.range[0]>=row.range[1]{return Err("invalid combat range row".into())}
             let a=table.actions.iter_mut().find(|a|a.name==hash(&row.action)).ok_or("unknown range action")?;
-            if a.distance_range!=row.original||a.ai_player_filter!=1||a.kind!=hash("Melee")||!a.available_from_idle||
+            if a.distance_range!=row.original||!matches!(a.ai_player_filter,1|2)||a.kind!=hash("Melee")||!a.available_from_idle||
                 a.flags[1..].iter().any(|b|*b)||a.opponent_res!=0||a.weapon_class!=hash("unarmed")||a.rel_point!=2{
-                return Err(format!("range profile does not match an initial unarmed player action: {}",row.action))
+                return Err(format!("range profile does not match an initial unarmed player or AI action: {}",row.action))
             }
             a.distance_range=row.range;
         }

@@ -174,6 +174,37 @@ static void clearBikeNativeIgnore(void*ped,void*bike){
         at<void*>(ped,0x128)=nullptr;
     }
 }
+// CTaskSimpleBikeJacked (0x64C970) syncs the victim's BIKE_HIT to the
+// jacker's CTaskSimpleCarSlowDragPedOut (820) and knocks it off (type 55) with
+// no speed while that drag still plays. Its arms then stay in the scene as
+// kinematic capsules with their animated velocity: the push the player sees is
+// the contact that moves the thrown body, never an added impulse.
+struct BikeJackArms {int jacker=-1;void*ped=nullptr;unsigned until=0,frames=0;float peakSpeed=0;};
+static std::map<int,BikeJackArms> bikeJackArms;
+static bool pedTaskChainHas(void*p,int type){
+    void*m=p?taskManager(p):nullptr;if(!m)return false;
+    for(void*t=reinterpret_cast<void*(__thiscall*)(void*)>(0x681720)(m);t;t=reinterpret_cast<void*(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[2])(t))
+        if(reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[4])(t)==type)return true;
+    return false;
+}
+// Rows for nm_world_set_capsules; a group copies them when each body is added.
+static std::vector<float> bikeJackArmRows(){
+    std::vector<float> rows;const unsigned now=gameTime();
+    for(auto it=bikeJackArms.begin();it!=bikeJackArms.end();){
+        auto&j=it->second;const auto victim=agents.find(it->first);const auto pose=animatedContacts.find(j.jacker);
+        const bool live=now<j.until&&(victim!=agents.end()||pending.contains(it->first))&&pedFromRef(j.jacker)==j.ped&&!agents.contains(j.jacker)&&pedTaskChainHas(j.ped,820);
+        if(!live){event("bike_jack_arms_ended",it->first,-1,"jacker_ref="+std::to_string(j.jacker)+" frames="+std::to_string(j.frames)+" peak_arm_speed_mps="+std::to_string(j.peakSpeed));
+            it=bikeJackArms.erase(it);continue;}
+        if(pose!=animatedContacts.end()&&pose->second.ped==j.ped&&now-pose->second.time<=50&&pose->second.rows.size()>8){
+            // animatedPedCapsules rows 3..8: upper arms, forearms and hands.
+            for(int k=3;k<=8;k++){const auto&r=pose->second.rows[k];rows.insert(rows.end(),r.begin(),r.end());
+                j.peakSpeed=std::max(j.peakSpeed,length(V{r[7],r[8],r[9]}));}
+            j.frames++;
+        }
+        ++it;
+    }
+    return rows;
+}
 static void processNativeBikeOut(void*ev,void*ped){
     auto*lease=bikeExitLease(ev,ped);
     // Direct SetPedOutCar callers (scripted diagnostics) do not pass through
@@ -192,6 +223,10 @@ static void processNativeBikeOut(void*ev,void*ped){
     at<V>(ped,0x44)=lease->pose->velocity;
     clearBikeNativeIgnore(ped,at<void*>(ev,0x38));
     queuePhysicalExit(ped,lease->pose,position(ped),Reaction::BikeFall);
+    if(void*actor=at<void*>(ev,0x30);at<unsigned char>(ev,0x36)==55&&actor&&actor!=ped&&pedFromRef(reference(actor))==actor){
+        bikeJackArms[reference(ped)]={reference(actor),actor,gameTime()+2000};
+        event("bike_jack_arms_started",reference(ped),at<short>(ped,0x22),"jacker_ref="+std::to_string(reference(actor))+" drag_task="+std::to_string(pedTaskChainHas(actor,820)));
+    }
     lease->detached=true;bikeEjections++;
     event("bike_native_handoff",reference(ped),at<short>(ped,0x22),
         "native_capsule_relocation="+std::to_string(nativeRelocation)+" source_vehicle="+std::to_string(lease->vehicle)+" no_launch=1");

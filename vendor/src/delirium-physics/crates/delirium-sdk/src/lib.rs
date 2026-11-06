@@ -273,6 +273,24 @@ pub unsafe extern "C" fn nm_world_add_mesh_two_sided(w:*mut NmWorld,positions:*c
     w.0.add_two_sided(p,t,m);0
 }
 
+/// Replaces the two-sided host mesh stored under `key` (one native entity).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_world_set_chunk_two_sided(w:*mut NmWorld,key:u64,positions:*const f32,vertices:i32,triangles:*const u32,count:i32,materials:*const u8)->i32{
+    let Some(w)=(unsafe{w.as_mut()})else{return fail(NM_E_ARG,"null world")};
+    if positions.is_null()||triangles.is_null()||vertices<0||count<0{return fail(NM_E_ARG,"invalid two-sided chunk arrays")}
+    let p=unsafe{std::slice::from_raw_parts(positions as *const[f32;3],vertices as usize)};
+    let t=unsafe{std::slice::from_raw_parts(triangles as *const[u32;3],count as usize)};
+    if t.iter().flatten().any(|&i|i as usize>=p.len()){return fail(NM_E_ARG,"chunk index out of bounds")}
+    let m=if materials.is_null(){&[]}else{unsafe{std::slice::from_raw_parts(materials,t.len())}};
+    w.0.remove_chunk(key);w.0.add_chunk_two_sided(key,p,t,m);0
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_world_remove_chunk(w:*mut NmWorld,key:u64)->i32{
+    let Some(w)=(unsafe{w.as_mut()})else{return fail(NM_E_ARG,"null world")};
+    w.0.remove_chunk(key);0
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_world_add_floor(w: *mut NmWorld, x: f32, y: f32, z: f32, half: f32) -> i32 {
     let Some(w) = (unsafe { w.as_mut() }) else { return fail(NM_E_ARG, "null world") };
@@ -612,7 +630,43 @@ pub unsafe extern "C" fn nm_agent_step(a: *mut NmAgent, w: *const NmWorld, dt: f
     }
     a.agent.doll.roll_push=None;
     a.set.fill(false);
+    end_no_collision_frame(a);
     0
+}
+
+/// 8247EF08 after a step: the vehicle left stays excluded while the step found
+/// any of its points; the first step with none ends the exclusion.
+pub(crate) fn end_no_collision_frame(a:&mut NmAgent){
+    let doll=&mut a.agent.doll;
+    if !std::mem::take(&mut doll.no_collision_met){doll.no_collision=None;}
+}
+
+/// The vehicle the ped just left (its external owner id; 0 clears): IV's
+/// no-collision entity, set by the jump out (824BD6DC, 8247EEA8 flag 0x40).
+/// Its contacts are dropped until the first step that finds none of them.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_set_no_collision(a:*mut NmAgent,owner:u64)->i32{
+    let a=agent!(a);
+    let doll=&mut a.agent.doll;
+    // The setter's first frame always counts as met (its bits 0x03).
+    (doll.no_collision,doll.no_collision_met)=if owner==0{(None,false)}else{(Some(owner),true)};
+    doll.no_collision_parts=if owner==0{0}else{u32::MAX};
+    0
+}
+
+/// 1 while the agent still ignores the vehicle it left, else 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_no_collision_active(a:*const NmAgent)->i32{
+    i32::from(agent_ref!(a).agent.doll.no_collision.is_some())
+}
+
+/// Diagnostic: last step's no-collision evidence bits (1 owner staged, 2 owner
+/// box overlaps the body, 4 a contact or child bound of that owner met, 8 a
+/// part came out by its own shape); bits 8.. count the parts still ignoring it.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_no_collision_diag(a:*const NmAgent)->i32{
+    let d=&agent_ref!(a).agent.doll;
+    i32::from(d.no_collision_seen)|(d.no_collision_parts.count_ones() as i32)<<8
 }
 
 #[unsafe(no_mangle)]
@@ -1144,6 +1198,23 @@ pub unsafe extern "C" fn nm_agent_has_fallen(a: *const NmAgent) -> i32 {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_agent_is_settled(a: *const NmAgent) -> i32 {
     agent_ref!(a).agent.settled() as i32
+}
+
+/// CTaskSimpleDead on its ragdoll (0x824CE598): stopAllBehaviours, then bodyRelax at 97 (+0x18 bit 8), once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_dead_relax(a: *mut NmAgent) -> i32 {
+    let a = agent!(a);
+    a.agent.stop_all_behaviours();
+    a.agent.body_relax_full(97.0, None, None, false);
+    0
+}
+
+/// Its freeze (0x824C8EF8): 1000 ms after the death and under 0.05 m/s the body comes off its simulation where it
+/// lies. The host decides both; this only puts the ragdoll to sleep (a moving obstacle wakes it).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_freeze(a: *mut NmAgent) -> i32 {
+    agent!(a).agent.doll.freeze();
+    0
 }
 
 #[unsafe(no_mangle)]

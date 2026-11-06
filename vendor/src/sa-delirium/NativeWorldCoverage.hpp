@@ -12,11 +12,11 @@ struct NativeWorldCoverage {
         const ColModel*col=nullptr;
         const ColData*data=nullptr;
         M frame{};
-        size_t offset=0,vertices=0;
+        size_t vertices=0;
+        std::vector<unsigned char> bytes; // this row's own copy of the native COL arrays
         unsigned short triangles=0,boxes=0,spheres=0;
     };
     std::map<void*,Row> rows;
-    std::vector<unsigned char> geometry;
     bool complete=false;V centre{};int area=-1;
     static M frame(void*e){M f{};if(auto*m=matrix(e))f=*m;else reinterpret_cast<void(__thiscall*)(void*,M*)>(0x54EF40)(static_cast<unsigned char*>(e)+4,&f);return f;}
     static bool sameFrame(const M&a,const M&b){return std::memcmp(&a.right,&b.right,sizeof(V))==0&&std::memcmp(&a.up,&b.up,sizeof(V))==0&&std::memcmp(&a.at,&b.at,sizeof(V))==0&&std::memcmp(&a.pos,&b.pos,sizeof(V))==0;}
@@ -26,7 +26,9 @@ struct NativeWorldCoverage {
         return !d->lines&&(d->triangles||d->boxes||d->spheres)&&
             (!d->triangles||(d->vertices&&d->tri))&&(!d->boxes||d->box)&&(!d->spheres||d->sphere);
     }
-    void begin(V origin,int currentArea){rows.clear();geometry.clear();complete=true;centre=origin;area=currentArea;}
+    // Rows persist across window moves; each entity is recorded when it enters or changes.
+    void begin(V origin,int currentArea){if(currentArea!=area)rows.clear();complete=true;centre=origin;area=currentArea;}
+    void erase(void*e){rows.erase(e);}
     void record(void*e,const ColModel*c,const M&m){
         const int type=at<unsigned char>(e,0x36)&7;
         if((type!=1&&type!=5)||!comparable(c))return;
@@ -36,11 +38,11 @@ struct NativeWorldCoverage {
             const auto&t=d->tri[i];
             count=std::max(count,size_t(std::max({t.a,t.b,t.c}))+1);
         }
-        rows[e]={at<short>(e,0x22),type,c,d,m,geometry.size(),count,d->triangles,d->boxes,d->spheres};
+        auto&row=rows[e];row={at<short>(e,0x22),type,c,d,m,count,{},d->triangles,d->boxes,d->spheres};
         auto append=[&](const void*values,size_t bytes){
             if(!bytes)return;
             const auto*data=static_cast<const unsigned char*>(values);
-            geometry.insert(geometry.end(),data,data+bytes);
+            row.bytes.insert(row.bytes.end(),data,data+bytes);
         };
         append(d->tri,d->triangles*sizeof(Tri));
         append(d->vertices,count*sizeof(Compressed));
@@ -51,7 +53,7 @@ struct NativeWorldCoverage {
         if(!comparable(c))return false;
         const auto*d=c->data;
         if(d->triangles!=r.triangles||d->boxes!=r.boxes||d->spheres!=r.spheres)return false;
-        const auto*bytes=geometry.data()+r.offset;
+        const auto*bytes=r.bytes.data();
         const auto equal=[&](const void*current,size_t length){
             const bool same=!length||std::memcmp(bytes,current,length)==0;
             bytes+=length;

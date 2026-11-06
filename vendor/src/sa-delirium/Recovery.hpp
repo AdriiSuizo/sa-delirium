@@ -54,6 +54,19 @@ static void releaseRecoveryTask(Active& a){
     }
     a.ownedTask=nullptr;
 }
+// A bike jack leaves SA's CTaskComplexFallAndGetUp (208) in an event-response
+// slot under the physical task. The physical get-up has already played its
+// CTaskSimpleGetUp clip: kept, it played the same clip a second time after the
+// hand-back (CJ jacked off a BMX, 06/11). Slots are CTaskManager's primaries.
+static void retireNativeFallAndGetUp(Active&a){
+    void*m=taskManager(a.ped);if(!m)return;
+    for(int slot:{1,2,3}){
+        void*t=at<void*>(m,slot*4);
+        if(!t||reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[4])(t)!=208)continue;
+        reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(m,nullptr,slot,true);
+        event("native_fall_getup_retired",a.ref,a.model,"slot="+std::to_string(slot));
+    }
+}
 static bool ensureRecoveryTask(Active&a){
     if(a.taskAborted)return false;
     if(a.ownedTask&&physicalTask(a.ped)==a.ownedTask)return true;
@@ -66,6 +79,7 @@ static bool ensureRecoveryTask(Active&a){
 }
 static bool resumePhysicalContact(Active&a,const char*reason){
     if(!a.recovering&&!a.taskAborted)return false;
+    const bool interruptedGetUp=a.recovering;
     releaseRecoveryTask(a);
     if(a.recovering&&a.recoveryAnimatedOwner&&!a.lastRendered.empty())for(int n=0;n<21;n++){
         const T pose=a.renderedParts[n];
@@ -77,6 +91,9 @@ static bool resumePhysicalContact(Active&a,const char*reason){
     a.uprightRecovery=false;a.recoveryStage=0;a.accumulator=0;a.stableFor=0;a.start=gameTime();a.bumpReady=false;a.exitReady=false;a.entryReady=false;
     if(applyBones)at<unsigned char>(a.ped,0x1C)&=~1u;
     recoveryInterrupted++;event(reason,a.ref,a.model,"same_agent=1 native_collision_gap=0 retained_rendered_velocity=1");
+    // A hit during the get-up keeps the same body, but it is still the
+    // recovery interruption Test-Recovery/Record-NativeRecovery look for.
+    if(interruptedGetUp)event("recovery_interrupted_by_damage",a.ref,a.model,reason);
     return true;
 }
 static void __cdecl recoveryFinishCallback(void*anim,void*task){
@@ -125,6 +142,17 @@ static void* recoveryBlockingCar(void*p){
     return car;
 }
 static bool __fastcall getupAbort(void*task,void*,void*ped,int priority,void*ev){
+    // Adrii 06/11: CJ getting up off the ground takes every blow's damage but is
+    // not put down again, so several attackers cannot keep him on the floor. A
+    // task that refuses to abort is SA's own path for that (ComputeDamageAnim
+    // 0x4B3FC0 / ComputeDeathAnim: no damage anim, no fall, the damage stays).
+    // Only living, melee-weapon damage (0..15); cars, shots and fatal blows abort.
+    if(ped==player()&&at<float>(ped,0x540)>0&&ev&&reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(ev))[1])(ev)==9&&
+       static_cast<DamageEvent*>(ev)->weapon>=0&&static_cast<DamageEvent*>(ev)->weapon<=15){
+        static unsigned logged=0;
+        if(gameTime()-logged>=250){logged=gameTime();event("player_getup_kept",reference(ped),at<short>(ped,0x22),"weapon="+std::to_string(static_cast<DamageEvent*>(ev)->weapon)+" health="+std::to_string(at<float>(ped,0x540))+" owned="+std::to_string(ownedRecovery(task,ped)!=nullptr));}
+        return false;
+    }
     // A dormant native GetUp would reject nonfatal damage because it has no
     // animation yet. Allow events to interrupt our task; SA still decides damage.
     if(auto*a=ownedRecovery(task,ped);a&&priority>=1){
@@ -304,7 +332,7 @@ static void commitPendingRecoveryPlacements(){
         bool clear=reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
             (from,from.z-1.3f-standing,ground,support,true,true,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.45f;
         V ivRoot{};int why=clear?0:1;if(clear){target.z=ground.point.z+clearance;ivRoot=target+V{0,0,1.f-clearance};
-            const int room=nm_world_recovery_room(collision->world,&ivRoot.x,(2ull<<32)|uint32_t(ref));clear=room==1;if(room<0)ok(room);if(!clear)why=2;}
+            const int room=nm_agent_recovery_room(a.agent,collision->world,&ivRoot.x,(2ull<<32)|uint32_t(ref));clear=room==1;if(room<0)ok(room);if(!clear)why=2;}
         if(clear)for(auto&[otherRef,other]:agents)if(otherRef!=ref&&!other->preview&&!other->mounted&&
             !(other->recovering&&other->recoveryAnimatedOwner)&&pedFromRef(otherRef)==other->ped){
             const int occupied=nm_agent_recovery_room_obstructed(other->agent,&ivRoot.x);if(occupied!=0){if(occupied<0)ok(occupied);clear=false;why=3;break;}}

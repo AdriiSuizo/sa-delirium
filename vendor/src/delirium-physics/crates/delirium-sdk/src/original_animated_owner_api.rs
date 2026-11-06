@@ -40,6 +40,16 @@ pub unsafe extern "C" fn nm_world_recovery_room(w:*const NmWorld,root:*const f32
     if root.is_null(){return fail(NM_E_ARG,"null recovery room root")}
     original::room_clear(&w.0,&w.1,unsafe{v3(root)},exclude_owner) as i32
 }
+/// The same room test for one body: the vehicle it still ignores (set by the
+/// jump out, held until the bounds part) never blocks its own get-up, as SA
+/// skips the ignored entity in every collision test of that ped.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_recovery_room(a:*const NmAgent,w:*const NmWorld,root:*const f32,exclude_owner:u64)->i32{
+    let Some(a)=(unsafe{a.as_ref()})else{return fail(NM_E_ARG,"null recovery room agent")};
+    let Some(w)=(unsafe{w.as_ref()})else{return fail(NM_E_ARG,"null recovery room world")};
+    if root.is_null(){return fail(NM_E_ARG,"null recovery room root")}
+    original::room_clear_ignoring(&w.0,&w.1,unsafe{v3(root)},exclude_owner,a.agent.doll.no_collision) as i32
+}
 /// 8261E688: while BlendFromNM waits for room, all preceding responses have
 /// ended and NM is relaxed, still simulated. No pose reset or velocity change.
 #[unsafe(no_mangle)]

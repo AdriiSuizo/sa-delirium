@@ -13,6 +13,10 @@ struct CombatActor {
     int lastResult=-2,deferredIntent=-1,lastDecision=0;bool owned=false;
     CombatPoseHistory poseHistory;SeedEpoch poseEpoch{},previousPoseEpoch{},fedPoseEpoch{};T finalizedRoot{};bool authoredPose=false;
     void*clubClump=nullptr;int clubModel=-1;bool clubReady=false;std::array<float,8> clubBounds{};
+    // Last drawn authored pose about the ped's root, and when: the release blend's source.
+    std::vector<T> releaseLocal;unsigned releasedAt=0;
+    // Last pose drawn while not owned (SA's or the IV locomotion's), and when the authored pose took over.
+    std::vector<T> drawnLocal;unsigned drawnAt=0,ownedSince=0;
 };
 static NmCombat* combat=nullptr;
 static bool combatFrameReady=false;
@@ -268,11 +272,44 @@ static CombatActor* combatRegister(void*p){
         return &fighters.insert_or_assign(ref,std::move(a)).first->second;
     }catch(const std::exception&e){event("combat_rig_rejected",ref,model,e.what());return nullptr;}
 }
+constexpr float combatReleaseSeconds=.25f;
 static bool combatRender(void*p){
     auto i=fighters.find(reference(p));if(i==fighters.end()||!combatOwns(p))return false;
     auto&a=i->second;auto*h=hierarchy(p);if(!h||h->num!=int(a.pose.size()))return false;
     auto pose=a.pose;const V delta=position(p)-a.root;for(auto&t:pose)t.p=t.p+delta;
-    const auto output=a.rig->renderPalette(h->matrices,pose);std::copy(output.begin(),output.end(),h->matrices);return true;
+    // Taking over: the authored pose's own blend starts from SA's raw palette, not from what was on screen
+    // (the IV locomotion layer). Blend in from the last drawn pose over the same time as the release.
+    const unsigned now=gameTime();
+    if(a.releaseLocal.empty()||now-a.releasedAt>50)a.ownedSince=now;
+    if(const float t=(now-a.ownedSince)*.001f;t<combatReleaseSeconds&&a.drawnLocal.size()==pose.size()&&a.ownedSince-a.drawnAt<=100){
+        const T root=transform(*matrix(p));std::vector<T> shown;shown.reserve(pose.size());for(const auto&l:a.drawnLocal)shown.push_back(mul(root,l));
+        pose=a.rig->blendBones(shown,pose,t/combatReleaseSeconds);
+    }
+    const auto output=a.rig->renderPalette(h->matrices,pose);std::copy(output.begin(),output.end(),h->matrices);
+    const T root=inverse(transform(*matrix(p)));a.releaseLocal.clear();for(const auto&t:pose)a.releaseLocal.push_back(mul(root,t));a.releasedAt=gameTime();
+    return true;
+}
+// When the authored melee pose stops owning the body (the stance quit, a hit
+// reaction over) SA's own pose came back in one frame: up to 0.6 m at a hand.
+// IV's move network never cuts out of a melee clip; draw the last authored pose
+// blending into the current on-foot pose over this time. Drawing only: SA's
+// movement, heading and contacts are already its own.
+static void combatReleaseRender(void*p){
+    auto i=fighters.find(reference(p));if(i==fighters.end())return;auto&a=i->second;
+    if(a.releaseLocal.empty())return;
+    const unsigned now=gameTime();const float t=(now-a.releasedAt)*.001f;
+    auto*h=hierarchy(p);std::array<T,21> parts;std::vector<T> current;
+    if(a.ped!=p||agents.contains(i->first)||now<a.releasedAt||t>=combatReleaseSeconds||!h||h->num!=int(a.releaseLocal.size())||!a.rig->incoming(p,parts,current)){a.releaseLocal.clear();return;}
+    // (the drawn pose for a later take-over is recorded by combatRecordDrawn)
+    const T root=transform(*matrix(p));std::vector<T> held;held.reserve(a.releaseLocal.size());for(const auto&l:a.releaseLocal)held.push_back(mul(root,l));
+    const auto blended=a.rig->blendBones(current,held,1.f-t/combatReleaseSeconds);
+    const auto output=a.rig->renderPalette(h->matrices,blended);std::copy(output.begin(),output.end(),h->matrices);
+}
+// After every non-owned draw: what is on screen now, about the root, for the next take-over.
+static void combatRecordDrawn(void*p){
+    auto i=fighters.find(reference(p));if(i==fighters.end()||i->second.ped!=p)return;auto&a=i->second;
+    std::array<T,21> parts;std::vector<T> current;if(!a.rig->incoming(p,parts,current)){a.drawnLocal.clear();return;}
+    const T root=inverse(transform(*matrix(p)));a.drawnLocal.clear();for(const auto&t:current)a.drawnLocal.push_back(mul(root,t));a.drawnAt=gameTime();
 }
 static bool combatQueryPose(void*p,std::vector<T>&pose){
     if(!combatOwns(p))return false;auto&a=fighters.at(reference(p));pose=a.pose;
@@ -560,7 +597,13 @@ static void combatFinish(){
         float contactGap=0;const bool geometric=nm_combat_contact_gap(combat,source,target,&contactGap)==1;
         if(geometric)event("combat_contact_geometry",target,at<short>(p,0x22),"attacker="+std::to_string(source)+" striker_iv="+std::to_string(int(hit[12]))+" signed_clearance_m="+std::to_string(contactGap)+" root_distance_m="+std::to_string(length(position(by)-position(p)))+" point="+std::to_string(hit[4])+","+std::to_string(hit[5])+","+std::to_string(hit[6])+" fitted_bounds=1 exact_boxes=1");
         event(motorStart?"combat_reaction_motor_start":hit[15]==1?"combat_authored_damage":"combat_contact",target,at<short>(p,0x22),"attacker="+std::to_string(source)+" part="+std::to_string(part)+" weapon="+std::to_string(weapon)+" damage_iv="+std::to_string(hit[3])+" health_after="+std::to_string(at<float>(p,0x540))+" health_before="+std::to_string(before)+" reaction="+std::to_string(int(hit[8]))+" ragdoll="+std::to_string(int(hit[7]))+" blocked="+std::to_string(int(hit[14]))+" on_mission="+std::to_string(onMission())+" script_mission="+std::to_string(scriptMissionActive()));
-        if(hit[7]!=0||(!motorStart&&at<float>(p,0x540)<=0)){
+        // CJ already down or getting up keeps getting up (Recovery.hpp getupAbort):
+        // the blow's damage is in, but no new physical reaction restarts his fall.
+        const auto down=agents.find(target);
+        const bool playerKeepsGettingUp=p==player()&&at<float>(p,0x540)>0&&down!=agents.end()&&!down->second->mounted&&
+            (down->second->recovering||(down->second->current[10].p-down->second->current[0].p).z<.30f);
+        if(playerKeepsGettingUp&&hit[7]!=0)event("player_getup_kept",target,at<short>(p,0x22),"combat_reaction_skipped=1 attacker="+std::to_string(source));
+        if(!playerKeepsGettingUp&&(hit[7]!=0||(!motorStart&&at<float>(p,0x540)<=0))){
             auto&a=fighters[target];Request r;r.kind=Reaction::Melee;r.time=now;r.attackerRef=source;r.weapon=weapon;r.part=part;r.nativeMeleePart=part;r.playerVehicle=p==player();r.meleeContactReady=true;
             if(!motorStart)r.combatDamage={now,source,weapon,piece};
             r.originalMeleeBlow=hit[15]==0;r.contactKnown=true;r.contact={hit[4],hit[5],hit[6]};r.direction=normalized(r.contact-position(by));r.contactNormal=normalized(V{hit[9],hit[10],hit[11]});

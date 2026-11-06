@@ -102,6 +102,14 @@ static int bikeFixture(int mode,int vehicleModel=461){
         if(!vehicleFromRef(probeBike))return -32;
         ProbeScript rider(0x0129);rider.integer(probeBike);rider.integer(4);rider.integer(7);rider.result();probeBikePed=rider.run();
         auto*p=pedFromRef(probeBikePed);if(!p||!ridingBike(p))return -33;
+        // GTASA_BIKE_FIXTURE_CRUISE=<speed>: the rider drives on as a normal
+        // civilian (00A8 CAR_WANDER_RANDOMLY, 00AD cruise speed) before the hit.
+        // 00A9 is CAR_SET_IDLE: it kept the bike parked.
+        char cruise[16]{};if(GetEnvironmentVariableA("GTASA_BIKE_FIXTURE_CRUISE",cruise,sizeof cruise)){
+            ProbeScript wander(0x00A8);wander.integer(probeBike);wander.run();
+            ProbeScript speed(0x00AD);speed.integer(probeBike);speed.number(float(std::atof(cruise)));speed.run();
+            event("probe_bike_fixture_cruise",probeBikePed,at<short>(p,0x22),std::string("cruise=")+cruise);
+        }
         event("probe_bike_rider_created",probeBikePed,at<short>(p,0x22),"bike_ref="+std::to_string(probeBike));return probeBikePed;
     }
     auto*p=pedFromRef(probeBikePed);auto*v=vehicleFromRef(probeBike);
@@ -124,10 +132,19 @@ static int bikeFixture(int mode,int vehicleModel=461){
 static int bikeHitFixture(int mode){
     if(mode==20||mode==21){
         static unsigned count=0;if(count++>=6)return -40;
+        // The previous case's bike and rider lay 3 m from the next spawn: the
+        // next rider fell onto them, a two-bike pile instead of the case under
+        // test. Remove them first (DELETE_CHAR 009B, DELETE_CAR 00A6).
+        // GTASA_BIKE_FIXTURE_PILE keeps them: the pile case for a body between two lying vehicles.
+        if(GetEnvironmentVariableA("GTASA_BIKE_FIXTURE_PILE",nullptr,0)){event("probe_bike_fixture_pile_kept",probeBikePed,-1,"bike_ref="+std::to_string(probeBike));probeBike=-1;probeBikePed=-1;return bikeFixture(4,mode==20?461:481);}
+        if(auto*old=pedFromRef(probeBikePed);old&&old!=player()){ProbeScript d(0x009B);d.integer(probeBikePed);d.run();}
+        if(vehicleFromRef(probeBike)){ProbeScript d(0x00A6);d.integer(probeBike);d.run();}
+        event("probe_bike_fixture_cleared",probeBikePed,-1,"bike_ref="+std::to_string(probeBike)+" ped_left="+std::to_string(pedFromRef(probeBikePed)!=nullptr)+" bike_left="+std::to_string(vehicleFromRef(probeBike)!=nullptr));
         probeBike=-1;probeBikePed=-1;return bikeFixture(4,mode==20?461:481);
     }
     auto*p=pedFromRef(probeBikePed);if(!p||!ridingBike(p))return -34;
     const int weapon=mode==31?0:22;
-    reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,nullptr,weapon,mode==32?1000:12,3,0);
+    // CJ is the shooter, as in play: the damage event then carries his side.
+    reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,player(),weapon,mode==32?1000:12,3,0);
     event("probe_bike_hit",probeBikePed,at<short>(p,0x22),"weapon="+std::to_string(weapon));return probeBikePed;
 }

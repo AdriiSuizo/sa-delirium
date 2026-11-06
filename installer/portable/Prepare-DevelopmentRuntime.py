@@ -47,7 +47,7 @@ def main():
     // The same DLL owns the ISO reader and the SDK; no baked kv.bin or
     // original game resources are linked into the distribution runtime.
     using PrepareOwned=int(__cdecl*)(const wchar_t*,size_t,unsigned char*,size_t);
-    auto sharedCore=GetModuleHandleW(L"sa_delirium_bootstrap.dll");
+    auto sharedCore=physics_engine_variant::load();
     auto prepareOwned=sharedCore?reinterpret_cast<PrepareOwned>(GetProcAddress(sharedCore,"sa_delirium_prepare")):nullptr;
     const auto ownedRoot=fs::path(exe).parent_path().wstring();
     unsigned char preparationStatus[2048]{};
@@ -56,6 +56,9 @@ def main():
     }
 '''
             text = text.replace(old, before + 'if(nm_version()!=100)')
+            # The engine is this shared DLL, delay-loaded from scripts/ with its
+            # AVX2 build chosen per CPU (PhysicsEngineVariant.hpp).
+            text = '#define DELIRIUM_ENGINE_DLL "sa_delirium_bootstrap.dll"\n#define DELIRIUM_ENGINE_AVX2_DLL "sa_delirium_bootstrap_avx2.dll"\n' + text
         (args.out / path.name).write_text(text, encoding='utf-8', newline='\n')
     (args.out / 'source-receipt.json').write_text(json.dumps({
         'source_sha256': records, 'changes': ['Use clean shared ISO/SDK DLL and v3 resource cache'],

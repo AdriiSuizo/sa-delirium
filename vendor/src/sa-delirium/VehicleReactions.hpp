@@ -97,6 +97,18 @@ static void startReaction(Active& a,const Request& request){
         ok(nm_agent_road_preview(a.agent,collision->world,at<float>(a.ped,0x540)<55.f?1:0));
         a.brace=true;braceStarts++;
         event("vehicle_brace_started",a.ref,a.model,"vehicle_ref="+std::to_string(a.vehicle)+" original_task_parameters=1");
+    }else if(request.kind==Reaction::BikeFall&&!a.mounted&&at<float>(a.ped,0x540)>0){
+        // IV thrown off a bike (0x824662D0 past the NM gate, reason 14): the
+        // jump roll from road vehicle with the bike's velocity, never balance,
+        // 2..30 s; its finish (Flinch's) hands the body back.
+        const V inherited=request.pose?request.pose->velocity*50.f:at<V>(a.ped,0x44)*50.f;
+        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&inherited.x,at<float>(a.ped,0x540)*2.f,a.ped==player()?1u:0u)))
+            event("bike_throw_task_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(inherited))+" original_times=2_30 added_launch=0");
+    }else if(request.kind==Reaction::BikeFall&&at<float>(a.ped,0x540)<=0){
+        // Dead coming off the bike, on its ragdoll with no NM reaction of its own: CTaskComplexDie relaxes it
+        // (NMRelax, 0x824CAFF8) and CTaskSimpleDead relaxes at 97. catchFall held the corpse's arms out stiff.
+        ok(nm_agent_dead_relax(a.agent));
+        event("dead_rider_relax_started",a.ref,a.model,"relax=97 original_dead_task=1");
     }else if(request.kind==Reaction::BikeFall||request.kind==Reaction::Explosion||length(request.impulse)>85.f||at<float>(a.ped,0x540)<=0){
         stopBehaviour(a,"bodyBalance");
         ok(nm_agent_task_catch_fall(a.agent,"*"));
@@ -248,8 +260,9 @@ static void updateVehicleReaction(Active& a){
     // Bracing against a body panel must not acquire an invented handle.
 }
 static bool updateVehicleExitTask(Active& a){
-    if(a.kind!=Reaction::VehicleExit)return true;
+    if(a.kind!=Reaction::VehicleExit&&a.kind!=Reaction::BikeFall)return true;
     float state[4]{};const int phase=nm_agent_vehicle_exit_status(a.agent,state);
+    if(a.kind==Reaction::BikeFall&&phase==0)return true; // mounted or dead: no thrown-off task
     if(phase<0){ok(phase);return false;}
     const bool ready=state[2]>0;
     if(a.exitPhase!=phase||a.exitReady!=ready){
@@ -309,12 +322,14 @@ static void scanApproachingCars(){
     static unsigned lastScan=0;static std::map<int,unsigned> cooldown;
     const auto now=gameTime();if(now-lastScan<150)return;lastScan=now;
     if(!detectImpacts||!player()||area()!=0||int(agents.size()+pending.size())>=maxActive)return;
-    collision->update(position(player()));auto*pool=pedPool();if(!pool)return;
+    collision->update(physicsWorldOrigin());auto*pool=pedPool();if(!pool)return;
     for(int i=0;i<pool->size;i++)if(!(pool->flags[i]&0x80)){
         auto*p=pool->objects+i*0x7C4;const int ref=(i<<8)|pool->flags[i];
         if(!validPed(p)||at<unsigned char>(p,0x484)!=1||agents.contains(ref)||pending.contains(ref)||now-cooldown[ref]<6000)continue;
         for(const auto&v:collision->vehicles){
-            if(v.component||at<int>(v.entity,0x594)!=0)continue;
+            // Cars, motorbikes and bicycles (subtype 0, 9, 10; each bike's chassis
+            // row): a slow bike rolling into a ped gets the same hand on it.
+            if(const int subtype=at<int>(v.entity,0x594);v.component||(subtype!=0&&subtype!=9&&subtype!=10))continue;
             const float speed=length(v.velocity);if(speed<.3f||speed>6.f)continue;
             const V local=mul(inverse(v.frame),T{{},position(p)}).p;
             if(std::abs(local.z)>v.half.z+1.2f)continue;

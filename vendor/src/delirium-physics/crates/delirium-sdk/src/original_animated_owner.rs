@@ -58,7 +58,9 @@ pub fn fragment_parts()->&'static [ObPart;4]{
 /// Original standing-room probe82368F78, used only after pose fitting.
 /// This is NOT the locomotion world's support filter and does not certify a
 /// route from the old root or a full animation trajectory.
-pub fn room_clear(world:&Collision,obstacles:&[Obstacle],at:Vec3,exclude:u64)->bool{
+pub fn room_clear(world:&Collision,obstacles:&[Obstacle],at:Vec3,exclude:u64)->bool{room_clear_ignoring(world,obstacles,at,exclude,None)}
+/// `ignored`: the vehicle the body still ignores (SA m_pEntityIgnoredCollision) does not take its room.
+pub fn room_clear_ignoring(world:&Collision,obstacles:&[Obstacle],at:Vec3,exclude:u64,ignored:Option<u64>)->bool{
     if !at.is_finite(){return false}
     let radius=0.25;let down=0.4;let up=0.57;
     let shape=gjk::Shape::Capsule((up+down)*0.5,radius);
@@ -70,7 +72,7 @@ pub fn room_clear(world:&Collision,obstacles:&[Obstacle],at:Vec3,exclude:u64)->b
         if gjk::closest(&shape,stand,centre-t[0],&tri,Mat3::IDENTITY,Vec3::ZERO,Vec3::X,f32::INFINITY,Some(gjk::Pen::Tri(dirs))).is_some_and(|q|q.dist<0.){return false}
     }
     for ob in obstacles{
-        if ob.owner==Some(exclude){continue}
+        if ob.owner==Some(exclude)||(ignored.is_some()&&ob.owner==ignored){continue}
         let r=Mat3::from_quat(ob.rot);
         let meets=|s:&gjk::Shape,m:Mat3,p:Vec3|gjk::closest(&shape,stand,centre,s,m,p,Vec3::X,f32::INFINITY,Some(gjk::Pen::Sphere)).is_some_and(|q|q.dist<0.);
         if ob.parts.is_empty(){if meets(&gjk::Shape::Box(ob.half,0.),r,ob.centre){return false}}

@@ -12,6 +12,9 @@ pub(super) struct VehicleExit {
     failed: bool,
     ready: bool,
     relax_start: f32,
+    /// NMJumpRollFromRoadVehicle's finish window (82613AA8, the player's
+    /// `bail_times`): 3..6 s for the bail out of a car, 2..30 s thrown off a bike.
+    times: [f32; 2],
 }
 
 impl VehicleExit {
@@ -43,7 +46,7 @@ impl VehicleExit {
             }
             // A force lease for this SDK update and all its solver substeps.
             a.doll.roll_push = Some((with_tp(delirium::jumproll::Set::read),self.velocity,self.phase==3));
-            nm::task_finish_as(nm::Task::Flinch, age, [3.0,6.0], a.doll.com().1.length(), a.doll.root().z,
+            nm::task_finish_as(nm::Task::Flinch, age, self.times, a.doll.com().1.length(), a.doll.root().z,
                 false, 0, self.health, self.player)
         };
         match next {
@@ -71,8 +74,25 @@ pub unsafe extern "C" fn nm_agent_vehicle_exit_start(a:*mut NmAgent,w:*const NmW
     if phase==1 {
         with_tp(|tp|nm::task_balance(&mut a.agent,&a.build,&w.0,tp,nm::balance_set(agility.clamp(0.0,255.0) as u8,health,flags&1!=0,flags&2!=0),None,false));
     }else{with_tp(|tp|nm::task_jump_roll(&mut a.agent,&a.build,&w.0,tp));}
-    a.vehicle_exit=VehicleExit{phase,velocity:v,health,player:flags&1!=0,..Default::default()};
+    a.vehicle_exit=VehicleExit{phase,velocity:v,health,player:flags&1!=0,times:[3.0,6.0],..Default::default()};
     phase
+}
+
+/// Thrown off a bike by a crash (0x824662D0 past the NM gate, reason 14): the
+/// rider comes off on the ragdoll with the bike's velocity and always takes
+/// the jump roll (no NMBalance, whatever the speed), 2..30 s (the viewer's
+/// `thrown_off_bike`: bail, not bail_balance, bail_times [2, 30]). Velocity is
+/// world m/s, health IV's 0..200, flags: player=1. Returns 2; adds no launch.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_bike_throw_start(a:*mut NmAgent,w:*const NmWorld,velocity:*const f32,health:f32,flags:u32)->i32 {
+    let a=agent!(a);
+    let Some(w)=(unsafe{w.as_ref()}) else{return fail(NM_E_ARG,"null world")};
+    if velocity.is_null()||!health.is_finite()||flags & !1 != 0{return fail(NM_E_ARG,"invalid bike throw arguments")}
+    let v=unsafe{v3(velocity)};if !v.is_finite(){return fail(NM_E_ARG,"invalid bike throw velocity")}
+    a.agent.stop_all_behaviours();a.road=Default::default();
+    with_tp(|tp|nm::task_jump_roll(&mut a.agent,&a.build,&w.0,tp));
+    a.vehicle_exit=VehicleExit{phase:2,velocity:v,health,player:flags&1!=0,times:[2.0,30.0],..Default::default()};
+    2
 }
 
 /// Cancel timers and the pending force lease when another reaction takes over.

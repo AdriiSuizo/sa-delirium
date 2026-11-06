@@ -1,4 +1,6 @@
 #pragma once
+#include <unordered_map>
+#include <unordered_set>
 #include "ABI.hpp"
 #include "FrameCostProfile.hpp"
 #include "delirium_physics.h"
@@ -47,25 +49,29 @@ struct CollisionWorld {
         for(const auto&v:vehicles)if(v.ref!=ignore&&v.shape&&v.shape->id>=0)
             nm_world_set_vehicle_shape(world,v.index,v.shape->id,&v.spin.x);
     }
+    // One NM chunk per native host entity (key = entity address). A window move
+    // or periodic refresh decodes only entities that entered or changed and
+    // removes those that left: rebuilding the whole merged mesh cost 8-14 ms
+    // in one frame every 2 s and every 12 m CJ moved (group run-over, 05/11).
+    struct EntityChunk {const ColModel*col=nullptr;const ColData*data=nullptr;M frame{};short model=-1;unsigned char type=0;std::vector<float> verts;std::vector<uint8_t> materials;};
+    std::unordered_map<void*,EntityChunk> entityChunks;
+    unsigned changedEntities=0;
+    static uint64_t chunkKey(void*e){return uint64_t(reinterpret_cast<uintptr_t>(e));}
     void rebuild(V origin,void*required=nullptr){
         FrameCostProfile cost("world_rebuild",0,0,-1,-1,0.);
+        if(world&&currentArea!=area()){nm_world_destroy(world);world=nullptr;}
+        if(!world){entityChunks.clear();nativeCoverage.rows.clear();world=nm_world_create();}
         nativeCoverage.begin(origin,area());
-        std::vector<float> verts;std::vector<uint32_t> indices;std::vector<uint8_t> materials;
-        std::array<void*,1025> found{};short count=0;entities=0;simpleTransforms=0;skippedNoCollision=0;meshSources.clear();
+        if(!world){nativeCoverage.complete=false;return;}
+        std::array<void*,1025> found{};short count=0;entities=0;simpleTransforms=0;skippedNoCollision=0;changedEntities=0;
         // Bound-volume query: origin-only564A20 can omit large COLs whose
         // triangles overlap the retained mesh even when their origin is far.
         reinterpret_cast<void(__cdecl*)(const V&,float,bool,short*,short,void**,bool,bool,bool,bool,bool)>(0x568B80)(origin,100.f,true,&count,1024,found.data(),true,false,false,true,true);
         if(count<0||count>=1024)nativeCoverage.complete=false;
         count=std::clamp<short>(count,0,1024);
         if(required&&std::find(found.begin(),found.begin()+count,required)==found.begin()+count)found[count++]=required;
-        auto triangle=[&](V a,V b,V c,unsigned char mat){
-            V lo{std::min({a.x,b.x,c.x}),std::min({a.y,b.y,c.y}),std::min({a.z,b.z,c.z})};
-            V hi{std::max({a.x,b.x,c.x}),std::max({a.y,b.y,c.y}),std::max({a.z,b.z,c.z})};
-            if(origin.x+45<lo.x||origin.x-45>hi.x||origin.y+45<lo.y||origin.y-45>hi.y||origin.z+20<lo.z||origin.z-30>hi.z)return;
-            if(materials.size()>=60000){nativeCoverage.complete=false;return;}
-            if(length(cross(b-a,c-a))<1.e-5f)return;
-            for(V v:{a,b,c}){indices.push_back(uint32_t(verts.size()/3));verts.insert(verts.end(),{v.x,v.y,v.z});}materials.push_back(mat);
-        };
+        std::unordered_set<void*> seen;seen.reserve(size_t(count)*2);
+        std::vector<uint32_t> indices;
         for(int n=0;n<count;n++){
             auto* e=found[n];if(!e||(at<unsigned char>(e,0x2F)!=area()&&at<unsigned char>(e,0x2F)!=13))continue;
             // CEntity::bUsesCollision (0x1C bit 0). SA never collides with
@@ -78,9 +84,20 @@ struct CollisionWorld {
             // still have collision; skipping them silently removes road tiles.
             // Convert into a local RwMatrix, without allocating/mutating theirs.
             M simple{};if(!m){reinterpret_cast<void(__thiscall*)(void*,M*)>(0x54EF40)(static_cast<unsigned char*>(e)+4,&simple);m=&simple;simpleTransforms++;}
-            auto* d=col->data;entities++;
-            nativeCoverage.record(e,col,*m);
-            meshSources.push_back({uint32_t(materials.size()),0,at<short>(e,0x22),at<unsigned char>(e,0x36)&7,m->pos,d->triangles,d->boxes,d->spheres,m==&simple});
+            // Whole entities whose COL box reaches the window (+-45 m, z -30..+20).
+            V lo{INFINITY,INFINITY,INFINITY},hi{-INFINITY,-INFINITY,-INFINITY};
+            for(int k=0;k<8;k++){const V c=point(*m,{k&1?col->box.max.x:col->box.min.x,k&2?col->box.max.y:col->box.min.y,k&4?col->box.max.z:col->box.min.z});
+                lo={std::min(lo.x,c.x),std::min(lo.y,c.y),std::min(lo.z,c.z)};hi={std::max(hi.x,c.x),std::max(hi.y,c.y),std::max(hi.z,c.z)};}
+            if(e!=required&&(origin.x+45<lo.x||origin.x-45>hi.x||origin.y+45<lo.y||origin.y-45>hi.y||origin.z+20<lo.z||origin.z-30>hi.z))continue;
+            auto* d=col->data;entities++;seen.insert(e);
+            const short model=at<short>(e,0x22);const unsigned char type=at<unsigned char>(e,0x36)&7;
+            if(auto it=entityChunks.find(e);it!=entityChunks.end()&&it->second.col==col&&it->second.data==d&&it->second.model==model&&
+               it->second.type==type&&NativeWorldCoverage::sameFrame(it->second.frame,*m))continue;
+            EntityChunk chunk{col,d,*m,model,type};
+            auto triangle=[&](V a,V b,V c,unsigned char mat){
+                if(length(cross(b-a,c-a))<1.e-5f)return;
+                chunk.verts.insert(chunk.verts.end(),{a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z});chunk.materials.push_back(mat);
+            };
             if(d->vertices&&d->tri)for(int i=0;i<d->triangles;i++){
                 const auto t=d->tri[i];auto v=[&](int k){V p;reinterpret_cast<void(__thiscall*)(void*,V&,int)>(0x40F5E0)(d,p,k);return point(*m,p);};
                 // SA CColTrianglePlane uses (C-A) cross (B-A); NM uses (B-A) cross
@@ -109,45 +126,42 @@ struct CollisionWorld {
                 };
                 for(auto& t:f)subdivide(subdivide,v[t[0]],v[t[1]],v[t[2]],2);
             }
-            meshSources.back().count=uint32_t(materials.size())-meshSources.back().first;
+            const int triangleCount=int(chunk.materials.size());
+            indices.resize(size_t(triangleCount)*3);for(size_t i=0;i<indices.size();i++)indices[i]=uint32_t(i);
+            if(triangleCount==0)nm_world_remove_chunk(world,chunkKey(e));
+            else if(nm_world_set_chunk_two_sided(world,chunkKey(e),chunk.verts.data(),triangleCount*3,indices.data(),triangleCount,chunk.materials.data())<0)nativeCoverage.complete=false;
+            nativeCoverage.record(e,col,*m);
+            entityChunks[e]=std::move(chunk);changedEntities++;
         }
         cost.lap(0);
-        // Recheck the native map every time. Reuse its acceleration data only
-        // for identical vertices, material bytes and triangle order.
-        const bool reuse=world&&!materials.empty()&&materials==builtMaterials&&indices==builtIndices&&
-            verts.size()==builtVertices.size()&&std::memcmp(verts.data(),builtVertices.data(),verts.size()*sizeof(float))==0;
-        bool imported=false;
-        if(!reuse){
-            auto* next=nm_world_create();
-            if(!next){nativeCoverage.complete=false;return;}
-            imported=!materials.empty()&&nm_world_add_mesh_two_sided(next,verts.data(),int(verts.size()/3),indices.data(),int(materials.size()),materials.data())>=0&&
-                nm_world_triangle_count(next)==int(materials.size());
-            if(!imported){nativeCoverage.complete=false;builtVertices.clear();builtIndices.clear();builtMaterials.clear();}
-            if(world)nm_world_destroy(world);
-            world=next;
-        }else{
-            // A freshly created world has no peer or vehicle snapshots.
-            nm_world_set_capsules(world,nullptr,0);
-            nm_world_set_boxes(world,nullptr,0);
+        for(auto it=entityChunks.begin();it!=entityChunks.end();){
+            if(seen.contains(it->first)){++it;continue;}
+            nm_world_remove_chunk(world,chunkKey(it->first));nativeCoverage.erase(it->first);it=entityChunks.erase(it);changedEntities++;
         }
-        cost.ref=reuse;
-        cost.model=nm_world_triangle_count(world);
+        // Coverage rows exist only for entities still in the window.
+        for(auto it=nativeCoverage.rows.begin();it!=nativeCoverage.rows.end();)if(entityChunks.contains(it->first))++it;else it=nativeCoverage.rows.erase(it);
+        const int total=nm_world_triangle_count(world);
+        if(total>200000)nativeCoverage.complete=false;
+        cost.ref=int(changedEntities);cost.model=total;
         cost.lap(1);
         if(!debugMesh.empty()){
-            std::ofstream f(debugMesh,std::ios::binary);uint32_t n=uint32_t(materials.size());
-            f.write(reinterpret_cast<const char*>(&n),sizeof(n));f.write(reinterpret_cast<const char*>(verts.data()),verts.size()*sizeof(float));f.write(reinterpret_cast<const char*>(materials.data()),materials.size());
+            meshSources.clear();builtVertices.clear();builtMaterials.clear();
+            for(const auto&[e,c]:entityChunks){
+                meshSources.push_back({uint32_t(builtMaterials.size()),uint32_t(c.materials.size()),c.model,c.type,c.frame.pos,
+                    static_cast<unsigned short>(c.data?c.data->triangles:0),static_cast<unsigned short>(c.data?c.data->boxes:0),static_cast<unsigned short>(c.data?c.data->spheres:0),false});
+                builtVertices.insert(builtVertices.end(),c.verts.begin(),c.verts.end());builtMaterials.insert(builtMaterials.end(),c.materials.begin(),c.materials.end());
+            }
+            std::ofstream f(debugMesh,std::ios::binary);uint32_t n=uint32_t(builtMaterials.size());
+            f.write(reinterpret_cast<const char*>(&n),sizeof(n));f.write(reinterpret_cast<const char*>(builtVertices.data()),builtVertices.size()*sizeof(float));f.write(reinterpret_cast<const char*>(builtMaterials.data()),builtMaterials.size());
         }
         if(!debugMesh.empty()&&GetEnvironmentVariableA("GTASA_WORLD_SNAPSHOT_AUDIT",nullptr,0)){
             std::ofstream f(debugMesh.string()+".sources.jsonl");
             f<<"{\"origin\":["<<origin.x<<','<<origin.y<<','<<origin.z<<"],\"area\":"<<area()<<",\"complete\":"<<(nativeCoverage.complete?"true":"false")
-             <<",\"found\":"<<count<<",\"triangles\":"<<materials.size()<<",\"skipped_no_collision\":"<<skippedNoCollision<<"}\n";
+             <<",\"found\":"<<count<<",\"triangles\":"<<builtMaterials.size()<<",\"skipped_no_collision\":"<<skippedNoCollision<<"}\n";
             for(const auto&s:meshSources)f<<"{\"first\":"<<s.first<<",\"count\":"<<s.count<<",\"model\":"<<s.model<<",\"type\":"<<s.type
              <<",\"position\":["<<s.pos.x<<','<<s.pos.y<<','<<s.pos.z<<"],\"native_triangles\":"<<s.triangles<<",\"native_boxes\":"<<s.boxes<<",\"native_spheres\":"<<s.spheres<<"}\n";
         }
-        if(imported){
-            builtVertices=std::move(verts);builtIndices=std::move(indices);builtMaterials=std::move(materials);
-        }
-        center=origin;currentArea=area();builtAt=gameTime();triangles=cost.model;
+        center=origin;currentArea=area();builtAt=gameTime();triangles=total;
     }
     void update(V origin){
         bikeProxyVehicles=bikeProxyFallbacks=bikeProxyUnverifiedMotion=0;

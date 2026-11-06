@@ -174,7 +174,7 @@ static void processVehicleEntries(){
         // Preflight before touching the native task: valid pose, physics slot,
         // target world/shape. A rejected admission leaves SA entirely in charge.
         if(agents.size()>=size_t(maxActive))continue;
-        collision->update(position(player()));const auto*obstacle=collision->findVehicle(vr);if(!obstacle)continue;
+        collision->update(physicsWorldOrigin());const auto*obstacle=collision->findVehicle(vr);if(!obstacle)continue;
         V surface{},normal{};float gap=999.f;int component=0;
         bool probeHit=false;float probeDepth=0,probeRank=0;
         V oldWorldSurface{},oldWorldNormal{};float oldGap=999.f;int oldComponent=-1;

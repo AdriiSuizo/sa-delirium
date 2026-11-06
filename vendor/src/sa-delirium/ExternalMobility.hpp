@@ -203,7 +203,7 @@ static void collectHostExternalOwners(float fraction,bool interval=true){
 }
 static void prepareRecoveryContactScene(){
     if(!collision||!player())return;
-    collision->update(position(player()));collision->applyVehicleBoxes();
+    collision->update(physicsWorldOrigin());collision->applyVehicleBoxes();
     collectHostExternalOwners(1.f,false);
     appendAnimatedExternalObstacles(collision->world,externalHostOwners);
 }
@@ -322,6 +322,16 @@ static bool commitExternalOwners(NmGroup*group,float dt){
             c.contacts=nm_world_sweep_animated_owner(collision->world,o.id,&o.acceptedBase.centre.p.x,heading,&c.correction.translation.x,&c.move.x);
             if(c.contacts<0||!finite(c.move))return reject("animated_fallback_sweep_rejected=1",o.ref,o.model);
             c.rotation={};c.fallback=true;
+        }else if(p[7]==0.f&&!o.animated){
+            // The world admission refused this vehicle's coupled move (mostly
+            // an endpoint deeper in the ground than its start, after a rider
+            // falls onto a lying bike). Keep the vehicle where native physics
+            // left it: a blocked move is a valid predictor receipt, and its
+            // velocity change goes to the native twist, whose own collision
+            // settles it next frame. Rejecting the whole interval instead
+            // released every rider in the island as an invalid pose.
+            c.move={};c.rotation={};c.contacts=0;c.fallback=true;
+            event("external_vehicle_placement_blocked",o.ref,o.model,"requested_m="+std::to_string(length(c.correction.translation))+" kept_native_position=1");
         }else return reject("placement_unverified=1",o.ref,o.model);
         // Original animated locomotion locks angular DOFs. Do not silently
         // discard a solver rotation, or rotate only its root without its skin.

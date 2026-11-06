@@ -62,6 +62,9 @@ NM_API void nm_world_destroy(NmWorld* w);
 NM_API int32_t nm_world_add_mesh(NmWorld* w, const float* positions, int32_t vertices, const uint32_t* triangles, int32_t count, const uint8_t* materials);
 /* SA native COL sphere/triangle contacts are two-sided. This entry preserves those surfaces without duplicating triangles or changing any solver force. */
 NM_API int32_t nm_world_add_mesh_two_sided(NmWorld* w, const float* positions, int32_t vertices, const uint32_t* triangles, int32_t count, const uint8_t* materials);
+/* One native host entity per key: replaces that key's two-sided mesh / removes it. */
+NM_API int32_t nm_world_set_chunk_two_sided(NmWorld* w, uint64_t key, const float* positions, int32_t vertices, const uint32_t* triangles, int32_t count, const uint8_t* materials);
+NM_API int32_t nm_world_remove_chunk(NmWorld* w, uint64_t key);
 NM_API int32_t nm_world_add_floor(NmWorld* w, float x, float y, float z, float half);
 NM_API int32_t nm_world_set_boxes(NmWorld* w, const float* boxes, int32_t count);
 NM_API int32_t nm_world_set_capsules(NmWorld* w, const float* capsules, int32_t count);
@@ -83,6 +86,12 @@ NM_API NmAgent* nm_agent_create(const NmBuild* b, const float* pos, float yaw, f
 NM_API void nm_agent_destroy(NmAgent* a);
 NM_API int32_t nm_agent_step(NmAgent* a, const NmWorld* w, float dt);
 NM_API int32_t nm_agent_set_mode(NmAgent* a, int32_t mode);
+/* IV no-collision entity: contacts with the vehicle just left (its external
+   owner id, 0 clears) are dropped until the first step that finds none. */
+NM_API int32_t nm_agent_set_no_collision(NmAgent* a, uint64_t owner);
+NM_API int32_t nm_agent_no_collision_active(const NmAgent* a);
+/* Diagnostic: bits 1 owner staged, 2 overlaps, 4 contact met, 8 a part came out by its shape; bits 8.. parts still ignoring. */
+NM_API int32_t nm_agent_no_collision_diag(const NmAgent* a);
 NM_API int32_t nm_agent_get_mode(const NmAgent* a);
 NM_API int32_t nm_agent_part_count(const NmAgent* a);
 NM_API int32_t nm_agent_get_part_transform(const NmAgent* a, int32_t i, float* pos, float* rot);
@@ -137,6 +146,10 @@ NM_API int32_t nm_agent_is_balancing(const NmAgent* a);
 NM_API int32_t nm_agent_has_fallen(const NmAgent* a);
 NM_API int32_t nm_agent_is_settled(const NmAgent* a);
 NM_API int32_t nm_agent_is_relaxing(const NmAgent* a);
+/* IV CTaskSimpleDead on the ragdoll: stop all behaviours and relax at 97 (once). */
+NM_API int32_t nm_agent_dead_relax(NmAgent* a);
+/* IV corpse freeze: the ragdoll sleeps where it lies until a moving obstacle wakes it. */
+NM_API int32_t nm_agent_freeze(NmAgent* a);
 NM_API int32_t nm_agent_is_catching_fall(const NmAgent* a);
 NM_API int32_t nm_agent_is_rolled_up(const NmAgent* a);
 NM_API int32_t nm_agent_is_awake(const NmAgent* a);
@@ -164,6 +177,9 @@ NM_API int32_t nm_agent_road_recovery_ready(const NmAgent* a);
 NM_API int32_t nm_agent_road_brace_control(NmAgent* a, const NmWorld* w, int32_t vehicle, const float* hit, const float* place, const float* look);
 /* Begin only after the ped is physically clear of the vehicle. Velocity is inherited world m/s, health uses IV's 0..200 scale, flags: player=1, gun=2. Returns 1 balance (<=7.5 m/s), 2 catch->roll; never applies a launch impulse. */
 NM_API int32_t nm_agent_vehicle_exit_start(NmAgent* a, const NmWorld* w, const float* velocity, float health, float agility, uint32_t flags);
+/* Thrown off a bike by a crash: the jump roll (no balance), 2..30 s, with the
+   bike's velocity (world m/s); flags player=1. Status: vehicle_exit_status. */
+NM_API int32_t nm_agent_bike_throw_start(NmAgent* a, const NmWorld* w, const float* velocity, float health, uint32_t flags);
 /* Cancel timers and the pending force lease when another reaction takes over. */
 NM_API int32_t nm_agent_vehicle_exit_cancel(NmAgent* a);
 /* Pure query: phase, simulated seconds, ready-to-blend, inherited speed (4 floats). */
@@ -329,6 +345,7 @@ NM_API int32_t nm_group_dump_external_replay(const NmGroup* g, const NmWorld* w,
 NM_API int32_t nm_animated_owner_pair_contacts(const float* root, float heading, const float* velocity, const NmAgent* agent, const float* states, int32_t parts, float* out, int32_t capacity);
 NM_API int32_t nm_world_append_animated_owner(NmWorld* w, uint64_t owner, const float* root, float heading, const float* velocity);
 NM_API int32_t nm_world_recovery_room(const NmWorld* w, const float* root, uint64_t exclude_owner);
+NM_API int32_t nm_agent_recovery_room(const NmAgent* a, const NmWorld* w, const float* root, uint64_t exclude_owner);
 /* 8261E688: while BlendFromNM waits for room, all preceding responses have ended and NM is relaxed, still simulated. No pose reset or velocity change. */
 NM_API int32_t nm_agent_recovery_wait(NmAgent* a, const NmWorld* w);
 NM_API int32_t nm_agent_recovery_room_obstructed(const NmAgent* a, const float* root);

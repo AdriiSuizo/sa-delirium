@@ -26,6 +26,31 @@ pub fn sample_quat(t:&Track,phase:f32,frames:usize)->Quat {
     let x=phase.clamp(0.,1.)*(frames-1) as f32;let i=x.floor() as usize;
     let q=|i|{let a=t.sample(i);Quat::from_xyzw(a[0],a[1],a[2],a[3]).normalize()};q(i).slerp(q(i+1),x.fract())
 }
+/// Bone channels between their 30 Hz keys: a Catmull-Rom curve through the same keys. Each key is reproduced
+/// exactly; at a higher frame rate the speed no longer steps at every key (linear segments read as 30 Hz).
+/// The mover stays linear: travel, homing and the contact calibration read it.
+fn key(t:&Track,i:usize,c:usize)->f32{let v=&t.values[c];v[i.min(v.len()-1)]}
+fn cubic(a:f32,b:f32,c:f32,d:f32,u:f32)->f32{
+    let (u2,u3)=(u*u,u*u*u);
+    0.5*(2.*b+(c-a)*u+(2.*a-5.*b+4.*c-d)*u2+(3.*b-a-3.*c+d)*u3)
+}
+pub fn sample_vec_smooth(t:&Track,phase:f32,frames:usize)->Vec3 {
+    let x=phase.clamp(0.,1.)*(frames-1) as f32;let i=x.floor() as usize;let u=x.fract();
+    if t.values.len()<3||frames<3{return sample_vec(t,phase,frames)}
+    let (h,j,k)=(i.saturating_sub(1),i+1,(i+2).min(frames-1));
+    Vec3::new(cubic(key(t,h,0),key(t,i,0),key(t,j,0),key(t,k,0),u),cubic(key(t,h,1),key(t,i,1),key(t,j,1),key(t,k,1),u),cubic(key(t,h,2),key(t,i,2),key(t,j,2),key(t,k,2),u))
+}
+pub fn sample_quat_smooth(t:&Track,phase:f32,frames:usize)->Quat {
+    let x=phase.clamp(0.,1.)*(frames-1) as f32;let i=x.floor() as usize;let u=x.fract();
+    if t.values.len()<4||frames<3{return sample_quat(t,phase,frames)}
+    let q=|n:usize|glam_quat(key(t,n,0),key(t,n,1),key(t,n,2),key(t,n,3));
+    let b=q(i);let side=|o:Quat|if o.dot(b)<0.{-o}else{o};
+    let (a,c,d)=(side(q(i.saturating_sub(1))),side(q(i+1)),side(q((i+2).min(frames-1))));
+    let m=|f:fn(Quat)->f32|cubic(f(a),f(b),f(c),f(d),u);
+    let out=Quat::from_xyzw(m(|q|q.x),m(|q|q.y),m(|q|q.z),m(|q|q.w));
+    if out.length_squared()>1e-8{out.normalize()}else{b.slerp(c,u)}
+}
+fn glam_quat(x:f32,y:f32,z:f32,w:f32)->Quat{Quat::from_xyzw(x,y,z,w).normalize()}
 pub fn mover(a:&Animation,phase:f32)->Vec3 {a.tracks.iter().find(|t|t.kind==anim::MOVER_TRANSLATION).map_or(Vec3::ZERO,|t|sample_vec(t,phase,a.frames))}
 pub fn mover_q(a:&Animation,phase:f32)->Quat {a.mover_rotation.as_ref().map_or(Quat::IDENTITY,|t|sample_quat(t,phase,a.frames))}
 pub fn movement_flags(key:&str)->Option<u32>{let name=key.rsplit('/').next()?;lsc4_combat::meleeanims::MOVES.iter().find(|m|m.0.eq_ignore_ascii_case(name)).map(|m|m.1[1])}
@@ -64,7 +89,7 @@ impl Bank {
     pub fn pose(&self,key:&str,phase:f32,flags:u32)->Option<Vec<Pose>>{
         let a=self.clips.get(key)?;let mut local=self.bind.clone();
         for t in &a.tracks {let Some(i)=self.bones.iter().position(|b|b.id==t.bone) else{continue};
-            match t.kind {anim::BONE_TRANSLATION=>local[i].p=sample_vec(t,phase,a.frames),anim::BONE_ROTATION=>local[i].q=sample_quat(t,phase,a.frames),_=>{}}
+            match t.kind {anim::BONE_TRANSLATION=>local[i].p=sample_vec_smooth(t,phase,a.frames),anim::BONE_ROTATION=>local[i].q=sample_quat_smooth(t,phase,a.frames),_=>{}}
         }
         // Original player::with_mover: carried axes move the entity, the other
         // axes and the mover's lean belong in the pose. Root tracks replace bind.
@@ -179,5 +204,23 @@ impl Rig {
         for i in 0..self.ids.len(){let sa=self.ids[i];let selected=if flags==0x208001{sa>=2&&sa<9||sa>=21&&sa<=36}else if flags==0x8008{sa>=4&&sa<=8||sa>=21&&sa<=36}else{true};let w=if selected{weight}else{0.};
             let t=if let Some(p)=self.parents[i]{let aa=a[p].inverse().mul(a[i]);let bb=b[p].inverse().mul(b[i]);let mut local=aa.mix(bb,w);local.p=self.local[i].p;out[p].mul(local)}else{a[i].mix(b[i],w)};out.push(t);
         }out
+    }
+}
+
+#[cfg(test)]
+mod smooth_tests {
+    use super::*;
+    #[test]
+    fn smooth_sampling_keeps_every_key_and_the_speed_continuous() {
+        let xs:Vec<f32>=(0..8).map(|i|(i as f32*0.7).sin()).collect();
+        let t=Track{kind:anim::BONE_TRANSLATION,bone:0,values:vec![xs.clone(),xs.clone(),xs.clone()]};
+        for i in 0..8 {let p=sample_vec_smooth(&t,i as f32/7.,8);assert!((p.x-xs[i]).abs()<1e-5);}
+        // Speed either side of key 3: linear steps, the curve does not.
+        let v=|a:f32,b:f32|(sample_vec_smooth(&t,b/7.,8).x-sample_vec_smooth(&t,a/7.,8).x)/(b-a);
+        assert!((v(2.99,3.0)-v(3.0,3.01)).abs()<0.01);
+        let q=|a:f32|Quat::from_rotation_z(a);
+        let qs:Vec<Quat>=(0..6).map(|i|q(i as f32*0.3)).collect();
+        let r=Track{kind:anim::BONE_ROTATION,bone:0,values:(0..4).map(|c|qs.iter().map(|q|q.to_array()[c]).collect()).collect()};
+        for i in 0..6 {assert!(sample_quat_smooth(&r,i as f32/5.,6).angle_between(qs[i])<1e-4);}
     }
 }
