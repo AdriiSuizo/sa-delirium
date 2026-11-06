@@ -8,8 +8,8 @@ Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automát
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.3-Setup.exe** o el RAR de la
-[entrega0.3.3](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.3).
+Descarga **SA-Delirium-0.3.4-Setup.exe** o el RAR de la
+[entrega0.3.4](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.4).
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
 si tu juego está en otra carpeta, elígela. Elige la ISO si falta su ruta y pulsa
 **Instalar**.
@@ -91,7 +91,7 @@ La entrega se comprueba desde416 archivos propios de Steam y una ISO externa,
 con caché vacía, mediante el EXE literal y con los extras embebidos y Urbanize descargado de su autor. Se comprueban
 arranque sin puente, intro de partida nueva, daño nativo, efectos, conservación
 de partidas, restauración y Jugar en Steam. La cobertura concreta y las huellas
-se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.3.md).
+se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.4.md).
 
 Las pruebas son acotadas. No certifican todos los vehículos, misiones, mandos,
 GPUs, idiomas o ediciones de ISO; tampoco equivalencia completa con GTA IV ni

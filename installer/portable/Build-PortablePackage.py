@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.3')
+    ap.add_argument('--version',default='0.3.4')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '

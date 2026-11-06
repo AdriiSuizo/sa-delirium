@@ -1,5 +1,10 @@
 # Historial
 
+## 0.3.4 · sin cierres en la misión de Ryder
+
+- Arreglado un cierre del juego con la copia de Steam: al empezar una pista de radio o de audio a mitad, si su duración salía 0 el juego dividía entre cero (visto en la misión de Ryder al salir de Grove Street). Esa pista empieza ahora desde el principio.
+- Arreglado un cierre al comprar comida en la misión de Ryder: Grinch Trainer 1.0 engancha la lectura del mando que usan las tiendas y, al pasarla al juego, llamaba a una dirección vacía. Delirium deja pasar esa lectura directamente al juego mientras el trainer no tenga esa dirección. El trainer va sin modificar.
+
 ## 0.3.3 · físicas de GTA IV en motos, combate y atropellos
 
 - Motos y bicis como en GTA IV: al robar una moto, el conductor sale despedido con el ragdoll y empuja la moto al suelo; disparar o golpear a un motorista lo tira con física completa, parado o en marcha. Los atropellos de motoristas por delante, por detrás y de lado reaccionan según la velocidad.

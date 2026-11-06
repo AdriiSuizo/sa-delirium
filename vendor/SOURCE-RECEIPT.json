@@ -260,7 +260,7 @@
     "src/lsc4-combat/src/weapons.rs": "93219a74428109203d84fa0b7ddb447a8fb517e318b1a72b1675c87af83b95e4",
     "src/lsc4-combat/src/xenon.rs": "c298de2493c0034ae74368de0b7fd507ed1638c73efc59c35566cc918418352a",
     "src/sa-delirium/ABI.hpp": "651c2207a151b895528ca9c080f02c3f5a95543921f783794447160114b702e7",
-    "src/sa-delirium/Adapter.cpp": "cff5025e35682213088f4743724b37163acf409a2b0df1a831b25dd49d42facf",
+    "src/sa-delirium/Adapter.cpp": "8feb78208ddcb8378a21acb4b6758cf5190db0bd4580f9abfa091d4728001565",
     "src/sa-delirium/Aiming.hpp": "7caf55cb5b00a49cb166fcc5ced7a9d94be83f123711f19666c05576e6d554f8",
     "src/sa-delirium/AnimatedBodyCollider.hpp": "14a86229bf6a0b2656825a99db89ac6894d3e507f2281b138fd68441c28d9151",
     "src/sa-delirium/BikeComponentFrames.hpp": "b9e18a339e46d26b2827f3e3e353f30c9d5a30b35ad9ed0344c337d59d6cdaf2",
@@ -532,7 +532,8 @@
     "release-work/evidence/legacy-iso-abi/comparison-data/src/xex/mod.rs": "234dc23de2d3044e2f46a76816736b75aa53358be9f7a3326a5697b20e75ebf2",
     "src/sa-delirium/AudioStreamDirectory.hpp": "dcc17f01307c9b9a4399aeee39cda6a98f31dcb4ed3ef977eaef9118c7561e8a",
     "src/sa-delirium/ChaseProbe.hpp": "c706f09eacce5774326f634996cf4914005533accb4f92dc20833193caff1a89",
-    "src/sa-delirium/PhysicsEngineVariant.hpp": "d677fd504606cd54f9fbdd1bac8d4e9ae6149deaa9db78fc8a9f298f2d771946"
+    "src/sa-delirium/PhysicsEngineVariant.hpp": "d677fd504606cd54f9fbdd1bac8d4e9ae6149deaa9db78fc8a9f298f2d771946",
+    "src/sa-delirium/TrainerPadGuard.hpp": "8d7a4b1b98ab0d01ed773b106bf009211a95b96ea4af76934aa84f006df1126a"
   },
   "changes": [
     "Replace encrypted kv payload with the tested ISO reader",
@@ -576,6 +577,14 @@
     {
       "copied": 2,
       "added": [],
+      "modifications_merged_upstream": [],
+      "modifications_kept": []
+    },
+    {
+      "copied": 1,
+      "added": [
+        "src/sa-delirium/TrainerPadGuard.hpp"
+      ],
       "modifications_merged_upstream": [],
       "modifications_kept": []
     }

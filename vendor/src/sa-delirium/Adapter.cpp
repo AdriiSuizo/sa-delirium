@@ -628,6 +628,7 @@ static void __fastcall damage(DamageEvent* hitEvent,void*,void*p){originalDamage
 #include "RoadPoseSeeds.hpp"
 #include "StandingContacts.hpp"
 #include "AudioStreamDirectory.hpp"
+#include "TrainerPadGuard.hpp"
 static const char* audioStreamDirectoryStatus="not_installed";static const char* audioStreamLengthGuardStatus="not_installed";
 static void acceptedDamage(DamageEvent* hitEvent,void*p){
     if(combatDelivering)return; // authored sweep delivers native damage once
@@ -1130,6 +1131,7 @@ static void finishPhysicsFrame(){
 }
 #include "VehicleParticles.hpp"
 static void __cdecl process(){
+    if(trainer_pad_guard::maintain())event("trainer_pad_guard_installed");
     vehicleparticles::maintain(ready&&playing(),folder.parent_path()/"DeliriumSA.ini");
     FrameCostProfile cost("process",int(agents.size()),int(pending.size()));
     maintainIdleCaller();
