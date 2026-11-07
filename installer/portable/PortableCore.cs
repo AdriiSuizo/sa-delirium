@@ -13,6 +13,7 @@ using Microsoft.Win32;
 namespace SAPortable {
     public sealed class Package {
         public string id, title, filename, url, resolver, sha256, format, parent, member, password;
+        public bool optional;
         public string[] page_hosts, download_hosts;
         public string[] auto_click_selectors;
         public string download_button_id;
@@ -76,6 +77,7 @@ namespace SAPortable {
         public Action<long,long,string> Progress = delegate {};
         public Func<bool> Cancelled = delegate {return false;};
         public bool Unattended;
+        public readonly List<string> Skipped=new List<string>();
         void CheckCancellation() { if (Cancelled()) throw new OperationCanceledException(); }
         public Composer(Manifest manifest, string helperDirectory, string cacheDirectory) {
             Manifest=manifest;tools=Paths.Full(helperDirectory);cache=Paths.Full(cacheDirectory);
@@ -292,6 +294,16 @@ namespace SAPortable {
             Directory.CreateDirectory(cache);
             preparedRoot=Paths.Inside(cache,"prepared-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(preparedRoot);
             var sources=new Dictionary<string,string>();
+            // Urbanize comes from its author's Drive, whose daily quota runs out (07/11): the game installs without it.
+            foreach(var optional in Manifest.packages.Where(x=>x.optional&&Manifest.files.Any(f=>f.package==x.id)).ToArray()) {
+                try {Resolve(optional.id);}
+                catch(Exception error) {
+                    if(!(error is IOException||error is System.Net.WebException))throw;
+                    Manifest.files=Manifest.files.Where(f=>f.package!=optional.id).ToArray();
+                    Skipped.Add(optional.title??optional.id);
+                    Progress(0,0,"No se pudo descargar "+(optional.title??optional.id)+": se instala sin él.");
+                }
+            }
             foreach(var group in Manifest.files.Where(x=>x.kind=="package" || x.kind=="package_delta").GroupBy(x=>x.package)) {
                 var package=Manifest.packages.Single(x=>x.id==group.Key);
                 var archive=Resolve(group.Key);

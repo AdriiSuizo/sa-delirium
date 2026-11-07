@@ -67,6 +67,30 @@ static int armedCombatFixture(int mode){
     }
     auto*p=pedFromRef(probeRecoveryPed);
     if(!p)return -257;
+    // Tests only: a bullet line beside the target, one Uzi round, one eight-pellet shotgun blast.
+    if(mode==265){const V at=position(p)+V{.7f,0,.2f};nearmiss::lines.push_back({at-V{0,6.f,0},at+V{0,6.f,0}});return probeRecoveryPed;}
+    if(mode==266){reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,player(),28,3,3,0);return probeRecoveryPed;}
+    if(mode==267){for(int i=0;i<8;i++)reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,player(),25,2,i&1?3:4,0);return probeRecoveryPed;}
+    // Tests only: CJ fires a real Uzi round through CWeapon::Fire; a shared step that fails; a solver launch.
+    if(mode==268){
+        static bool armed=false;if(!armed){armed=true;reinterpret_cast<void(__thiscall*)(void*,int,unsigned,bool)>(0x5E6080)(player(),28,2000,false);reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E6280)(player(),28);}
+        V to=position(p)+V{0,0,.25f};V from=position(player())+V{0,0,.5f};const V line=to-from;const float reach=length(line);if(reach>3.f)from=to-line*(3.f/reach);
+        const unsigned slot=at<unsigned char>(player(),0x718);void*gun=reinterpret_cast<char*>(player())+0x5A0+slot*0x1C;
+        const float heading=std::atan2(-(to.x-from.x),to.y-from.y);at<float>(player(),0x558)=heading;at<float>(player(),0x55C)=heading;
+        const float before=at<float>(p,0x540);const int ammo=at<int>(gun,0x8);
+        const bool fired=reinterpret_cast<bool(__thiscall*)(void*,void*,V*,V*,void*,V*,V*)>(0x742300)(gun,player(),&from,&from,nullptr,&to,nullptr);
+        const bool hit=at<float>(p,0x540)<before;
+        // The line of CWeapon::Fire follows the camera for CJ, which a hidden test does not aim: the round lands through the same impact call.
+        if(!hit){
+            alignas(4) unsigned char point[0x2C]{};const V normal=normalized(from-to);*reinterpret_cast<V*>(point)=to;*reinterpret_cast<V*>(point+0x10)=normal;point[0x25]=3;
+            reinterpret_cast<void(__thiscall*)(void*,void*,void*,V*,V*,void*,int)>(0x73B550)(gun,player(),p,&from,&to,point,0);
+        }
+        event("probe_cj_round",probeRecoveryPed,at<short>(p,0x22),"fired="+std::to_string(fired)+" line_hit="+std::to_string(hit)+" ammo="+std::to_string(ammo)+" health="+std::to_string(at<float>(p,0x540)));
+        return probeRecoveryPed;
+    }
+    if(mode==269){stepFailTest=3;return probeRecoveryPed;}
+    if(mode==270){stepLaunchTest=true;return probeRecoveryPed;}
+    if(mode==271){recoveryThreatTest=true;return probeRecoveryPed;}
     if(mode==256){
         reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,player(),22,24,3,0);
         return probeRecoveryPed;

@@ -347,7 +347,11 @@ static bool commitExternalOwners(NmGroup*group,float dt){
         const auto&o=*c.owner;const float*r=c.result;
         if(!o.predictor->commit(c.correction,c.move,c.rotation)){errors++;event("external_commit_invariant_failure",o.ref,o.model);return false;}
         if(o.animated){commitAnimatedExternalOwner(o,r,c.correction,c.move,c.contacts,c.fallback,dt);continue;}
-        void*v=o.entity;const V impulse{r[0],r[1],r[2]},torque{r[3],r[4],r[5]},dv=c.correction.deltaLinear,dw=c.correction.deltaAngular;
+        void*v=o.entity;const V impulse{r[0],r[1],r[2]},torque{r[3],r[4],r[5]};
+        // Normal hits stay under 9000 (sessions 06-07/11); solver blow-ups measured 14000-125000.
+        const float solved=length(impulse),limit=solved>10000.f?3000.f/solved:1.f;
+        if(limit<1.f)event("external_vehicle_impulse_capped",o.ref,o.model,"impulse="+std::to_string(solved));
+        const V dv=c.correction.deltaLinear*limit,dw=c.correction.deltaAngular*limit;
         const auto&native=hostNativeEnds.at(o.id);
         const V oldCom=native.infinite?position(v):point(*matrix(v),at<V>(v,0xA4));
         const T oldRoot=transform(*matrix(v));

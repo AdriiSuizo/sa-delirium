@@ -34,6 +34,7 @@ const BODY: &str = "fred-build.txt";
 // Alpha.4's bind-body cache remains recoverable. The adapted runtime needs
 // the canonical idle body; never silently accept the older body's 21 parts.
 const CACHE: &str = "DeliriumSA-local-v3";
+const WEAPON_INFO: &str = "weaponinfo.xml";
 const PARTS: i32 = 21;
 const MISSING_ISO: &str = "Selecciona tu ISO de GTA IV para Xbox 360 en el instalador para preparar Delirium";
 
@@ -228,6 +229,29 @@ fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
     result
 }
 
+/// IV's weapon table, from the owner's disc. Optional: outside the sealed combat bank, added to
+/// an existing cache when the ISO is at hand, and the game falls back without it.
+fn import_weapon_info(cache: &Path, iso: &Path) -> Result<(), String> {
+    let disc = Disc::open(iso)?;
+    let xex_bytes = disc_file(&disc, "default.xex", 32 << 20)?;
+    let program = xex::XexImage::parse_with_key(&xex_bytes, &xenia_xex_key::RETAIL_KEY)?.image;
+    let header = disc.read_at("xbox360.rpf", 0, 0x810)?;
+    let (key, _) = ArchiveKey::find_by_trial(&program, &header).ok_or("Archivo de Xbox 360 incompatible")?;
+    let bytes = archive_file(&disc, &key, "common.rpf", "data/weaponinfo.xml")?;
+    fs::write(cache.join(WEAPON_INFO), bytes).map_err(|error| error.to_string())?;
+    const ANIM: &str = "xbox360/anim/anim.img";
+    let size = delirium_data::img::table_len(&disc.read_at(ANIM, 0, 20)?, Some(&key))
+        .filter(|n| *n < 8 << 20).ok_or("Índice de animaciones incompatible")?;
+    let entries = delirium_data::img::read_table(&disc.read_at(ANIM, 0, size)?, Some(&key))?;
+    let dir = cache.join("injured");
+    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    for name in ["move_injured_lower.xad", "move_injured_upper.xad"] {
+        let entry = entries.iter().find(|e| e.name.eq_ignore_ascii_case(name)).ok_or_else(|| format!("Falta {name}"))?;
+        fs::write(dir.join(name), disc.read_at(ANIM, entry.offset, entry.size() as usize)?).map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
 pub fn prepare(root: &Path) -> Result<&'static str, String> {
     prepare_with_iso(root, None)
 }
@@ -244,6 +268,12 @@ pub fn prepare_with_iso(root: &Path, supplied_iso: Option<&Path>) -> Result<&'st
     match cache.try_exists() {
         Ok(true) => {
             activate(&cache)?;
+            if !cache.join(WEAPON_INFO).is_file() || !cache.join("injured").is_dir() {
+                let located = supplied_iso.map(Path::to_path_buf).or_else(|| iso_path(root).ok());
+                if let Some(iso) = located {
+                    if let Err(error) = import_weapon_info(&cache, &iso) { eprintln!("weaponinfo: {error}"); }
+                }
+            }
             publish_ready(true)?;
             Ok("cache_ready")
         }
@@ -254,6 +284,7 @@ pub fn prepare_with_iso(root: &Path, supplied_iso: Option<&Path>) -> Result<&'st
                 None => { located = iso_path(root)?; &located },
             };
             import(root, &cache, iso)?;
+            if let Err(error) = import_weapon_info(&cache, iso) { eprintln!("weaponinfo: {error}"); }
             // Publish only after the complete staging tree has been renamed.
             publish_ready(true)?;
             Ok("imported_iso")

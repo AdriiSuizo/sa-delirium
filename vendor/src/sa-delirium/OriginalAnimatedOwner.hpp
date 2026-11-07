@@ -115,7 +115,7 @@ static void commitAnimatedExternalOwner(const HostExternalOwner&o,const float*r,
 // react with the same original bump/Balance as a push from the player. IV only
 // transmits momentum between NPCs. The impulse already entered the shared
 // island; this only selects the reaction, once per pair and second.
-static void requestPeerBump(Active&a,void*peer,float amount,float dt){
+static void requestPeerBump(Active&a,void*peer,float amount,float dt,V point){
     if(!recoveryAllowed()||a.recovering||a.preview||dt<=0||dt>.1f||!validPed(peer)||inVehicle(peer)||
        agents.contains(reference(peer))||pending.contains(reference(peer))||combatOwns(peer))return;
     V d=position(peer)-a.current[0].p;d.z=0;const float span=length(d);if(span<1.e-3f)return;d=d*(1.f/span);
@@ -131,6 +131,15 @@ static void requestPeerBump(Active&a,void*peer,float amount,float dt){
     for(auto i=last.begin();i!=last.end();)if(gameTime()-i->second>5000)i=last.erase(i);else ++i;
     Request request;request.kind=Reaction::Bump;request.time=gameTime();request.attackerRef=a.ref;
     request.direction=d;request.bumpImpulse=amount;request.bumpDt=dt;request.velocityOverride=true;request.velocity=at<V>(peer,0x44);
+    // Asked by the user (07/11), not IV: CJ's dive shoves. The solved hit lands on a 25 kg owner and leaves it too fast for the
+    // balance to hold, so the ped keeps a walking pace of it and stays up; head to head, or a hard hit, it goes down.
+    if(a.kind==Reaction::Dive){
+        const bool headOn=point.z>position(peer).z+.4f&&length(a.current[12].p-point)<.5f;
+        const float draw=reinterpret_cast<float(__cdecl*)(float,float)>(0x41BD90)(0.f,1.f);
+        const bool falls=closing>11.f||draw<(headOn?.75f:.12f);
+        if(!falls){const float pace=1.6f*.02f;if(length(request.velocity)>pace)request.velocity=normalized(request.velocity)*pace;request.bumpImpulse=amount*.25f;}
+        event("dive_shove",reference(peer),at<short>(peer,0x22),"head_on="+std::to_string(headOn)+" falls="+std::to_string(falls)+" closing_mps="+std::to_string(closing));
+    }
     pending[reference(peer)]=request;
     event("peer_bump_requested",reference(peer),at<short>(peer,0x22),"by="+std::to_string(a.ref)+" closing_mps="+std::to_string(closing)+" impulse_ns="+std::to_string(amount)+" shared_impulse_already_solved=1");
 }
@@ -145,7 +154,7 @@ static void observeSolvedAnimatedContact(Active&a,int obstacle,V impulse,V point
         if(a.recovering)acceptRecoveryPlayerContact(a,peer,amount,dt,at<V>(peer,0x44)*50.f);
         if(!a.recovering)ok(nm_agent_ped_bump_touch(a.agent));
         if(a.current[10].p.z-a.current[0].p.z>.30f)startPlayerShove(a.ped);
-    }else requestPeerBump(a,peer,amount,dt);
+    }else requestPeerBump(a,peer,amount,dt,point);
     // Recovery selection consumes a semantic BlendFromNM context in the
     // response bridge. Geometry alone cannot manufacture CatchFall or cancel
     // a native get-up. Ordinary contact still transmits physical momentum.

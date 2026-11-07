@@ -627,7 +627,7 @@ pub fn joint_info(build: &Build, k: usize, rigid: Option<&Rigid>) -> Option<Join
     let p = build.parts.get(k)?;
     let j = Joint::new(p, p.parent?, rigid);
     let (hinge, limits) = match j.kind {
-        Kind::Ball { lean, twist } => (false, [lean[0], lean[1], twist]),
+        Kind::Ball { lean, twist } => (false, [lean[1], lean[0], twist]),
         Kind::Hinge { lo, hi } => (true, [lo, hi, 0.0]),
     };
     Some(JointInfo { parent: j.parent, hinge, in_parent: j.pf, in_child: j.cf, limits, anchor_parent: p.anchor_parent, anchor_child: p.anchor })
@@ -990,7 +990,11 @@ fn impulses_observed(rows:&mut [Row],blocks:&mut [Block],qd:&mut [f64],mut profi
     };
     lap(1,&mut profile);
     if let Some(p)=profile.as_deref_mut(){p.1[3]+=flat.len();}
-    for _ in 0..SWEEPS() {
+    // A body wedged under a car made thousands of rows: 206 ms in one frame, and the frame after it
+    // worse (07/11). Ordinary solves end far under this; a wedged one stops with what it has.
+    let budget=std::time::Instant::now();
+    for sweep in 0..SWEEPS() {
+        if sweep>=2&&budget.elapsed().as_micros()>2000{break;}
         if let Some(p)=profile.as_deref_mut(){p.1[4]+=1;}
         let mut moved: f64 = blocks.iter_mut().zip(&bnz).map(|(b, nz)| b.solve(qd, &flat[nz.clone()])).sum();
         for r in 0..rows.len() {
@@ -1311,6 +1315,8 @@ pub struct Ragdoll {
     pub no_collision_seen:u8,
     /// Parts still ignoring `no_collision` (bit per body; all bits until the first staged step picks them).
     pub no_collision_parts:u32,
+    /// Parts the host keeps ignoring `no_collision` whatever they touch (a windscreen ejection: legs until past the glass).
+    pub no_collision_hold:u32,
     still: [u32; 2],
     pub sleep_tol: [f32; 3],
     pub asleep: bool,
@@ -1438,7 +1444,7 @@ impl Ragdoll {
         }
         Ragdoll { nm: build.nm, pins: vec![None; n], cons: vec![(None, None); n], grips: vec![], grip_target_velocities: vec![], grip_target_owners:vec![], snapped: vec![], grip_load: [0.;4], grip_solved_target: None, gone: 0, grip_rows: vec![], touch: vec![0; n], contact_off: 0, hit: vec![None; n], contact: crate::bump::ContactRecord::new(), ob_hits: vec![], gap_audit: Default::default(), held: vec![vec![]; n], stage_vel: vec![], stage_lt: vec![], roll_push: None, stage_lim: vec![], stiff: vec![], bodies, order, mode: 1, still: [SLEEP_STOP() - 2, SLEEP_SLEEP() - 2],
                   sleep_tol: [SLEEP_V2(), SLEEP_W2(), SLEEP_MEAN2()], asleep: false, age: 0.0, fresh: false, pending: vec![], pairs: vec![], seen: vec![], contact_history: None, coll: vec![], held_pairs: vec![], held_car: vec![], prep_twist: vec![], rigid: None, inertia: None, inst: None, out: vec![(Vec3::ZERO, Vec3::ZERO); n], joint_torque: vec![Vec3::ZERO; n], armature: vec![0.0; n], o, bound_off: Vec3::ZERO,
-                  rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default(), no_collision:None, no_collision_met:false, no_collision_seen:0, no_collision_parts:0 }
+                  rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default(), no_collision:None, no_collision_met:false, no_collision_seen:0, no_collision_parts:0, no_collision_hold:0 }
     }
 
     pub fn set_body(&mut self, k: usize, x: Vec3, q: Quat, v: Vec3, w: Vec3) {
@@ -2073,17 +2079,30 @@ impl Ragdoll {
         // the original vector still owns every manifold and its solver order.
         // Preserve first-match semantics even if an imported list has duplicates.
         let mut car_slots=car_slot_index_enabled().then(||car_slots::Index::new(self.bodies.len(),obstacles,&self.held_car));
+        // The box round each obstacle's children, in its own frame, to skip whole vehicles a part cannot touch.
+        // A sphere from its origin took in every car within some 5 m, and preparing those was the contact stage's cost (07/11).
+        let ob_box:Vec<(Vec3,Vec3)>=obstacles.iter().map(|ob|ob.parts.iter().fold((Vec3::INFINITY,Vec3::NEG_INFINITY),|(lo,hi),cp|{
+            let(centre,half)=(cp.at+cp.m*((cp.lo+cp.hi)*0.5),Mat3::from_cols(cp.m.x_axis.abs(),cp.m.y_axis.abs(),cp.m.z_axis.abs())*((cp.hi-cp.lo)*0.5));
+            (lo.min(centre-half),hi.max(centre+half))
+        })).collect();
         let child_prepare=audit.timer();
         let child_rejection=(!fresh&&pose.iter().any(Option::is_none)&&car_slot_index_enabled()&&
             !(env_on!("GTASA_PASSIVE_TEST_WINDOW")&&env_on!("GTASA_CHILD_REJECTION_BASELINE"))).then(||{
-            obstacles.iter().map(|ob|{
-                let(rot,lrot)=(Mat3::from_quat(ob.rot),Mat3::from_quat(ob.last.map_or(ob.rot,|l|l.1)));
-                let lat=ob.last.map_or(ob.at,|l|l.0);
-                child_bounds::Prepared::new(ob.parts.iter().map(|cp|child_bounds::Rejection::new(
-                    (ob.at-o+rot*cp.at,rot*cp.m),(lat-o+lrot*cp.at,lrot*cp.m),
-                    (cp.lo+cp.hi)*0.5,(cp.hi-cp.lo)*0.5)).collect::<Vec<_>>())
-            }).collect::<Vec<_>>()
+            obstacles.iter().map(|_|std::cell::OnceCell::new()).collect::<Vec<_>>()
         });
+        // Prepared on first use: every child of every vehicle in the scene, per body and substep, was the
+        // largest part of the contact stage, and bodies touch one or two of them (07/11).
+        let prepare_children=|ob:&Obstacle|{
+            let(rot,lrot)=(Mat3::from_quat(ob.rot),Mat3::from_quat(ob.last.map_or(ob.rot,|l|l.1)));
+            let lat=ob.last.map_or(ob.at,|l|l.0);
+            let mut shared:Option<(Vec3,Mat3,child_bounds::Frames)>=None;
+            child_bounds::Prepared::new(ob.parts.iter().map(|cp|{
+                if !shared.as_ref().is_some_and(|s|s.0==cp.at&&s.1==cp.m){
+                    shared=Some((cp.at,cp.m,child_bounds::Frames::new((ob.at-o+rot*cp.at,rot*cp.m),(lat-o+lrot*cp.at,lrot*cp.m))));
+                }
+                shared.as_ref().unwrap().2.child((cp.lo+cp.hi)*0.5,(cp.hi-cp.lo)*0.5)
+            }).collect::<Vec<_>>())
+        };
         audit.add(1,child_prepare);
         self.held_pairs.resize(self.pairs.len(), vec![]);
         let car_base = self.held.len() + self.held_pairs.len();
@@ -2231,8 +2250,25 @@ impl Ragdoll {
                 let (rot, lrot) = (Mat3::from_quat(ob.rot), Mat3::from_quat(ob.last.map_or(ob.rot, |l| l.1)));
                 let lat = ob.last.map_or(ob.at, |l| l.0);
                 let (sc, sh) = swept((x, tm), a_last, bound_half(p));
+                // A body at rest paid about 5 ms a step testing every vehicle in the scene (07/11). Only an empty
+                // manifold may be skipped: one with points must still be updated to let them go.
+                // sc is in the part's frame: the distance is from the part, not from the body's origin.
+                let clear=sh.length()+0.5+(ob.at-lat).length();let swept_at=x+tm*sc;
+                let outside=|local:Vec3|{let(lo,hi)=ob_box[ob_index];(local-local.clamp(lo,hi)).length()>clear};
+                let far=outside(rot.transpose()*(swept_at-(ob.at-o)))&&outside(lrot.transpose()*(swept_at-(lat-o)));
+                if far&&mesh_components[ob_index]{
+                    let key=(i,ob.id,0);
+                    let slot=match &car_slots{Some(index)=>index.get(i,ob_index,0),None=>self.held_car.iter().position(|h|(h.0,h.1,h.2)==key)};
+                    if slot.is_none_or(|s|self.held_car[s].3.is_empty()){continue;}
+                }
+                // Out of reach no child meets, which empties each child's manifold.
+                if far&&!mesh_components[ob_index]{if let Some(index)=&car_slots{
+                    for c in 0..ob.parts.len(){if let Some(s)=index.get(i,ob_index,c){self.held_car[s].3.clear();}}
+                    continue;
+                }}
                 let body_rejection=child_bounds::Rejection::body((x,tm),(sc,sh));
-                let candidate_batches=child_rejection.as_ref().map(|v|v[ob_index].candidates(body_rejection,tm,sh));
+                let prepared=child_rejection.as_ref().map(|v|v[ob_index].get_or_init(||prepare_children(ob)));
+                let candidate_batches=prepared.map(|p|p.candidates(body_rejection,tm,sh));
                 if mesh_components[ob_index] {
                     // A registered moving component is ONE mesh shape. Its
                     // polygons feed one persistent manifold, as TU8 829C3A40 /
@@ -2246,11 +2282,13 @@ impl Ragdoll {
                     });
                     let candidates=ob.parts.iter().enumerate().filter_map(|(c,cp)|{
                         if !cp.filter.meets(CollisionFilter::NM_FRAGMENT){return None}
+                        // Asked first: most children of a nearby vehicle fail here, and the frames below were paid for each (07/11).
+                        let cached=prepared.map(|bounds|candidate_batches.as_ref().unwrap()[c/child_bounds::BATCH]&&bounds.children[c].meets(body_rejection,tm,sh));
+                        if cached==Some(false){return None}
                         let(cq,cx)=(rot*cp.m,ob.at-o+rot*cp.at);
                         let(cent,half)=((cp.lo+cp.hi)*0.5,(cp.hi-cp.lo)*0.5);
                         let last_child=(lat-o+lrot*cp.at,lrot*cp.m);
-                        let meet=child_rejection.as_ref().map(|bounds|candidate_batches.as_ref().unwrap()[c/child_bounds::BATCH]&&bounds[ob_index].children[c].meets(body_rejection,tm,sh))
-                            .unwrap_or_else(||moving_child_meets((x,tm),(sc,sh),(cx,cq),last_child,cent,half));
+                        let meet=cached.unwrap_or_else(||moving_child_meets((x,tm),(sc,sh),(cx,cq),last_child,cent,half));
                         meet.then_some((c,cp.shape,half,(cx,cq),last_child))
                     });
                     // A part inside a closed mesh touches no polygon and gives no point, yet its pair is still
@@ -2285,7 +2323,7 @@ impl Ragdoll {
                     }
                     let key=(i,ob.id,c);
                     let slot=match &car_slots{Some(index)=>index.get(i,ob_index,c),None=>self.held_car.iter().position(|h|(h.0,h.1,h.2)==key)};
-                    let cached_meet=child_rejection.as_ref().map(|bounds|candidate_batches.as_ref().unwrap()[c/child_bounds::BATCH]&&bounds[ob_index].children[c].meets(body_rejection,tm,sh));
+                    let cached_meet=prepared.map(|bounds|candidate_batches.as_ref().unwrap()[c/child_bounds::BATCH]&&bounds.children[c].meets(body_rejection,tm,sh));
                     if cached_meet==Some(false){
                         if let Some(s)=slot{self.held_car[s].3.clear();}continue;
                     }
@@ -2353,7 +2391,7 @@ impl Ragdoll {
         // from the next step: the body lies on the bike and its weight, through the finite vehicle owner, tips it.
         if self.no_collision.is_some() && nc_evaluated != 0 {
             let before = self.no_collision_parts;
-            self.no_collision_parts &= nc_inside | !nc_evaluated;
+            self.no_collision_parts = self.no_collision_parts & (nc_inside | !nc_evaluated) | self.no_collision_hold;
             if self.no_collision_parts != before { self.no_collision_seen |= 8; }
         }
         let self_tick=audit.timer();
@@ -2725,7 +2763,7 @@ impl Ragdoll {
                         touching |= 1 << k;
                     }
                 }
-                self.no_collision_parts &= touching;
+                self.no_collision_parts = self.no_collision_parts & touching | self.no_collision_hold;
                 self.no_collision_seen = 1 | if self.no_collision_parts != 0 { 2 } else { 0 };
                 self.no_collision_met |= self.no_collision_parts != 0;
             }
@@ -2964,6 +3002,7 @@ pub struct Group {
     pub profile_solve_cycles:[u64;8],
     pub profile_pair_prepare_ms:f64,
     pub profile_pair_counts:[usize;4],
+    pub profile_shape:[usize;3], // bodies solved alone, coupled islands, largest island
     held: std::collections::HashMap<(usize, usize, usize, usize), Vec<Held>>,
     external: crate::external_mobility::ExternalRegistry,
     external_failure:Option<crate::external_mobility::ExternalError>,
@@ -3129,7 +3168,7 @@ impl Ragdoll {
         group.external_replay_steps.clear();
         group.external_failed_replays.clear();
         group.profile_impulses=([0.;3],[0;5]);group.profile_ms=[0.;4];group.profile_solve_ms=[0.;8];group.profile_solve_cycles=[0;8];
-        group.profile_pair_prepare_ms=0.;group.profile_pair_counts=[0;4];
+        group.profile_pair_prepare_ms=0.;group.profile_pair_counts=[0;4];group.profile_shape=[0;3];
         let timer=group.profile_enabled.then(std::time::Instant::now);
         if let Err(e)=external_ground::begin(group,ms,world,dt){group.external_failure=Some(e);return;}
         if let Some(t)=timer{group.profile_ms[0]=t.elapsed().as_secs_f64()*1000.;}
@@ -3303,6 +3342,7 @@ impl Ragdoll {
         for pair in owner_pairs.iter().flatten(){let(a,b)=(root(&mut joined,owner_nodes[&pair.a]),root(&mut joined,owner_nodes[&pair.b]));joined[a.max(b)]=a.min(b);}
         let tops: Vec<usize> = (0..graph_len).map(|i| root(&mut joined, i)).collect();
         let alone: Vec<bool> = (0..n).map(|i| st[i].as_ref().is_some_and(|s|s.blocks.iter().all(|b|b.external.is_none())) && (0..n).filter(|&k| st[k].is_some() && tops[k] == tops[i]).count() == 1).collect();
+        group.profile_shape[0]=alone.iter().filter(|a|**a).count();
         for (m, s) in ms.iter_mut().zip(st.iter_mut()).zip(&alone).filter(|x| *x.1).map(|x| x.0) {
             m.doll.finish(s.take().unwrap(), m.drive.lift);
         }
@@ -3313,6 +3353,7 @@ impl Ragdoll {
             if is.is_empty()&&owner_ids.is_empty() {
                 continue;
             }
+            group.profile_shape[1]+=1;group.profile_shape[2]=group.profile_shape[2].max(is.len());
             is.sort_by_key(|&i| ms[i].id);
             let mut off = vec![0; n];
             let mut total = 0;
@@ -4184,6 +4225,8 @@ fn island_order_as_the_game() {
     assert_eq!(island_order(&[(Some(1), None), (Some(2), None), (Some(delirium_data::kv!(0 int)), None), (Some(1), Some(2)), (Some(2), Some(delirium_data::kv!(0 int)))]), [0, delirium_data::kv!(0 int), 1, delirium_data::kv!(1 int), 2]);
 }
 
+pub fn contact_cost_take()->[f64;12]{contact_cost::take()}
+
 pub(crate) fn par_each<T: Send>(items: &mut [T], f: impl Fn(&mut T) + Sync) {
     par_each_grain(items,delirium_data::kv!(0 int),f)
 }
@@ -4206,6 +4249,29 @@ fn par_each_grain<T:Send>(items:&mut[T],grain:usize,f:impl Fn(&mut T)+Sync){
 #[cfg(test)]
 mod dense_vehicle_slot_tests{
  use super::*;
+ // A body in traffic: what a step costs with a dozen car meshes in reach (cargo test --release -- --ignored --nocapture).
+ #[test]#[ignore]
+ fn traffic_step_cost(){
+  moving_obstacle_regression::constants();
+  let build=moving_obstacle_regression::finite_probe_build(80.);
+  let mut triangles=vec![];
+  for i in 0..190{let f=i as f32;let v=Vec3::new(f/190.*4.8-2.4,(f*0.73).cos()*1.,(f*0.11).sin()*0.8);
+   let t=[v,v+Vec3::new(0.3,0.,0.),v+Vec3::new(0.,0.3,0.1)];
+   triangles.push(ObPart{shape:gjk::Shape::Tri(t,0.002),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:t[0].min(t[1]).min(t[2]),hi:t[0].max(t[1]).max(t[2]),mesh:None,filter:Default::default()});}
+  let all:&'static[ObPart]=Box::leak(triangles.into_boxed_slice());
+  for (count,radius,children) in [(0usize,3.2f32,190usize),(12,30.,190),(12,3.2,190),(12,3.2,19),(1,3.2,190)]{
+   let parts=&all[..children];
+   let mut doll=Ragdoll::new(&build,&[Transform::from_translation(Vec3::new(0.,0.,15.))],Vec3::ZERO);
+   let obs:Vec<_>=(0..count).map(|k|{let a=k as f32*0.52;let at=Vec3::new(a.cos()*radius,a.sin()*radius,15.);
+    Obstacle{id:k as i32+10,at,centre:at,com:at,rot:Quat::IDENTITY,last:Some((at,Quat::IDENTITY)),half:Vec3::new(2.4,1.,0.8),parts,vel:Vec3::ZERO,..Default::default()}}).collect();
+   let t=std::time::Instant::now();
+   for _ in 0..300{
+    doll.set_body(0,Vec3::new(0.,0.,15.),Quat::IDENTITY,Vec3::ZERO,Vec3::ZERO);
+    doll.step(&build,&Collision::default(),1./120.,Drive{lift:1.,..Default::default()},&obs,&[]);
+   }
+   println!("traffic_step_ms={} obs={count} radius={radius} children={children}",t.elapsed().as_secs_f64()*1000./300.);
+  }
+ }
  #[test]
  fn indexed_manifolds_preserve_dense_moving_geometry_and_warm_start_bits(){
   moving_obstacle_regression::constants();

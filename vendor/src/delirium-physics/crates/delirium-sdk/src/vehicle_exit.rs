@@ -12,6 +12,7 @@ pub(super) struct VehicleExit {
     failed: bool,
     ready: bool,
     relax_start: f32,
+    high_fall: bool,
     /// NMJumpRollFromRoadVehicle's finish window (82613AA8, the player's
     /// `bail_times`): 3..6 s for the bail out of a car, 2..30 s thrown off a bike.
     times: [f32; 2],
@@ -40,7 +41,9 @@ impl VehicleExit {
             nm::task_finish_as(nm::Task::Relax, age-self.relax_start, nm::Task::Relax.times(),
                 a.doll.com().1.length(), a.doll.root().z, false, 0, self.health, self.player)
         } else {
-            if self.phase == 2 && age > with_tp(nm::jump_roll_up_time) {
+            // highFall keeps the body until it lands: its own arms-up and catchFall come before the roll.
+            if self.phase == 2 && age > with_tp(nm::jump_roll_up_time) && (!self.high_fall||a.doll.touch.iter().any(|&t|t as i32>0)) {
+                if self.high_fall { a.stop_all_behaviours(); }
                 with_tp(|tp| nm::task_jump_roll_up(a,b,w,tp,self.velocity));
                 self.phase = 3;
             }
@@ -82,16 +85,19 @@ pub unsafe extern "C" fn nm_agent_vehicle_exit_start(a:*mut NmAgent,w:*const NmW
 /// rider comes off on the ragdoll with the bike's velocity and always takes
 /// the jump roll (no NMBalance, whatever the speed), 2..30 s (the viewer's
 /// `thrown_off_bike`: bail, not bail_balance, bail_times [2, 30]). Velocity is
-/// world m/s, health IV's 0..200, flags: player=1. Returns 2; adds no launch.
+/// world m/s, health IV's 0..200, flags: player=1, high fall in the air=2
+/// (requested for CJ's dive and the windscreen, not IV's jump roll: NMHFall's flail and arms up, then
+/// its catchFall, before the same roll). Returns 2; adds no launch.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_agent_bike_throw_start(a:*mut NmAgent,w:*const NmWorld,velocity:*const f32,health:f32,flags:u32)->i32 {
     let a=agent!(a);
     let Some(w)=(unsafe{w.as_ref()}) else{return fail(NM_E_ARG,"null world")};
-    if velocity.is_null()||!health.is_finite()||flags & !1 != 0{return fail(NM_E_ARG,"invalid bike throw arguments")}
+    if velocity.is_null()||!health.is_finite()||flags & !3 != 0{return fail(NM_E_ARG,"invalid bike throw arguments")}
     let v=unsafe{v3(velocity)};if !v.is_finite(){return fail(NM_E_ARG,"invalid bike throw velocity")}
     a.agent.stop_all_behaviours();a.road=Default::default();
-    with_tp(|tp|nm::task_jump_roll(&mut a.agent,&a.build,&w.0,tp));
-    a.vehicle_exit=VehicleExit{phase:2,velocity:v,health,player:flags&1!=0,times:[2.0,30.0],..Default::default()};
+    let high_fall=flags&2!=0;
+    with_tp(|tp|if high_fall{nm::task_high_fall(&mut a.agent,&a.build,&w.0,tp,"*",flags&1!=0)}else{nm::task_jump_roll(&mut a.agent,&a.build,&w.0,tp)});
+    a.vehicle_exit=VehicleExit{phase:2,velocity:v,health,player:flags&1!=0,times:[2.0,30.0],high_fall,..Default::default()};
     2
 }
 

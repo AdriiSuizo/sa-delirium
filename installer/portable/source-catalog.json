@@ -380,9 +380,9 @@
     {
       "id": "limit-adjuster",
       "filename": "limit-adjuster.zip",
-      "url": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/releases/download/v2.0.3/III.VC.SA.LimitAdjuster.zip",
-      "sha256": "0c3a3faa708e0ca124473fa69df5ed9fa7746316c5ed4dfbf134d8f0c5be2f5d",
-      "bytes": 485343,
+      "url": "https://github.com/GTAmodding/III.VC.SA.LimitAdjuster/releases/download/v2.0.6/III.VC.SA.LimitAdjuster.zip",
+      "sha256": "b04cc57f72cc0c1e34792607b7636e28d05727d4f4fb7b2b13b7708ddfce1752",
+      "bytes": 489152,
       "title": "limit-adjuster"
     },
     {

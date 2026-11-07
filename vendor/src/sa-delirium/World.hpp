@@ -56,6 +56,9 @@ struct CollisionWorld {
     struct EntityChunk {const ColModel*col=nullptr;const ColData*data=nullptr;M frame{};short model=-1;unsigned char type=0;std::vector<float> verts;std::vector<uint8_t> materials;};
     std::unordered_map<void*,EntityChunk> entityChunks;
     unsigned changedEntities=0;
+    // Entities decoded per rebuild while nothing physical needs the mesh (0 = all). Driving into a new block entered up to
+    // 148 entities in one frame (12 ms, 06/11); the nearest go first and the rest follow on the next frames.
+    int rebuildBudget=0;bool partial=false;
     static uint64_t chunkKey(void*e){return uint64_t(reinterpret_cast<uintptr_t>(e));}
     void rebuild(V origin,void*required=nullptr){
         FrameCostProfile cost("world_rebuild",0,0,-1,-1,0.);
@@ -72,6 +75,8 @@ struct CollisionWorld {
         if(required&&std::find(found.begin(),found.begin()+count,required)==found.begin()+count)found[count++]=required;
         std::unordered_set<void*> seen;seen.reserve(size_t(count)*2);
         std::vector<uint32_t> indices;
+        struct Todo {float distance;void*e;ColModel*col;M m;};std::vector<Todo> todo;
+        const bool budgeted=rebuildBudget>0&&world&&currentArea==area()&&!entityChunks.empty();partial=false;
         for(int n=0;n<count;n++){
             auto* e=found[n];if(!e||(at<unsigned char>(e,0x2F)!=area()&&at<unsigned char>(e,0x2F)!=13))continue;
             // CEntity::bUsesCollision (0x1C bit 0). SA never collides with
@@ -93,6 +98,16 @@ struct CollisionWorld {
             const short model=at<short>(e,0x22);const unsigned char type=at<unsigned char>(e,0x36)&7;
             if(auto it=entityChunks.find(e);it!=entityChunks.end()&&it->second.col==col&&it->second.data==d&&it->second.model==model&&
                it->second.type==type&&NativeWorldCoverage::sameFrame(it->second.frame,*m))continue;
+            const V nearest{std::clamp(origin.x,lo.x,hi.x),std::clamp(origin.y,lo.y,hi.y),std::clamp(origin.z,lo.z,hi.z)};
+            todo.push_back({e==required?-1.f:length(nearest-origin),e,col,*m});
+        }
+        if(budgeted&&int(todo.size())>rebuildBudget){
+            std::sort(todo.begin(),todo.end(),[](const Todo&a,const Todo&b){return a.distance<b.distance;});
+            todo.resize(size_t(rebuildBudget));partial=true;nativeCoverage.complete=false; // the rest keep their old chunk until their turn
+        }
+        for(auto&t:todo){
+            void*e=t.e;auto*col=t.col;const M*m=&t.m;auto*d=col->data;
+            const short model=at<short>(e,0x22);const unsigned char type=at<unsigned char>(e,0x36)&7;
             EntityChunk chunk{col,d,*m,model,type};
             auto triangle=[&](V a,V b,V c,unsigned char mat){
                 if(length(cross(b-a,c-a))<1.e-5f)return;
@@ -167,7 +182,7 @@ struct CollisionWorld {
         bikeProxyVehicles=bikeProxyFallbacks=bikeProxyUnverifiedMotion=0;
         for(auto it=doorMotion.begin();it!=doorMotion.end();)if(!vehicleFromRef(it->first.first))it=doorMotion.erase(it);else ++it;
         for(auto it=doorVehicles.begin();it!=doorVehicles.end();)if(!vehicleFromRef(it->first)||gameTime()-it->second>3000)it=doorVehicles.erase(it);else ++it;
-        if(!world||currentArea!=area()||length(origin-center)>12||gameTime()-builtAt>2000)rebuild(origin);
+        if(!world||currentArea!=area()||partial||length(origin-center)>12||gameTime()-builtAt>2000)rebuild(origin);
         std::array<void*,256> found{};short count=0;vehicles.clear();
         reinterpret_cast<void(__cdecl*)(const V&,float,bool,short*,short,void**,bool,bool,bool,bool,bool)>(0x564A20)(origin,45.f,true,&count,256,found.data(),false,true,false,false,false);
         for(int i=0;i<count&&i<256;i++){
@@ -193,7 +208,9 @@ struct CollisionWorld {
                 // fallback; never silently omit a wheel or partially replace.
                 bikeProxyFallbacks++;
             }
-            const auto&shape=vehicleShape(at<short>(e,0x22),c);
+            // CDamageManager (+0x5A0) GetPanelStatus 0x6C2180, WINDSCREEN_PANEL 4: 3 = shattered and removed.
+            const bool noWindscreen=at<int>(e,0x594)==0&&reinterpret_cast<unsigned char(__thiscall*)(void*,int)>(0x6C2180)(static_cast<unsigned char*>(e)+0x5A0,4)==3;
+            const auto&shape=vehicleShape(at<short>(e,0x22),c,noWindscreen);
             vehicles.push_back({ref,int(vehicles.size()),e,{q,cen},half,vel,at<V>(e,0x50)*50.f,&shape});
             if(at<int>(e,0x594)==0)for(int node:{8,9,10,11}){
                 const int door=node==10?2:node==8?3:node==11?4:5;

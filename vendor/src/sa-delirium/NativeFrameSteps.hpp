@@ -13,10 +13,12 @@ struct NativeFrameSteps {
     // fastest: the quickest physical part (m/s). A body thrown from a car at
     // 33 m/s moved 0.31 m per 9.4 ms step, past its 0.1-0.15 m capsules, and
     // CJ fell through the road/kerb seam (06/11). At most 0.1 m per step, <=8.
-    explicit NativeFrameSteps(float dt,float fastest=0) {
+    explicit NativeFrameSteps(float dt,float fastest=0,int limit=8) {
         if(std::isfinite(dt)&&dt>0&&dt<=.25f){
-            duration=dt;count=std::max(1,int(std::ceil(double(dt)*60.0-1.e-6)));
-            if(std::isfinite(fastest)&&fastest>0)count=std::max(count,std::min(8,int(std::ceil(double(fastest)*dt/.1))));
+            // Nothing fast: one step up to 22 ms. At 60 a frame just over 16.7 ms took two steps, the two steps
+            // made the next frame slower, and the game fell from 140 to 55 fps and stayed there (07/11).
+            duration=dt;count=std::max(1,int(std::ceil(double(dt)*(fastest>0?60.0:45.0)-1.e-6)));
+            if(std::isfinite(fastest)&&fastest>0)count=std::max(count,std::min(limit,int(std::ceil(double(fastest)*dt/.1))));
         }
     }
     float remaining(int index) const {return index>=count?0.f:duration-float(double(duration)*index/count);}

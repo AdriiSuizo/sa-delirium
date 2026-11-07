@@ -55,6 +55,22 @@ static std::string nativeResponseSlots(void*p){
         s+=(t?std::to_string(reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[4])(t)):std::string("-"))+(i<5?",":"");}
     return s;
 }
+// SA answers a car hit with a flee or nothing, and the body hold loses even that:
+// armed peds got up and walked on (07/11). One the player ran down now draws its
+// gun and goes for the player with SA's own kill task. Cops have the wanted
+// system; mission peds belong to their script.
+static void answerRunOver(Active& a){
+    if(!a.runOverByPlayer)return;a.runOverByPlayer=false;
+    auto*p=pedFromRef(a.ref);
+    if(p!=a.ped||!p||p==player()||!player()||at<short>(p,0x22)!=a.model||at<float>(p,0x540)<=0||at<int>(p,0x598)==6||at<unsigned char>(p,0x484)==2)return;
+    int gun=-1;for(int slot=2;slot<=6&&gun<0;slot++)if(const int type=at<int>(p,0x5A0+slot*0x1C);type>0)gun=type;  // handgun..sniper slots
+    if(gun<0)return;
+    void*task=reinterpret_cast<void*(__cdecl*)(unsigned)>(0x61A5A0)(0x38);if(!task)return;
+    reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E6280)(p,gun);
+    reinterpret_cast<void(__thiscall*)(void*,void*,int,int,int,int,int)>(0x620E30)(task,player(),-1,0,0,0,1);
+    reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(taskManager(p),task,3,true);
+    event("run_over_retaliation",a.ref,a.model,"weapon="+std::to_string(gun));
+}
 static void releaseRecoveryTask(Active& a){
     retireRecoveryAnimation(a);
     auto*p=pedFromRef(a.ref);
@@ -96,7 +112,7 @@ static bool resumePhysicalContact(Active&a,const char*reason){
         ok(nm_agent_set_part_state(a.agent,n,&pose.p.x,&pose.q.x,&a.renderVelocity[n].x,&a.renderSpin[n].x));
         a.current[n]=a.previous[n]=pose;
     }
-    a.recovering=false;a.recoveryAnimatedOwner=false;a.recoveryPlacementReady=false;a.taskAborted=false;a.resumeDeliveredRoadDamage=false;a.resumeDeliveredCombatDamage=false;a.recoveryDone=false;a.nativeAnimationFinished=false;
+    a.recovering=false;a.recoveryAnimatedOwner=false;a.recoveryPlacementReady=false;a.taskAborted=false;a.abortEvent=-1;a.resumeDeliveredRoadDamage=false;a.resumeDeliveredCombatDamage=false;a.recoveryDone=false;a.nativeAnimationFinished=false;
     a.groundShotDelivered=false;
     a.uprightRecovery=false;a.recoveryStage=0;a.accumulator=0;a.stableFor=0;a.start=gameTime();a.bumpReady=false;a.exitReady=false;a.entryReady=false;
     if(applyBones)at<unsigned char>(a.ped,0x1C)&=~1u;
@@ -197,7 +213,7 @@ static bool __fastcall getupAbort(void*task,void*,void*ped,int priority,void*ev)
             if(a->resumeDeliveredRoadDamage)event("road_damage_delivery_matched",a->ref,a->model,
                 "event_ms="+std::to_string(d->time)+" age_ms="+std::to_string(gameTime()-d->time)+" vehicle_ref="+std::to_string(delivered.vehicle)+" weapon="+std::to_string(d->weapon)+" damage_preserved=1");
         }
-        retireRecoveryAnimation(*a);a->taskAborted=true;
+        retireRecoveryAnimation(*a);a->taskAborted=true;a->abortEvent=type;
         at<void*>(task,0xC)=nullptr;at<unsigned char>(task,8)=1;at<unsigned char>(task,9)=1;
         event("physical_task_aborted",a->ref,a->model,"priority="+std::to_string(priority)+" event="+std::to_string(type));return true;
     }
@@ -249,11 +265,15 @@ static std::vector<int> recoveryPoints(const Rig&r){
     std::vector<int> out;for(int id:{1,2,3,4,5,32,33,34,22,23,24,41,42,43,51,52,53}){int i=r.index(id);if(i>=0)out.push_back(i);}return out;
 }
 static bool beginRecovery(Active&a){
+    a.shotRunning=false;
     if(applyBones&&!ensureRecoveryTask(a))return false;
     // 8261E688: preceding response is over, body remains relaxed and simulated
     // while BlendFromNM searches. No root settling, velocity zeroing or freeze.
     const V torso=a.current[10].p-a.current[0].p;
-    const bool upright=originalStandingRecovery(a.kind==Reaction::Bump||a.meleeTaskOriginal,nm_agent_is_balancing(a.agent)==1,nm_agent_has_fallen(a.agent)==1,
+    // A push that left the body on its feet is not a fall: it lay down here only to play a get-up (CJ 07/11, pelvis 1.04 m
+    // over the feet, leaning past the 25 degrees below).
+    const bool onFeet=torso.z>.25f&&normalized(torso).z>.6f&&a.current[0].p.z-std::min(a.current[3].p.z,a.current[6].p.z)>.75f;
+    const bool upright=onFeet||originalStandingRecovery(a.kind==Reaction::Bump||a.meleeTaskOriginal,nm_agent_is_balancing(a.agent)==1,nm_agent_has_fallen(a.agent)==1,
         torso.z>.30f&&normalized(torso).z>.90f&&a.current[0].p.z-std::min(a.current[3].p.z,a.current[6].p.z)>.55f);
     if(GetEnvironmentVariableA("GTASA_MELEE_RECOVERY_AUDIT",nullptr,0))
         event("recovery_selection_audit",a.ref,a.model,"upright="+std::to_string(upright)+" engine_fallen="+std::to_string(nm_agent_has_fallen(a.agent))+
@@ -262,7 +282,7 @@ static bool beginRecovery(Active&a){
     // the balancer keeps the body up while it blends back onto the animation
     // (feet at its stance). Relaxing it here made every successful bump
     // Balance collapse ~0.1 s after its finish (2026-11-01, poses log).
-    const bool keepBalance=upright&&(a.kind==Reaction::Bump||a.meleeTaskOriginal);
+    const bool keepBalance=upright&&(onFeet||a.kind==Reaction::Bump||a.meleeTaskOriginal);
     if(keepBalance){
         if(!ok(nm_agent_road_cancel(a.agent,collision->world))||!ok(nm_agent_vehicle_exit_cancel(a.agent))||!ok(nm_agent_vehicle_entry_cancel(a.agent))||
            !ok(nm_agent_ped_bump_cancel(a.agent))||!ok(nm_agent_cancel_animation_pose(a.agent)))return false;
@@ -342,6 +362,9 @@ static void commitPendingRecoveryPlacements(){
         V from{target.x,target.y,a.current[0].p.z+.5f};ColPoint ground{};void*support=nullptr;
         bool clear=reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
             (from,from.z-1.3f-standing,ground,support,true,true,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.45f;
+        // Lying under a car, the line meets its floor from below and there was never any ground: the body stayed down for good (07/11).
+        if(!clear&&ground.normal.z<-.45f)clear=reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
+            (from,from.z-1.3f-standing,ground,support,true,false,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.45f;
         V ivRoot{};int why=clear?0:1;if(clear){target.z=ground.point.z+clearance;ivRoot=target+V{0,0,1.f-clearance};
             const int room=nm_agent_recovery_room(a.agent,collision->world,&ivRoot.x,(2ull<<32)|uint32_t(ref));clear=room==1;if(room<0)ok(room);if(!clear)why=2;}
         if(clear)for(auto&[otherRef,other]:agents)if(otherRef!=ref&&!other->preview&&!other->mounted&&

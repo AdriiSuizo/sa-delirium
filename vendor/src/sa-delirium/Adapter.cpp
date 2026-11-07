@@ -15,6 +15,7 @@
 #include "ObstacleTimeline.hpp"
 #include "PhysicsFramePhase.hpp"
 #include "NativeFrameSteps.hpp"
+#include "PhysicsBreakdown.hpp"
 #include "HostPredictorTimeline.hpp"
 #include <filesystem>
 #include <fstream>
@@ -96,6 +97,7 @@ struct Request {V impulse{},direction{0,1,0};unsigned time=0;int part=10;bool te
 struct MeleePush {int part=0;V partLocal{},force{};float left=0;unsigned hitTime=0;V delivered{};float duration=.15f;};
 static bool permitsPlayer(const Request&r){return r.playerVehicle&&(r.kind==Reaction::Bump||(r.kind==Reaction::Melee&&r.meleeContactReady)||(r.kind==Reaction::Impact&&playerVehicleImpacts)||(r.kind==Reaction::BikeFall&&playerBikeCrashEjections)||(r.kind==Reaction::Explosion&&playerExplosions)||(r.kind==Reaction::VehicleExit&&physicalVehicleExits)||r.kind==Reaction::Dive);}
 static std::map<int,Request> pending;
+struct NmAgent;struct Active;static void windscreenBodyStarted(Active&a);
 struct Active {
     int ref=-1,model=-1;void* ped=nullptr;Rig* rig=nullptr;NmAgent* agent=nullptr;
     bool playerVehicle=false;std::unique_ptr<Rig> playerRig;
@@ -103,6 +105,8 @@ struct Active {
     unsigned admittedFrame=0;bool seedBeforeCurrentFrame=false;
     std::map<int,ObstacleHistory> vehicleHistory;
     bool recovering=false;unsigned recoverStart=0;std::vector<T> frozenBones;
+    unsigned nearMissAt=0,lastShotAt=0,injuredRiseAt=0;bool injuredDecided=false,injuredChosen=false;
+    unsigned renderStart=0;int abortEvent=-1;std::array<V,21> stepLinear{},stepSpin{};
     bool deadSeen=false;unsigned deadSince=0; // IV CTaskSimpleDead's wait (+0x14) for its freeze
     bool recoveryAnimatedOwner=false,recoveryPlacementReady=false;
     uint64_t recoveryClipEpoch=0,recoverySampleSerial=0;unsigned recoveryNextProbe=0,recoveryWaitSince=0;
@@ -136,6 +140,7 @@ struct Active {
     int meleeAttacker=-1,meleeWeapon=-1;bool meleeHandContactLogged=false;
     unsigned probeRecoveryNotBefore=0; // Set only by the explicit ground-hit fixture.
     unsigned lastVehicleContactReport=0;
+    bool runOverByPlayer=false,corpseResting=false,shotRunning=false;
     MeleeResponse melee=MeleeResponse::Flinch;
     bool physicalAnimation=false;int animationDriveStatus=-1;unsigned entryDamageReport=0;
     float nativeGroundClearance=0;V recoveryVelocity{};
@@ -160,6 +165,9 @@ constexpr float worldHalfExtent=45.f,worldBelow=30.f,worldAbove=20.f,worldEdgeMa
 static V bodyPoint(const Active&a){const V p=a.current[10].p;return finite(p)&&length(p)>1.f?p:position(a.ped);}
 static V physicsWorldOrigin(){
     const V cj=position(player());V lo=cj,hi=cj;
+    // CJ decides the box: ejected 40 m from NPC bodies, the midpoint left him outside it and he was released at once (07/11).
+    if(const int ref=reference(player());pending.contains(ref))return cj;
+    else if(auto a=agents.find(ref);a!=agents.end()&&!a->second->mounted&&pedFromRef(ref)==a->second->ped)return bodyPoint(*a->second);
     for(const auto&[ref,a]:agents){
         if(a->mounted||pedFromRef(ref)!=a->ped)continue;
         const V b=bodyPoint(*a);
@@ -188,6 +196,8 @@ static void startPlayerShove(void*other);
 static void renderPlayerShove(void*p);
 static void tickPlayerShove(float dt);
 static void nikoUpdatePosition(void*p);
+static int stepFailTest=0;static bool stepLaunchTest=false,recoveryThreatTest=false;
+struct Active;static void injuredDraw(void*p);static void injuredUpdatePosition(void*p);static void injuredRender();static void beginInjuredMove(void*p);static bool injuredMoving(int ref);static bool injuredHoldsGround(Active&a,unsigned now);static float bulletMomentum(int weapon,float amount);
 static void nikoRender(void*p);
 static void nikoClear();
 static void captureRoadPoseSeeds();
@@ -197,6 +207,8 @@ static bool replacePhysicalDeathAnimation(DamageEvent*,void*);
 #include "NativeIdlePose.hpp"
 #include "VehicleReactions.hpp"
 static void releaseRecoveryTask(Active& a);
+static void answerRunOver(Active& a);
+static bool corpseDisturbed(const Active& a);
 
 static void restoreNative(Active& a,bool settle,bool enableCollision=true){
     if(auto*p=pedFromRef(a.ref);p&&p==a.ped&&at<short>(p,0x22)==a.model){
@@ -244,7 +256,7 @@ static void restoreNative(Active& a,bool settle,bool enableCollision=true){
 }
 static void restore(Active& a,const char* why,bool settle){
     forgetPhysicalDeath(a.ref);
-    releaseRecoveryTask(a);restoreNative(a,settle);releases++;event("release",a.ref,a.model,why);
+    releaseRecoveryTask(a);restoreNative(a,settle);releases++;event("release",a.ref,a.model,why);answerRunOver(a);
     event("anatomy_motion",a.ref,a.model,"head_torso_degrees="+std::to_string(a.maxHeadTorsoDegrees)+" neck_torso_degrees="+std::to_string(a.maxNeckTorsoDegrees)+" rendered_frames="+std::to_string(a.anatomyFrames)+" helper_local_error="+std::to_string(a.maxHelperLocalError));
     if(a.seededBikeFall)event("bike_fall_motion",a.ref,a.model,"peak_com_rise="+std::to_string(a.peakComRise)+" peak_up_speed="+std::to_string(a.peakUpSpeed));
 }
@@ -260,6 +272,7 @@ static void restore(Active& a,const char* why,bool settle){
 static bool originalGroundActive(void*);
 #include "FootSupport.hpp"
 #include "BodyContacts.hpp"
+#include "NearMiss.hpp"
 #include "RecoveryContacts.hpp"
 static V stagedExternalDrive(uint64_t);
 static bool originalGroundSupported(void*);
@@ -373,7 +386,7 @@ static bool activate(void*p,const Request&r){
         if(snapshotIncoming){std::ofstream f(folder/("model-"+std::to_string(model)+"-bones.txt"));f.precision(9);for(size_t i=0;i<a->bones.size();i++){const auto&t=a->bones[i];f<<a->rig->ids[i]<<' '<<t.p.x<<' '<<t.p.y<<' '<<t.p.z<<' '<<t.q.x<<' '<<t.q.y<<' '<<t.q.z<<' '<<t.q.w<<'\n';}}
         if(snapshotIncoming){std::ofstream f(folder/("model-"+std::to_string(model)+"-fit.txt"));f.precision(9);for(int i=0;i<21;i++)f<<a->rig->fitPoints[i*3]<<' '<<a->rig->fitPoints[i*3+1]<<' '<<a->rig->fitPoints[i*3+2]<<'\n';}
         cost.lap(1);
-        collision->update(physicsWorldOrigin());
+        collision->rebuildBudget=0;collision->update(physicsWorldOrigin());
         V floorFrom=position(p)+V{0,0,2},down{0,0,-1},normal{};float distance=0;
         if(collision->triangles<=0||nm_world_raycast(collision->world,&floorFrom.x,&down.x,12,&distance,&normal.x)<=0){
             ColPoint native{};void*support=nullptr;
@@ -415,6 +428,7 @@ static bool activate(void*p,const Request&r){
         if(const int leaving=r.kind==Reaction::BikeFall?(a->departingBike>=0?a->departingBike:r.vehicle):r.kind==Reaction::VehicleExit&&r.pose?r.pose->vehicle:-1;leaving>=0&&vehicleFromRef(leaving)){
             ok(nm_agent_set_no_collision(a->agent,vehicleExternalId(leaving)));
             event("vehicle_no_collision_started",ref,model,"vehicle_ref="+std::to_string(leaving));
+            windscreenBodyStarted(*a);
         }
         if(r.kind==Reaction::Melee||r.kind==Reaction::VehicleExit||r.kind==Reaction::DoorEntry||r.kind==Reaction::Brace||r.kind==Reaction::Bump)applyNativeIdlePose(*a);
         // A rollout translates the skeleton sideways relative to its entity.
@@ -508,7 +522,7 @@ static void evaluatePedPalette(void*p){
     evaluatedPeds[identity]=p;
     sampleNativeIdlePose(p);
     const bool authoredCombat=combatRender(p);
-    if(!authoredCombat)nikoRender(p);
+    if(!authoredCombat){nikoRender(p);injuredDraw(p);}
     if(!authoredCombat)renderPlayerShove(p);
     if(!authoredCombat)aimMeleeStrike(p);
     if(!authoredCombat){combatReleaseRender(p);combatRecordDrawn(p);}
@@ -555,7 +569,10 @@ static void applyPhysicalPalette(void*p){
     if(!applyBones)return;
     float age=(gameTime()-a.start)*.001f;
     const bool animatedRecovery=a.recovering&&a.recoveryAnimatedOwner;
-    float weight=animatedRecovery?recoveryWeight(a):std::clamp(age/.15f,0.f,1.f);
+    // The fade in runs once per body: a.start restarts at every hit, and a body with no seeded pose
+    // would fade back to SA's clip each time.
+    if(!a.renderStart)a.renderStart=gameTime();
+    float weight=animatedRecovery?recoveryWeight(a):std::clamp((gameTime()-a.renderStart)*.001f/.15f,0.f,1.f);
     // Melee begins from this evaluated pose. A 150 ms crossfade let the
     // advancing native hit animation draw the victim inside the attacker's fist.
     if((a.kind==Reaction::Melee||a.kind==Reaction::Impact||a.kind==Reaction::Bump)&&!animatedRecovery)weight=1.f;
@@ -635,6 +652,7 @@ static void __fastcall damage(DamageEvent* hitEvent,void*,void*p){originalDamage
 #include "Aiming.hpp"
 #include "MeleeResponse.hpp"
 #include "CombatRuntime.hpp"
+#include "InjuredMove.hpp"
 #include "PoliceResponse.hpp"
 #include "PhysicalDeathNative.hpp"
 #include "NikoMovement.hpp"
@@ -647,7 +665,22 @@ static void __fastcall damage(DamageEvent* hitEvent,void*,void*p){originalDamage
 #include "TrainerChordGuard.hpp"
 #include "ProcessExitGuard.hpp"
 #include "FileManagerGuard.hpp"
+#include "CrashGuard.hpp"
 static const char* audioStreamDirectoryStatus="not_installed";static const char* audioStreamLengthGuardStatus="not_installed";
+// IV: a player's bullet on the gun in an ambient ped's hand knocks it out as a pickup (0x8226E1F8 -> 0x8222B278, gunknock.rs).
+// SA's held gun has no body to hit, so the hit on the gun arm stands for it. Same pickup as a dead ped's (0x4591D0).
+static void shotOutOfHand(void*p,void*source,int piece){
+    if(piece!=6||source!=player()||p==player()||!player()||at<unsigned char>(p,0x484)==2)return;
+    const unsigned slot=at<unsigned char>(p,0x718);if(slot>=13)return;
+    const int type=at<int>(p,0x5A0+slot*0x1C);if(type<22||type>34)return;
+    const unsigned ammo=std::clamp(at<unsigned>(p,0x5A0+slot*0x1C+0xC),1u,90u);
+    V spot=position(p)+normalized(matrix(p)->right)*.5f;bool found=false;
+    const float ground=reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(0x5696C0)(spot.x,spot.y,spot.z+1.f,&found,nullptr);
+    if(found)spot.z=ground+.3f;
+    reinterpret_cast<int(__cdecl*)(V,int,int,unsigned,bool,char*)>(0x457380)(spot,type,4,ammo,false,nullptr); // CPickups::GenerateNewOne_WeaponType, PICKUP_ONCE_TIMEOUT
+    reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E62B0)(p,type);                                         // CPed::ClearWeapon
+    event("shot_out_of_hand",reference(p),at<short>(p,0x22),"weapon="+std::to_string(type)+" ammo="+std::to_string(ammo));
+}
 static void acceptedDamage(DamageEvent* hitEvent,void*p){
     if(combatDelivering)return; // authored sweep delivers native damage once
     const float amount=hitEvent->response.health+hitEvent->response.armour;
@@ -674,12 +707,15 @@ static void acceptedDamage(DamageEvent* hitEvent,void*p){
         event("accepted_mounted_damage",reference(p),at<short>(p,0x22),"native_health="+std::to_string(at<float>(p,0x540)));return;
     }
     const bool bullet=firearmDamage(weapon);
+    if(bullet)shotOutOfHand(p,hitEvent->source,hitEvent->piece);
     if(!bullet&&!blast&&!((weapon>=0&&weapon<=15)||weapon==49||weapon==50)){event("damage_kept_native",reference(p),at<short>(p,0x22),"unsupported_weapon="+std::to_string(weapon));return;}
     // Shotgun pellets retain all native damage but share one physical reaction
     // per discharge. This also prevents eight pellets restarting eight tasks.
     static std::map<int,unsigned> lastShotgun;
-    if(weapon>=25&&weapon<=27){int ref=reference(p);if(lastShotgun.count(ref)&&gameTime()-lastShotgun[ref]<120)return;lastShotgun[ref]=gameTime();}
-    float momentum=bullet?std::clamp(amount*.25f,3.f,35.f):std::clamp(amount*.6f,5.f,60.f);
+    if(weapon>=25&&weapon<=27){int ref=reference(p);
+        if(lastShotgun.count(ref)&&gameTime()-lastShotgun[ref]<120){pelletHits[ref].push_back({part,direction*bulletMomentum(weapon,amount),gameTime()});return;}
+        lastShotgun[ref]=gameTime();}
+    float momentum=bullet?bulletMomentum(weapon,amount):std::clamp(amount*.6f,5.f,60.f);
     const bool vehicleImpact=weapon==49||weapon==50;
     const int car=vehicleImpact?vehicleRef(hitEvent->source):-1;
     if(vehicleImpact){
@@ -705,15 +741,63 @@ static void acceptedDamage(DamageEvent* hitEvent,void*p){
     pending[reference(p)]=request;
     event("accepted_game_damage",reference(p),at<short>(p,0x22),"weapon="+std::to_string(weapon)+" damage="+std::to_string(amount)+" health="+std::to_string(at<float>(p,0x540)));
 }
+// A body set down inside something or wedged under a car leaves the solve at tens of m/s: 16 to 69 m/s
+// in 34 ms, 30 m/s from under a parked car (07/11). Only a fast car or an explosion can do that.
+static void rejectSolverLaunch(Active&a){
+    if(stepLaunchTest){
+        stepLaunchTest=false;
+        for(int k=0;k<21;k++){V linear{},spin{};nm_agent_get_part_velocity(a.agent,k,&linear.x,&spin.x);linear.z+=65.f;ok(nm_agent_set_part_state(a.agent,k,&a.current[k].p.x,&a.current[k].q.x,&linear.x,&spin.x));}
+    }
+    if(a.kind==Reaction::Explosion)return;
+    float nearby=0;for(const auto&v:collision->vehicles)if(length(v.frame.p-a.current[0].p)<8.f)nearby=std::max(nearby,length(v.velocity));
+    V linear{},spin{};nm_agent_get_part_velocity(a.agent,0,&linear.x,&spin.x);
+    const float before=length(a.stepLinear[0]),after=length(linear);
+    if(finite(linear)&&(after<=14.f+nearby*1.5f||after<=before*1.5f+6.f))return;
+    for(int k=0;k<21;k++)ok(nm_agent_set_part_state(a.agent,k,&a.current[k].p.x,&a.current[k].q.x,&a.stepLinear[k].x,&a.stepSpin[k].x));
+    event("solver_launch_rejected",a.ref,a.model,"before_mps="+std::to_string(before)+" after_mps="+std::to_string(after));
+}
+// A get-up is an animation on SA's capsule: a car reaching it threw the ped up 1.35 m at 30 m/s and the clip
+// played on over the ambulance (07/11). The body goes back to physics before the car arrives.
+static bool recoveryVehicleThreat(Active&a,void*p){
+    if(recoveryThreatTest){recoveryThreatTest=false;return true;}
+    if(length(at<V>(p,0x44)*50.f)>4.f)return true;
+    const V root=position(p);
+    for(const auto&v:collision->vehicles){
+        const float speed=length(v.velocity);if(speed<.5f)continue;
+        const V local=mul(inverse(v.frame),T{{},root}).p;const float reach=.35f+speed*.12f;
+        if(std::abs(local.x)<v.half.x+reach&&std::abs(local.y)<v.half.y+reach&&std::abs(local.z)<v.half.z+.8f)return true;
+    }
+    return false;
+}
 static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float dt,unsigned now){
     const double intervalStarted=bikeGeometryClockMs();
     double bindingMs=0,solverMs=0,commitMs=0;
     std::vector<int> invalid;
     auto bad=[&](int ref){return std::find(invalid.begin(),invalid.end(),ref)!=invalid.end();};
+    // One bad vehicle or walker in the shared step must not hand every falling body back to its clip
+    // (07/11: a shoved runner stood up running again at 0.38 s). They wait for the next frame.
+    static int heldSteps=0;
+    auto holdBodies=[&]{
+        failOriginalGroundStep();
+        if(++heldSteps<=60){event("physics_step_held",-1,-1,"frames="+std::to_string(heldSteps)+" bodies="+std::to_string(live.size()));return;}
+        for(auto*a:live)if(!bad(a->ref))invalid.push_back(a->ref);
+    };
     if(!bodyGroup)bodyGroup=nm_group_create();
-    float fastest=0;
-    for(auto*a:live)if(a->agent&&!a->mounted)for(int k=0;k<21;k++){V linear{},spin{};nm_agent_get_part_velocity(a->agent,k,&linear.x,&spin.x);if(finite(linear))fastest=std::max(fastest,length(linear));}
-    const NativeFrameSteps frameSteps(dt,fastest);
+    // Subdivide for speed only where a part could cross the world mesh this interval: a part over 0.1 m per base step
+    // whose path (centre, and a capsule radius lower) meets a triangle within its travel + 0.25 m. A body flying clear
+    // of everything ran up to 8 steps (30 ms frames with 3 bodies, 06/11); one sliding into a kerb still subdivides.
+    float fastest=0;bool playerFast=false;const int baseSteps=NativeFrameSteps(dt).count;
+    for(auto*a:live)if(a->agent&&!a->mounted)for(int k=0;k<21;k++){
+        V linear{},spin{};nm_agent_get_part_velocity(a->agent,k,&linear.x,&spin.x);if(!finite(linear))continue;
+        const float speed=length(linear);if(speed<=fastest||speed*dt/float(std::max(1,baseSteps))<=.1f)continue;
+        V at{};float q[4]{};if(!ok(nm_agent_get_part_transform(a->agent,k,&at.x,q)))continue;
+        const V dir=linear*(1.f/speed);const float reach=speed*dt+.25f;float distance=0;V normal{};
+        for(const V from:{at,at-V{0,0,.15f}})if(nm_world_raycast(collision->world,&from.x,&dir.x,reach,&distance,&normal.x)>0){fastest=speed;playerFast|=a->ped==player();break;}
+    }
+    // Several NPC bodies under a car cost 8 ms a step, 87 ms a frame at 8 steps, and the slow frame asks for more (07/11).
+    // CJ's own body keeps the full subdivision: he is the one who must not fall through the road.
+    const int stepLimit=live.size()>=3&&!playerFast?4:8;
+    const NativeFrameSteps frameSteps(dt,fastest,stepLimit);
     FrameCostProfile intervalProfile("physics_interval",int(live.size()),0);
     intervalProfile.inputDt=dt;intervalProfile.substeps=frameSteps.count;
     prepareExternalIntervalScene();
@@ -730,10 +814,7 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
         const float stepSeconds=frameSteps.step(substep);
         nm_group_begin(bodyGroup);
         const uint64_t externalEpoch=(uint64_t(*reinterpret_cast<unsigned*>(0xB7CB4C))<<8)|uint64_t(substep);
-        if(!stageExternalOwners(bodyGroup,externalEpoch,float(substep+1)/frameSteps.count,stepSeconds)){
-            failOriginalGroundStep();
-            for(auto*a:live)if(!bad(a->ref))invalid.push_back(a->ref);break;
-        }
+        if(!stageExternalOwners(bodyGroup,externalEpoch,float(substep+1)/frameSteps.count,stepSeconds)){holdBodies();break;}
         beginSceneVehicleStep(float(substep+1)/frameSteps.count);
         // These snapshots are immutable during staging. A preview needs the
         // kinematic view, while the group needs the finite-owner view.
@@ -773,15 +854,13 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
                 }
                 combatDrivePhysics(a);
             a.previous=a.current;
+            if(!a.mounted&&!a.preview)for(int k=0;k<21;k++)nm_agent_get_part_velocity(a.agent,k,&a.stepLinear[k].x,&a.stepSpin[k].x);
             const int result=(a.mounted||a.preview)?nm_agent_step(a.agent,a.mounted?a.mountedWorld:collision->world,stepSeconds):nm_group_add(bodyGroup,a.agent,uint32_t(a.ref),collision->world);
             if(!ok(result))invalid.push_back(a.ref);
         }
         // External-only islands also need this exact geometry; a final preview
         // actor must not replace the shared scene by its kinematic snapshot.
-        if(!bindScene(true)||!bindNativeVehicleEnvironment()){
-            failOriginalGroundStep();
-            for(auto*a:live)if(!bad(a->ref))invalid.push_back(a->ref);break;
-        }
+        if(!bindScene(true)||!bindNativeVehicleEnvironment()){holdBodies();break;}
         bindingMs+=bikeGeometryClockMs()-bindingStarted;
         verifyOriginalGroundMembers(live,invalid);
         const double solveStarted=bikeGeometryClockMs();
@@ -789,12 +868,10 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
         if(!jackArms.empty())ok(nm_world_set_capsules(collision->world,nullptr,0));
         solverMs+=bikeGeometryClockMs()-solveStarted;
         const double commitStarted=bikeGeometryClockMs();
-        const bool committed=solved&&commitExternalOwners(bodyGroup,stepSeconds);
+        const bool committed=solved&&commitExternalOwners(bodyGroup,stepSeconds)&&!(stepFailTest>0&&stepFailTest--);
         commitMs+=bikeGeometryClockMs()-commitStarted;
-        if(!committed){
-            failOriginalGroundStep();
-            for(auto*a:live)if(!bad(a->ref))invalid.push_back(a->ref);break;
-        }
+        if(!committed){holdBodies();break;}
+        heldSteps=0;
         observeSolvedExternalPairs(bodyGroup,stepSeconds);
         finishSceneVehicleStep(live);
         for(auto*entry:live){auto&a=*entry;if(bad(a.ref))continue;
@@ -802,6 +879,7 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
                 for(auto h=a.vehicleHistory.begin();h!=a.vehicleHistory.end();)if(!collision->findIdentity(h->first))h=a.vehicleHistory.erase(h);else ++h;
                 if(!a.mounted){selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);}
                 if(!readPose(a,a.current)){invalid.push_back(a.ref);continue;}steps++;noteSolverGapAudit(a,now);
+                if(!a.mounted&&!a.preview)rejectSolverLaunch(a);
                 if(a.kind==Reaction::DoorEntry&&!a.mounted&&!a.preview)observeVehicleEntrySolvedStep(a,stepSeconds);
                 if(a.kind==Reaction::Melee&&a.meleeMotionSample<4){
                     static constexpr unsigned times[]={100,250,500,1000};
@@ -846,6 +924,8 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
     }
     for(auto*a:live)a->accumulator=0;
     collision->applyVehicleBoxes();
+    physicsbreakdown::record(bodyGroup,{*reinterpret_cast<unsigned*>(0xB7CB4C),now,dt,fastest,frameSteps.count,stepLimit,int(live.size()),int(externalHostOwners.size()),
+        int(collision->vehicles.size()),playerFast,sceneMs,bindingMs,solverMs,commitMs,bikeGeometryClockMs()-intervalStarted});
     static unsigned costReport=0;
     if(now-costReport>=500){costReport=now;event("shared_physics_cost",-1,-1,
         "dt="+std::to_string(dt)+" substeps="+std::to_string(frameSteps.count)+
@@ -1031,7 +1111,12 @@ static void simulatePhysicsFrame(){
                 nm_agent_cancel_animation_pose(a.agent);
                 event(impactDeath?"impact_death_continuous_body":entryDeath?"entry_death_continuous_body":"combat_death_continuous_body",a.ref,a.model,"same_agent=1 native_death_task_preserved=1");
             }
+            // Damage does not end a fall: the body stays until physics hands it back. Scripts and death still win.
+            if(a.taskAborted&&a.abortEvent==9&&!a.mounted&&!a.preview&&at<float>(p,0x540)>0)resumePhysicalContact(a,"damage_continuous_body");
             if(a.taskAborted){restore(a,"native_task_superseded",false);it=agents.erase(it);continue;}
+            if(a.recovering&&a.recoveryAnimatedOwner&&!a.mounted&&at<float>(p,0x540)>0&&recoveryVehicleThreat(a,p)){
+                resumePhysicalContact(a,"recovery_vehicle_contact");at<V>(p,0x44)=V{};ok(nm_agent_task_catch_fall(a.agent,"*"));
+            }
             if(a.recovering){
                 if(at<float>(p,0x540)<=0){restore(a,"died_during_recovery",false);it=agents.erase(it);continue;}
                 if(a.recoveryClearanceLost&&!a.recoveryAnimatedOwner){
@@ -1048,7 +1133,7 @@ static void simulatePhysicsFrame(){
                 if(a.recoveryDone||(a.recoveryAnimatedOwner&&a.uprightRecovery&&(now-a.recoverStart)*.001f>=blendSeconds)){
                     recoveryFinishes++;event("recovery_motion",a.ref,a.model,"max_bone_step="+std::to_string(a.maxRecoveryStep));
                     if(!a.uprightRecovery)retireNativeFallAndGetUp(a);
-                    restore(a,"native_getup_pose_handoff_complete",false);it=agents.erase(it);continue;
+                    const bool limps=a.injuredChosen;restore(a,"native_getup_pose_handoff_complete",false);it=agents.erase(it);if(limps)beginInjuredMove(p);continue;
                 }
                 if(!a.uprightRecovery&&a.ownedTask&&physicalTask(p)!=a.ownedTask){
                     recoveryInterrupted++;restore(a,"recovery_native_task_interrupted_or_timeout",false);it=agents.erase(it);continue;
@@ -1056,16 +1141,24 @@ static void simulatePhysicsFrame(){
                 if(!a.recoveryAnimatedOwner)live.push_back(&a);
                 ++it;continue;
             }
-            live.push_back(&a);++it;
+            // deadSince restarts IV's second, or the same frame would freeze the corpse again.
+            if(a.corpseResting&&(pending.contains(a.ref)||!a.meleePushes.empty()||corpseDisturbed(a))){a.corpseResting=false;a.deadSince=now;}
+            if(!a.corpseResting)live.push_back(&a);
+            ++it;
         }
         const unsigned currentFrame=*reinterpret_cast<unsigned*>(0xB7CB4C);
         std::erase_if(live,[&](const Active*a){return !physicalAdmissionCanStep(a->admittedFrame,currentFrame,a->seedBeforeCurrentFrame);});
         promoteRecoveryContacts(live,dt,now);
         cost.lap(3);
+        reactToNearMisses(live,now);applyPelletHits(live,now);
         const auto invalid=stepPhysicsActors(live,dt,now);cost.lap(4);
         for(auto it=agents.begin();it!=agents.end();){
             auto&a=*it->second;void*p=pedFromRef(a.ref);
-            if(std::find(live.begin(),live.end(),&a)==live.end()){++it;continue;}
+            auto holdRoot=[&]{
+                V root=a.current[0].p-rotate(rotation(*matrix(p)),a.rootOffset);
+                if(finite(root)&&length(root-position(p))<8){movePhysicalRoot(p,root,a.playerVehicle);at<unsigned char>(p,0x1C)&=~1u;}
+            };
+            if(std::find(live.begin(),live.end(),&a)==live.end()){if(a.corpseResting&&applyBones)holdRoot();++it;continue;}
             if(std::find(invalid.begin(),invalid.end(),a.ref)!=invalid.end()){
                 if(!resumeNativeBikeFall(a,"invalid_physics_pose_rejected"))
                     restore(a,"invalid_physics_pose_rejected",true);
@@ -1077,8 +1170,10 @@ static void simulatePhysicsFrame(){
             if(!a.mounted&&at<float>(p,0x540)<=0){
                 if(!a.deadSeen){a.deadSeen=true;a.deadSince=now;}
                 V linear{},spin{};nm_agent_get_part_velocity(a.agent,0,&linear.x,&spin.x);
-                if(now-a.deadSince>1000&&length(linear)<.05f&&nm_agent_is_awake(a.agent)==1){
-                    ok(nm_agent_freeze(a.agent));event("corpse_frozen",a.ref,a.model,"since_death_ms="+std::to_string(now-a.deadSince));
+                // The next step undid the freeze, every frame (29 corpses, up to 729 times each, 07/11), and each stayed
+                // in the solver. A resting corpse now skips it until something reaches it.
+                if(now-a.deadSince>1000&&length(linear)<.05f){
+                    ok(nm_agent_freeze(a.agent));a.corpseResting=true;event("corpse_frozen",a.ref,a.model,"since_death_ms="+std::to_string(now-a.deadSince));
                 }
             }
             const bool exitReady=updateVehicleExitTask(a)&&updateVehicleEntryTask(a);
@@ -1092,12 +1187,9 @@ static void simulatePhysicsFrame(){
                 const bool originalUpright=(a.meleeTaskOriginal||a.kind==Reaction::Bump)&&bumpReady&&contact&&nm_agent_is_balancing(a.agent)==1&&nm_agent_has_fallen(a.agent)==0;
                 // A blocked get-up still advances physics and its native root.
                 // Only the actual handoff owns the pose/root from this point.
-                if((originalUpright||a.stableFor>=recoveryStableSeconds)&&beginRecovery(a)){++it;continue;}
+                if((originalUpright||(a.stableFor>=recoveryStableSeconds&&!injuredHoldsGround(a,now)))&&beginRecovery(a)){++it;continue;}
             }
-            if(applyBones&&!a.mounted&&!a.preview){
-                V root=a.current[0].p-rotate(rotation(*matrix(p)),a.rootOffset);
-                if(finite(root)&&length(root-position(p))<8){movePhysicalRoot(p,root,a.playerVehicle);at<unsigned char>(p,0x1C)&=~1u;}
-            }
+            if(applyBones&&!a.mounted&&!a.preview)holdRoot();
             ++it;
         }
     }
@@ -1150,7 +1242,47 @@ static void finishPhysicsFrame(){
     physicsFrame.finish();
 }
 #include "VehicleParticles.hpp"
+// A moving car or a falling body next to a resting corpse has to meet it again.
+static bool corpseDisturbed(const Active& a){
+    for(const auto&v:collision->vehicles)if(length(v.velocity)>.5f&&length(v.frame.p-a.current[0].p)<5.f)return true;
+    for(const auto&[ref,other]:agents)if(other.get()!=&a&&!other->corpseResting&&length(other->current[0].p-a.current[0].p)<1.5f)return true;
+    return false;
+}
+// Tests only: GTASA_AIM_TEST=1 gives CJ an AK, turns him 2 rad away from the camera and holds aim, logging the result.
+static void aimTestDrive(void*p){
+    static const bool on=GetEnvironmentVariableA("GTASA_AIM_TEST",nullptr,0)!=0;if(!on||!p||!playing())return;
+    static unsigned frames=0;static float wanted=0;frames++;
+    void*cam=activeCamera();if(!cam)return;const V front=at<V>(cam,0x190);const float view=std::atan2(-front.x,front.y);
+    if(frames==600){reinterpret_cast<void(__thiscall*)(void*,int,unsigned,bool)>(0x5E6080)(p,30,500,false);reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E6280)(p,30);}
+    if(frames==660){const float away=view+2.f;at<float>(p,0x558)=away;at<float>(p,0x55C)=away;nikoState[0]=away;reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(p,away);wanted=view;
+        event("aim_test_start",reference(p),0,"view="+std::to_string(view)+" heading="+std::to_string(away));}
+    if(frames>=690&&frames<=900){at<short>(reinterpret_cast<void*>(0xB73458),0xC)=255;
+        if(frames%15==0)event("aim_test",reference(p),0,"frame="+std::to_string(frames)+" wanted="+std::to_string(wanted)+" view="+std::to_string(view)+" heading="+std::to_string(at<float>(p,0x558))+" cam_mode="+std::to_string(at<unsigned short>(cam,0xC)));}
+}
+// SA builds the aim camera behind CJ, so pressing aim swung the view to wherever he faced. He turns to the view first, as IV
+// turns the body to the camera (gta4-viewer main.rs:2519): the view stays, and SA's lock-on, which looks along his heading,
+// picks what the player is looking at.
+// Every frame of intent, until the aim camera takes over: with GInput's layout CPad::GetTarget alone saw 2 of 30 aims (07/11), so
+// the pad's triggers and SA's own attack task count too. The on-foot layer has its own yaw and would turn him back the same frame.
+static void faceCameraOnAim(){
+    static bool facing=false;void*p=player();
+    aimTestDrive(p);
+    if(!p||!playing()||cutscene()||inVehicle(p)||agents.contains(reference(p))||pending.contains(reference(p))){facing=false;return;}
+    const int weapon=combatWeapon(p);if(weapon<22||weapon>38){facing=false;return;}
+    auto*manager=taskManager(p);
+    const bool target=reinterpret_cast<bool(__thiscall*)(void*)>(0x540670)(reinterpret_cast<void*>(0xB73458)); // CPad::GetTarget, pad 0
+    if(!target&&padTriggers()!=1&&!(manager&&at<void*>(manager,0x14))){facing=false;return;}
+    void*cam=activeCamera();if(!cam||at<unsigned short>(cam,0xC)!=4)return; // MODE_FOLLOWPED: past it the aim camera follows him
+    const V front=at<V>(cam,0x190);if(!finite(front)||std::abs(front.x)+std::abs(front.y)<.01f)return;
+    const float heading=std::atan2(-front.x,front.y);
+    at<float>(p,0x558)=heading;at<float>(p,0x55C)=heading;nikoState[0]=heading;
+    reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(p,heading); // CPlaceable::SetHeading
+    if(!facing)event("aim_faced_camera",reference(p),0,"heading="+std::to_string(heading)+" weapon="+std::to_string(weapon)+" target="+std::to_string(target));
+    facing=true;
+}
 static void __cdecl process(){
+    crash_guard::tick(int(agents.size()),int(pending.size()));
+    if(ready)faceCameraOnAim();
     {static int chord=0;const int now=trainer_chord_guard::maintain();
      if(now!=chord){chord=now;event("trainer_chord_guard",-1,-1,"xinput_hooks="+std::to_string(now)+" chord=cross_square_circle");}}
     if(const auto restored=trainer_hook_guard::maintain();restored.count){
@@ -1160,6 +1292,8 @@ static void __cdecl process(){
         event("trainer_hook_removed",-1,-1,text);}
     vehicleparticles::maintain(ready&&playing(),folder.parent_path()/"DeliriumSA.ini");
     FrameCostProfile cost("process",int(agents.size()),int(pending.size()));
+    // The physical window mesh completes at once whenever a body is or may become physical; otherwise 24 entities a frame.
+    if(collision)collision->rebuildBudget=agents.empty()&&pending.empty()?24:0;
     maintainIdleCaller();
     maintainExpandedSkinAdapterTest();
     if(ready&&physicsFrame.pending){
@@ -1178,7 +1312,7 @@ static void __cdecl process(){
     captureHostPredictorStarts();
     reserveOriginalGroundFrame();
     cost.lap(0);
-    originalProcess();cost.lap(1);if(!ready)return;
+    crash_guard::timedGameProcess(originalProcess);cost.lap(1);if(!ready)return;
     if(!bikeFallAudits.empty())observeNativeBikeFalls();
     tickWheelSmokeProbe();
     tickCopProbe();
@@ -1305,7 +1439,7 @@ extern "C" __declspec(dllexport) int __cdecl DeliriumSA_ProbeVehicleReaction(int
     if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);
     if(mode>=50&&mode<=61)return streamingRoute(mode);
     if(!ready||!playing()||!player()||area()!=0||cutscene()||scriptMissionActive())return -1;
-    if(mode>=256&&mode<=260)return armedCombatFixture(mode);
+    if((mode>=256&&mode<=260)||(mode>=265&&mode<=271))return armedCombatFixture(mode);
     if(mode>=240&&mode<=244)return wheelSmokeFixture(mode);
     if(mode>=245&&mode<=248)return riderJackFixture(mode);
     if(mode>=265&&mode<=267)return chaseFixture(mode);
@@ -1397,7 +1531,7 @@ extern "C" __declspec(dllexport) int __cdecl DeliriumSA_ProbeFrame(){
 }
 static DWORD WINAPI setup(void*){
     wchar_t exe[32768];GetModuleFileNameW(nullptr,exe,32768);folder=fs::path(exe).parent_path()/L"DeliriumSA";fs::create_directories(folder);
-    sessionlog::init(folder.parent_path());
+    sessionlog::init(folder.parent_path());crash_guard::prepare(folder.parent_path(),sessionlog::directory);
     auto*base=reinterpret_cast<unsigned char*>(GetModuleHandleW(nullptr));auto*dos=reinterpret_cast<IMAGE_DOS_HEADER*>(base);auto*nt=reinterpret_cast<IMAGE_NT_HEADERS32*>(base+dos->e_lfanew);
     if(nt->FileHeader.Machine!=IMAGE_FILE_MACHINE_I386||nt->OptionalHeader.SizeOfImage!=0x1177000){status="unsupported_executable";event(status);return 0;}
     auto ini=fs::path(exe).parent_path()/L"DeliriumSA.ini";
@@ -1441,6 +1575,8 @@ static DWORD WINAPI setup(void*){
     if(!hook(reinterpret_cast<void*>(0x53BEE0),&process,reinterpret_cast<void**>(&originalProcess))||!hook(reinterpret_cast<void*>(0x5E8A20),&preRender,reinterpret_cast<void**>(&originalPreRender))||!hook(reinterpret_cast<void*>(0x4B3A20),&damage,reinterpret_cast<void**>(&originalDamage))){status="hook_creation_failed";event(status);return 0;}
     if(!hook(reinterpret_cast<void*>(0x4AFF60),&bikeOut,reinterpret_cast<void**>(&originalBikeOut))||!hook(reinterpret_cast<void*>(0x4B4AC0),&bikeSafePosition,reinterpret_cast<void**>(&originalBikeSafePosition))||!hook(reinterpret_cast<void*>(0x4B0020),&bikeForcesAndAnims,reinterpret_cast<void**>(&originalBikeForcesAndAnims))||!hook(reinterpret_cast<void*>(0x67FA80),&getupProcess,reinterpret_cast<void**>(&originalGetupProcess))){status="vehicle_recovery_hook_failed";event(status);return 0;}
     MH_QueueEnableHook(reinterpret_cast<void*>(0x4AFF60));MH_QueueEnableHook(reinterpret_cast<void*>(0x4B4AC0));MH_QueueEnableHook(reinterpret_cast<void*>(0x4B0020));MH_QueueEnableHook(reinterpret_cast<void*>(0x67FA80));
+    if(!hook(reinterpret_cast<void*>(0x712E40),reinterpret_cast<void*>(&nearmiss::gunShot),reinterpret_cast<void**>(&nearmiss::originalGunShot))){status="gunshot_hook_failed";event(status);return 0;}
+    MH_QueueEnableHook(reinterpret_cast<void*>(0x712E40));
     if(!hook(reinterpret_cast<void*>(0x681C10),&manageTasks,reinterpret_cast<void**>(&originalManageTasks))){status="recovery_ownership_hook_failed";event(status);return 0;}
     MH_QueueEnableHook(reinterpret_cast<void*>(0x681C10));
     if(!hook(reinterpret_cast<void*>(0x677FE0),&getupAbort,reinterpret_cast<void**>(&originalGetupAbort))){status="recovery_abort_hook_failed";event(status);return 0;}
@@ -1494,6 +1630,7 @@ static DWORD WINAPI setup(void*){
     if(!installExpandedSkinAdapterTest()){status="expanded_skin_test_install_failed";event(status);report();return 0;}
     event("file_manager_guard",-1,-1,"hooks="+std::to_string(file_manager_guard::install())+"/7");
     event(process_exit_guard::install()?"process_exit_guard_installed":"process_exit_guard_failed");
+    event("crash_guard",-1,-1,crash_guard::install());
     if(MH_ApplyQueued()!=MH_OK){status="hook_enable_failed";event(status);return 0;}
     status="real_engine_ready";ready=true;event("initialized",-1,-1,applyBones?"bone_application_enabled":"shadow_validation_only");report();return 0;
 }

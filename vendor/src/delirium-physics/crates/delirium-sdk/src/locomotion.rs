@@ -37,6 +37,19 @@ pub unsafe extern "C" fn nm_locomotion_pose(p:*const NmLocomotion,pose:*mut f32,
     for(t,r)in p.0.pose.iter().zip(unsafe{std::slice::from_raw_parts_mut(pose,count as usize*7)}.chunks_exact_mut(7)){t.write(r)}
     unsafe{std::ptr::copy_nonoverlapping(p.0.state().as_ptr(),state,8)};1
 }
+/// One bank clip on this rig: pose rows, then duration and mover speed (m/s) in info.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_locomotion_clip_pose(c:*const NmCombat,p:*const NmLocomotion,key:*const c_char,phase:f32,pose:*mut f32,count:i32,info:*mut f32)->i32{
+    let Some(p)=(unsafe{p.as_ref()})else{return fail(NM_E_ARG,"null movement")};
+    let Some(rt)=(unsafe{c.as_ref()}).and_then(|c|c.1.as_ref())else{return fail(NM_E_ARG,"movement bank unavailable")};
+    if key.is_null()||pose.is_null()||info.is_null()||count as usize!=p.0.rig.ids.len(){return fail(NM_E_ARG,"invalid clip pose request")}
+    let Ok(key)=(unsafe{std::ffi::CStr::from_ptr(key)}).to_str()else{return fail(NM_E_ARG,"invalid clip key")};
+    let Some(clip)=rt.bank.clips.get(key)else{return 0};
+    let Some(rows)=rt.bank.retarget(&p.0.rig,key,phase.rem_euclid(1.),0)else{return 0};
+    for(t,r)in rows.iter().zip(unsafe{std::slice::from_raw_parts_mut(pose,count as usize*7)}.chunks_exact_mut(7)){t.write(r)}
+    let moved=(sa_combat::animation::mover(clip,1.)-sa_combat::animation::mover(clip,0.)).length();
+    unsafe{*info=clip.duration;*info.add(1)=moved/clip.duration;}1
+}
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_locomotion_clip(p:*const NmLocomotion,out:*mut c_char,len:i32)->i32{
     let Some(p)=(unsafe{p.as_ref()})else{return fail(NM_E_ARG,"null movement")};unsafe{put(&p.0.key,out,len)}

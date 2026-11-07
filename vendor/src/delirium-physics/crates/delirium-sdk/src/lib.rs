@@ -82,6 +82,22 @@ fn with_tp<R>(f: impl FnOnce(&TaskParams) -> R) -> R {
     }
 }
 
+// GTASA_PANIC_LOG=<file>: where and why, whether or not the caller survives it.
+fn log_panics() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let Some(path) = std::env::var_os("GTASA_PANIC_LOG") else { return };
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            use std::io::Write;
+            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+                let _ = writeln!(file, "{info}");
+            }
+            previous(info);
+        }));
+    });
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn nm_version() -> i32 {
     100
@@ -234,6 +250,7 @@ pub unsafe extern "C" fn nm_world_set_vehicle_transform(w:*mut NmWorld,index:i32
 
 #[unsafe(no_mangle)]
 pub extern "C" fn nm_world_create() -> *mut NmWorld {
+    log_panics();
     Box::into_raw(Box::new(NmWorld(Collision::default(), vec![], vec![])))
 }
 
@@ -614,6 +631,11 @@ fn before_step(a:&mut NmAgent,w:&Collision,dt:f32) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_agent_step(a: *mut NmAgent, w: *const NmWorld, dt: f32) -> i32 {
+    // A panic reaching extern "C" aborts the whole game.
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe { agent_step(a, w, dt) })).unwrap_or_else(|_| fail(NM_E_STATE, "agent step panicked"))
+}
+
+unsafe fn agent_step(a: *mut NmAgent, w: *const NmWorld, dt: f32) -> i32 {
     let a = agent!(a);
     let Some(w) = (unsafe { w.as_ref() }) else { return fail(NM_E_ARG, "null world") };
     if !(dt > 0.0 && dt <= 0.25) {
@@ -651,6 +673,21 @@ pub unsafe extern "C" fn nm_agent_set_no_collision(a:*mut NmAgent,owner:u64)->i3
     // The setter's first frame always counts as met (its bits 0x03).
     (doll.no_collision,doll.no_collision_met)=if owner==0{(None,false)}else{(Some(owner),true)};
     doll.no_collision_parts=if owner==0{0}else{u32::MAX};
+    doll.no_collision_hold=0;
+    0
+}
+
+/// Host hold on the no-collision vehicle: the parts in `mask` keep ignoring
+/// `owner` whatever they touch, until the host lowers the mask (0 releases;
+/// the other parts follow the usual per-part rule). Restarts the exclusion
+/// when it had already ended for that owner.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_hold_no_collision(a:*mut NmAgent,owner:u64,mask:u32)->i32{
+    let a=agent!(a);
+    let doll=&mut a.agent.doll;
+    if owner==0||mask==0{doll.no_collision_hold=0;return 0;}
+    if doll.no_collision!=Some(owner){doll.no_collision=Some(owner);doll.no_collision_parts=0;}
+    doll.no_collision_hold=mask;doll.no_collision_parts|=mask;doll.no_collision_met=true;
     0
 }
 
@@ -1308,6 +1345,36 @@ pub unsafe extern "C" fn nm_agent_task_hit(a: *mut NmAgent, w: *const NmWorld, s
     let hit = nm::Hit { health, ..nm::Hit::ragdoll(&a.agent) };
     with_tp(|tp| nm::task_shot(&mut a.agent, &a.build, &w.0, tp, &mut RAND.lock().unwrap_or_else(|e| e.into_inner()), set, hit, part as usize,
                               unsafe { v3(at) }, force, -force.normalize_or_zero(), false));
+    0
+}
+
+/// A bullet on a ped with IV's hit context (0x8226B618): flags next=1 (the shot is running, feed it: shot without start and
+/// no stopAllBehaviours, shottask next_hit), gun=2, two-handed=4, moving=8, dying=16. Health is IV's alive range, 100..200,
+/// below 100 dying. `look` is the shooter's head, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_task_shot_hit(a: *mut NmAgent, w: *const NmWorld, set: *const c_char, part: i32, at: *const f32, impulse: *const f32, health: f32, flags: u32, look: *const f32) -> i32 {
+    let a = agent!(a);
+    let Some(w) = (unsafe { w.as_ref() }) else { return fail(NM_E_ARG, "null world") };
+    if at.is_null() || impulse.is_null() || !(0..a.build.parts.len() as i32).contains(&part) {
+        return fail(NM_E_ARG, "bad hit");
+    }
+    let set = unsafe { text(set) }.unwrap_or("*");
+    let force = unsafe { v3(impulse) };
+    if !force.is_finite() || force.length() > 200.0 { return fail(NM_E_ARG, "invalid hit impulse"); }
+    let head = (!look.is_null()).then(|| unsafe { v3(look) }).filter(|v| v.is_finite());
+    let hit = nm::Hit { health, gun: flags & 2 != 0, two_handed: flags & 4 != 0, moving: flags & 8 != 0, dying: flags & 16 != 0, attacker_head: head, ..nm::Hit::ragdoll(&a.agent) };
+    with_tp(|tp| nm::task_shot(&mut a.agent, &a.build, &w.0, tp, &mut RAND.lock().unwrap_or_else(|e| e.into_inner()), set, hit, part as usize,
+                              unsafe { v3(at) }, force, -force.normalize_or_zero(), flags & 1 != 0));
+    0
+}
+
+/// A round into a body whose shot reaction is running: the reaction goes on and the round only unbalances it.
+/// IV's next hit restarts the hit phase and stiffens the body, which held a ped upright through a whole burst.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_shot_push(a: *mut NmAgent, dir: *const f32, amount: f32, seconds: f32) -> i32 {
+    let a = agent!(a);
+    if dir.is_null() { return fail(NM_E_ARG, "null vector"); }
+    a.agent.lean_in_direction(unsafe { v3(dir) }, amount, seconds, true);
     0
 }
 

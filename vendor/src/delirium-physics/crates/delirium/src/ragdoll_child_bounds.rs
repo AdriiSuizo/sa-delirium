@@ -3,14 +3,25 @@
 //! allocation/clearing/order is unchanged, not merely the final visible pose.
 use super::*;
 fn abs(m:Mat3)->Mat3{Mat3::from_cols(m.x_axis.abs(),m.y_axis.abs(),m.z_axis.abs())}
+// What the children of one frame share: a vehicle's triangles all do, and the matrix products
+// were most of what preparing them cost (07/11). The arithmetic is swept()'s, in the same order.
+pub(super)struct Frames{now:(Vec3,Mat3),last:(Vec3,Mat3),projection:Mat3,absolute:Mat3,turn:Mat3}
+impl Frames{
+ pub(super)fn new(now:(Vec3,Mat3),last:(Vec3,Mat3))->Self{
+  let projection=now.1.transpose();
+  Self{now,last,projection,absolute:abs(projection),turn:abs(projection*last.1)}
+ }
+ pub(super)fn child(&self,centre:Vec3,half:Vec3)->Rejection{
+  let t=self.projection*((self.last.0+self.last.1*centre)-(self.now.0+self.now.1*centre));
+  let h=self.turn*half;
+  let(lo,hi)=((-half).min(t-h),half.max(t+h));
+  Rejection{projection:self.projection,absolute:self.absolute,origin:self.now.0,centre:centre+(lo+hi)*0.5,half:(hi-lo)*0.5}
+ }
+}
 #[derive(Clone,Copy)]
 pub(super)struct Rejection{projection:Mat3,absolute:Mat3,origin:Vec3,centre:Vec3,half:Vec3}
 impl Rejection{
- pub(super)fn new(now:(Vec3,Mat3),last:(Vec3,Mat3),centre:Vec3,half:Vec3)->Self{
-  let(sc,sh)=swept((now.0+now.1*centre,now.1),(last.0+last.1*centre,last.1),half);
-  let projection=now.1.transpose();
-  Self{projection,absolute:abs(projection),origin:now.0,centre:centre+sc,half:sh}
- }
+ pub(super)fn new(now:(Vec3,Mat3),last:(Vec3,Mat3),centre:Vec3,half:Vec3)->Self{Frames::new(now,last).child(centre,half)}
  pub(super)fn body(now:(Vec3,Mat3),sweep:(Vec3,Vec3))->(Vec3,Vec3){(now.0+now.1*sweep.0,abs(now.1)*sweep.1)}
  pub(super)fn allows(&self,body:(Vec3,Vec3))->bool{
   // abs(P*M)*h <= abs(P)*(abs(M)*h) for nonnegative h. This avoids the

@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.5')
+    ap.add_argument('--version',default='0.3.6')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
@@ -134,7 +134,7 @@ def main():
     texture_fixes = repo / 'build/texture-fixes-0.3.3'
     seven = Path(r'C:\Program Files\7-Zip\7z.exe')
     delta = repo / 'build/portable-tools/DeltaTool.exe'
-    own_runtime = repo / 'build/portable-production-runtime9/DeliriumSA.asi'
+    own_runtime = repo / 'build/portable-production-runtime18/DeliriumSA.asi'
     fxs_archive=project/'tools/downloads/security-review-20261105/GTA SA - FxsFuncs.7z'
     assert sha(fxs_archive)=='5c53fae0effa2c16ce927450aa8deb92065a1849122212dce6a84df094b5110b'
     fxs11=subprocess.run([str(seven),'x','-so','-spd','-p-',str(fxs_archive),'FxsFuncs/FxsFuncs.asi'],capture_output=True,check=True).stdout
@@ -490,6 +490,8 @@ def main():
         c['files']=sum(c['id'] in f['components'] for f in recipes)
         c['bytes']=sum(f['bytes'] for f in recipes if c['id'] in f['components'])
         if c['id']=='izzy-s-lively-vehicle-physics':c['version']='1.6';c['distribution']='Explicit author permission; original files unchanged'
+    for p in used_packages:
+        if p.startswith('urbanize'):packages[p]['optional']=True
     manifest=dict(schema=1,version=args.version,lab_only=False,choose_compatible_renderer=True,prepare_legacy_directx=True,profile=profile,files=recipes,packages=[packages[p] for p in sorted(used_packages)],omissions=['GTA V HUD / minimap / weapon wheel','RoSA / bundled Proper Player Retex','GTA IV Textures and HQ Roads','Added weapon packs','Author saves and generated state'])
     if browser_package:manifest['webview_bootstrapper_package']=browser_package['id']
     bundle=out/'portable-tools.zip.new'

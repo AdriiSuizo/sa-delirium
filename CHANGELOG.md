@@ -1,5 +1,17 @@
 # Historial
 
+## 0.3.6 · más fps, correr como en GTA IV y reacciones más sólidas
+
+- Correr: pulsar X ya no mueve los brazos como en un sprint. Con los puños, los brazos siguen la carrera de GTA IV; los clips armados de IV no están, así que las armas a dos manos conservan los brazos de San Andreas.
+- Rendimiento: los cuerpos con física ya no preparan todos los coches de la escena, solo los que pueden tocar. Menos tirones y sin el salto de fps al pasar de uno a dos pasos de física.
+- Disparos: una ráfaga de Uzi o MP5 empuja el cuerpo en vez de reiniciar la reacción con cada bala. Las escopetas reparten los perdigones por las partes del cuerpo. La fuerza de cada arma sale de los datos de GTA IV de tu ISO.
+- Balas cercanas: los NPC se encogen si una bala les pasa a menos de 1,5 m.
+- Heridos: un NPC malherido puede quedarse tumbado y luego marcharse cojeando con las animaciones de GTA IV.
+- Física y control: las animaciones de San Andreas solo vuelven cuando la física devuelve el control. Un empujón a un NPC que corre ya no acaba al instante, y un coche que golpea a alguien mientras se levanta lo vuelve a tirar.
+- Choques: sin lanzamientos imposibles por cuerpos encajados bajo un coche. El parabrisas se rompe al salir despedido y las piernas no se enganchan al pasar.
+- Bloqueos: guardia de cierres del juego con registro.
+- Limit Adjuster 2.0.6.
+
 ## 0.3.5 · combate, policía y choques como en GTA IV
 
 - Arreglados tres cierres del juego: en la tienda (GInput y Grinch Trainer cambiaban a la vez la misma lectura del mando), al salir del juego y al reiniciar una partida. El trainer va sin modificar.

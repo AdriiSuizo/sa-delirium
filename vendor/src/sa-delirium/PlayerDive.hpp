@@ -44,6 +44,14 @@ static int padCircle(){
     for(DWORD i=0;i<4;i++){unsigned char state[16]{};if(get(i,state)!=ERROR_SUCCESS)continue;connected=true;if(*reinterpret_cast<WORD*>(state+4)&0x2000)return 1;}
     return connected?0:-1;
 }
+// 1 with a pad trigger held (aim or fire in Adrii's layout), 0 without, -1 with no pad. XINPUT_STATE: triggers at +6 and +7.
+static int padTriggers(){
+    using Get=DWORD(WINAPI*)(DWORD,void*);static Get get=nullptr;
+    if(!get)for(const wchar_t*n:{L"xinput1_4.dll",L"xinput1_3.dll",L"xinput9_1_0.dll"})if(HMODULE m=GetModuleHandleW(n)){get=reinterpret_cast<Get>(GetProcAddress(m,"XInputGetState"));if(get)break;}
+    if(!get)return -1;bool connected=false;
+    for(DWORD i=0;i<4;i++){unsigned char state[16]{};if(get(i,state)!=ERROR_SUCCESS)continue;connected=true;if(state[6]>30||state[7]>30)return 1;}
+    return connected?0:-1;
+}
 // Adrii (06/11): CJ "keeps repeating short animations" after getting up. For
 // 5 s after each physical spell, one line per change of SA's leaf task and its
 // weighted clips (id/group/blend), to name what repeats.
@@ -80,7 +88,9 @@ static void tickPlayerDive(){
     // doubling its height and length.
     const float gSa=*reinterpret_cast<float*>(0x863984)*2500.f;
     const float arc=gSa>1.f?std::sqrt(9.81f/gSa):1.f;
-    const V velocity=at<V>(p,0x44)*(50.f*arc)+forward*diveLungeMps+V{0,0,diveLiftMps};
+    // Asked after two rounds (07/11): the dive rose too high and carried too much of the run.
+    V carried=at<V>(p,0x44)*(50.f*arc);carried.x*=.8f;carried.y*=.8f;if(carried.z>0)carried.z*=.4f;
+    const V velocity=carried+forward*diveLungeMps+V{0,0,diveLiftMps};
     Request r;r.kind=Reaction::Dive;r.time=gameTime();r.direction=forward;r.playerVehicle=true;
     r.velocityOverride=true;r.velocity=velocity*.02f;
     pending[reference(p)]=r;

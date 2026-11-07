@@ -74,6 +74,17 @@ impl Bank {
                 let key=format!("{dictionary}/{}",a.name).to_ascii_lowercase();clips.insert(key,a);
             }
         }
+        // Optional dictionaries beside the sealed bank (the owner's disc, added later).
+        if let Some(extra)=dir.parent().map(|p|p.join("injured")).and_then(|p|std::fs::read_dir(p).ok()){
+            for e in extra.flatten(){
+                let path=e.path();if path.extension().and_then(|s|s.to_str())!=Some("xad"){continue}
+                let dictionary=path.file_stem().unwrap().to_string_lossy().to_ascii_lowercase();
+                let Ok(bytes)=std::fs::read(&path)else{continue};let Ok(file)=resource::parse(&bytes)else{continue};
+                for a in anim::read_dictionary(&file).unwrap_or_default(){
+                    if a.frames>0&&a.duration>0.&&a.duration.is_finite(){clips.insert(format!("{dictionary}/{}",a.name).to_ascii_lowercase(),a);}
+                }
+            }
+        }
         if !clips.contains_key("move_melee/idle"){return Err("missing melee stance".into())}
         let mut native=HashMap::new();let path=dir.join("sa-gym-clips.json");
         if path.exists(){let file:crate::native_animation::File=serde_json::from_slice(&std::fs::read(path).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
@@ -136,6 +147,8 @@ impl Bank {
         let s=self.bones.iter().position(|b|Some(b.id)==iv_bone(sa))?;
         Some((pose[i].q*rig.bind[i].q.inverse()*self.correction(rig,i,s).inverse()*self.align*self.world[s].q).normalize())
     }
+    /// Where an SA bone's original IV bone stands in this source pose, on SA's axes (audits).
+    pub fn source_point(&self,source:&[Pose],sa:u32)->Option<Vec3>{let s=self.bones.iter().position(|b|Some(b.id)==iv_bone(sa))?;Some(self.align*source[s].p)}
     fn retarget_source(&self,rig:&Rig,source:&[Pose])->Option<Vec<Pose>>{
         let mut out:Vec<Pose>=vec![];
         let root=self.bones.iter().position(|b|b.id==0)?;

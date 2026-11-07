@@ -3,13 +3,14 @@
 use super::*;
 
 const GROUP_CAPACITY:usize=32;
+const PROFILE_VALUES:usize=44;
 /// Actual transport admission capacity; callers must reserve all live owners.
 #[unsafe(no_mangle)]
 pub extern "C" fn nm_group_capacity()->i32{GROUP_CAPACITY as i32}
 
 struct Staged { agent:*mut NmAgent, id:usize, obstacles:Vec<Obstacle>, others:Vec<Capsule> }
 #[derive(Default)]
-pub struct NmGroup { pub(super) solver:delirium::ragdoll::Group, staged:Vec<Staged>, pub(super) external_ids:std::collections::BTreeSet<u64>, pub(super) external_invalid:bool }
+pub struct NmGroup { pub(super) solver:delirium::ragdoll::Group, profile_totals:[f64;32], staged:Vec<Staged>, pub(super) external_ids:std::collections::BTreeSet<u64>, pub(super) external_invalid:bool }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn nm_group_create()->*mut NmGroup {Box::into_raw(Box::new(NmGroup::default()))}
@@ -37,6 +38,11 @@ pub unsafe extern "C" fn nm_group_add(g:*mut NmGroup,a:*mut NmAgent,id:u32,w:*co
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_group_step(g:*mut NmGroup,w:*const NmWorld,dt:f32)->i32 {
+    // A panic reaching extern "C" aborts the whole game.
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(||unsafe{group_step(g,w,dt)})).unwrap_or_else(|_|fail(NM_E_STATE,"group step panicked"))
+}
+
+unsafe fn group_step(g:*mut NmGroup,w:*const NmWorld,dt:f32)->i32 {
     let Some(g)=(unsafe{g.as_mut()})else{return fail(NM_E_ARG,"null group")};
     let Some(w)=(unsafe{w.as_ref()})else{return fail(NM_E_ARG,"null world")};
     if !(dt>0.&&dt<=0.25){return fail(NM_E_ARG,"invalid group dt")}
@@ -57,9 +63,21 @@ pub unsafe extern "C" fn nm_group_step(g:*mut NmGroup,w:*const NmWorld,dt:f32)->
     // counters on slow steps, without changing any solver work or decisions.
     static PROFILE:std::sync::OnceLock<Option<std::path::PathBuf>>=std::sync::OnceLock::new();
     let profile=PROFILE.get_or_init(||std::env::var_os("GTASA_PHYSICS_PROFILE").map(std::path::PathBuf::from));
-    g.solver.profile_enabled=profile.is_some();
-    let started=profile.as_ref().map(|_|std::time::Instant::now());
+    // Opt-in too: stage timings summed for the host, which writes one row per frame.
+    static BREAKDOWN:std::sync::OnceLock<bool>=std::sync::OnceLock::new();
+    let breakdown=*BREAKDOWN.get_or_init(||std::env::var_os("GTASA_PHYSICS_BREAKDOWN").is_some());
+    g.solver.profile_enabled=profile.is_some()||breakdown;
+    let started=g.solver.profile_enabled.then(std::time::Instant::now);
     Agent::step_group(&mut members,&w.0,dt,&mut g.solver);
+    if let(true,Some(started))=(breakdown,started){
+        let(elapsed,s,p)=(started.elapsed().as_secs_f64()*1000.,&g.solver,&mut g.profile_totals);
+        p[0]+=1.;p[1]=p[1].max(staged.len() as f64);p[2]+=elapsed;p[3]=p[3].max(elapsed);
+        for k in 0..4{p[4+k]+=s.profile_ms[k];p[25+k]+=s.profile_pair_counts[k] as f64;}
+        for k in 0..8{p[8+k]+=s.profile_solve_ms[k];}
+        for k in 0..3{p[16+k]+=s.profile_impulses.0[k];}
+        for k in 0..5{p[19+k]+=s.profile_impulses.1[k] as f64;}
+        p[24]+=s.profile_pair_prepare_ms;p[29]+=s.profile_shape[0] as f64;p[30]+=s.profile_shape[1] as f64;p[31]=p[31].max(s.profile_shape[2] as f64);
+    }
     if let(Some(path),Some(started))=(profile,started){
         let elapsed=started.elapsed().as_secs_f64()*1000.;
         static LIMIT:std::sync::OnceLock<f64>=std::sync::OnceLock::new();
@@ -78,6 +96,15 @@ pub unsafe extern "C" fn nm_group_step(g:*mut NmGroup,w:*const NmWorld,dt:f32)->
     if let Some(error)=g.solver.external_error(){return fail(NM_E_STATE,format!("external island rejected: {error:?}"))}
     for s in staged {let a=unsafe{&mut *s.agent};a.agent.doll.roll_push=None;a.set.fill(false);crate::end_no_collision_frame(a);}
     0
+}
+/// Stage timings summed since the last call, for GTASA_PHYSICS_BREAKDOWN; clears them.
+/// Layout: PhysicsBreakdown.hpp. Returns the number of values written.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_group_profile_take(g:*mut NmGroup,out:*mut f64,capacity:i32)->i32 {
+    let Some(g)=(unsafe{g.as_mut()})else{return fail(NM_E_ARG,"null group")};
+    if out.is_null()||capacity<PROFILE_VALUES as i32{return fail(NM_E_ARG,"group profile needs 44 values")}
+    let mut v=std::mem::replace(&mut g.profile_totals,[0.;32]).to_vec();v.extend(delirium::ragdoll::contact_cost_take());
+    unsafe{std::ptr::copy_nonoverlapping(v.as_ptr(),out,PROFILE_VALUES)};PROFILE_VALUES as i32
 }
 /// Physical peer pairs, active manifold points, maximum pre-solve penetration
 /// and total solved normal impulse. No helper flag counts as a contact.

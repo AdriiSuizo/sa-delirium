@@ -5,6 +5,7 @@
 #include <iomanip>
 namespace sessionlog {
 static fs::path directory;
+static size_t eventBudget=16777216;
 static std::ofstream events,poses;
 static std::mutex lock;
 static unsigned long long sequence=0,eventBytes=0,poseBytes=0;
@@ -73,11 +74,11 @@ static void init(const fs::path&game){
 }
 static void event(const std::string&type,int ref,int model,const std::string&detail){
     if(!enabled)return;std::lock_guard<std::mutex> guard(lock);
-    if(eventBytes>=16777216)return;
+    if(eventBytes>=eventBudget)return;
     std::ostringstream s;s<<"{\"session\":"<<quote(id)<<",\"seq\":"<<++sequence<<",\"pid\":"<<GetCurrentProcessId()<<",\"wall_ms\":"<<GetTickCount64()<<",\"time_ms\":"<<gameTime()
         <<",\"event\":"<<quote(type)<<",\"ref\":"<<ref<<",\"model\":"<<model<<",\"detail\":"<<quote(detail)<<"}\n";
     const auto row=s.str();events<<row;events.flush();eventBytes+=row.size();
-    if(eventBytes>=16777216){events<<"{\"event\":\"event_budget_exhausted\"}\n";events.flush();}
+    if(eventBytes>=eventBudget){events<<"{\"event\":\"event_budget_exhausted\"}\n";events.flush();}
 }
 static void pose(const std::string&row){
     if(!enabled||poseLimit)return;std::lock_guard<std::mutex> guard(lock);

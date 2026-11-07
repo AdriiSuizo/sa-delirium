@@ -89,6 +89,8 @@ NM_API int32_t nm_agent_set_mode(NmAgent* a, int32_t mode);
 /* IV no-collision entity: contacts with the vehicle just left (its external
    owner id, 0 clears) are dropped until the first step that finds none. */
 NM_API int32_t nm_agent_set_no_collision(NmAgent* a, uint64_t owner);
+/* Parts in mask keep ignoring owner until the host lowers the mask (0 releases). */
+NM_API int32_t nm_agent_hold_no_collision(NmAgent* a, uint64_t owner, uint32_t mask);
 NM_API int32_t nm_agent_no_collision_active(const NmAgent* a);
 /* Diagnostic: bits 1 owner staged, 2 overlaps, 4 contact met, 8 a part came out by its shape; bits 8.. parts still ignoring. */
 NM_API int32_t nm_agent_no_collision_diag(const NmAgent* a);
@@ -160,6 +162,7 @@ NM_API int32_t nm_agent_task_shot(NmAgent* a, const NmWorld* w, const char* set,
 NM_API int32_t nm_agent_task_balance(NmAgent* a, const NmWorld* w, const char* set, const float* look);
 /* A measured game hit. Unlike the legacy demo helper, this never inserts a fixed 400-unit bullet velocity. The host supplies the actual reaction scale. */
 NM_API int32_t nm_agent_task_hit(NmAgent* a, const NmWorld* w, const char* set, int32_t part, const float* at, const float* impulse, float health);
+NM_API int32_t nm_agent_task_shot_hit(NmAgent* a, const NmWorld* w, const char* set, int32_t part, const float* at, const float* impulse, float health, uint32_t flags, const float* look);
 NM_API int32_t nm_agent_task_catch_fall(NmAgent* a, const char* set);
 NM_API int32_t nm_agent_task_flinch(NmAgent* a, const NmWorld* w, const char* set, const float* from);
 NM_API int32_t nm_init_character(const char* json);
@@ -269,6 +272,10 @@ NM_API int32_t nm_locomotion_step(const NmCombat* c, NmLocomotion* p, float want
 /* Canonical rig palette plus heading, local velocity xy, ratio, phase, state, elapsed seconds and movement set. Inactive returns zero. */
 NM_API int32_t nm_locomotion_pose(const NmLocomotion* p, float* pose, int32_t count, float* state);
 NM_API int32_t nm_locomotion_clip(const NmLocomotion* p, char* out, int32_t len);
+/* A round into a running shot reaction: leans the body along dir for seconds, restarts nothing. */
+NM_API int32_t nm_agent_shot_push(NmAgent* a, const float* dir, float amount, float seconds);
+/* One bank clip on this rig: pose rows; info = duration, mover speed m/s. 0 = clip not in the bank. */
+NM_API int32_t nm_locomotion_clip_pose(const NmCombat* c, const NmLocomotion* p, const char* key, float phase, float* pose, int32_t count, float* info);
 /* Rows: root xyz, yaw, velocity xyz (m/s), mass. Output: displacement xyz, velocity xyz, strongest peer index (-1 absent), impulse Ns, normal xyz. The host must replace native ped/ped rows for this same validated set only. */
 NM_API int32_t nm_ped_contacts(const float* input, int32_t count, float dt, float* output);
 /* Original fragment filter geometry: the player's animated composite against the victim's last drawn fragment capsules, translated to the current root. Outer body contact alone only separates peds; it cannot start a ragdoll. Capsule rows are endpoint xyz, endpoint xyz, radius (seven floats). */
@@ -302,6 +309,8 @@ NM_API int32_t nm_group_add(NmGroup* g, NmAgent* a, uint32_t id, const NmWorld* 
 NM_API int32_t nm_group_step(NmGroup* g, const NmWorld* w, float dt);
 /* Physical peer pairs, active manifold points, maximum pre-solve penetration and total solved normal impulse. No helper flag counts as a contact. */
 NM_API int32_t nm_group_contacts(const NmGroup* g, float* out);
+/* Stage timings summed since the last call (GTASA_PHYSICS_BREAKDOWN); needs 44 doubles, clears them. */
+NM_API int32_t nm_group_profile_take(NmGroup* g, double* out, int32_t capacity);
 /* Stage generation-qualified host owners for this solver substep. rows27: COM3, velocity3, spin3, linear inverse mobility9, world inverse inertia9. Matrices are column-major. Zero mobility means a constrained direction. Duplicate/conflicting owners, invalid epochs and nonfinite data are errors. */
 NM_API int32_t nm_group_set_external(NmGroup* g, uint64_t epoch, const uint64_t* ids, const float* rows, int32_t count);
 /* Stage the carried contact-motion predictor for exactly the registered owner set and epoch. rows7: pending COM displacement3, WORLD rotation xyzw4. The owner snapshot is already at this predicted endpoint. Undoing these transforms gives the accepted base from which the whole correction is swept. A rejected stage poisons this interval; a previous predictor cannot be reused. */

@@ -74,6 +74,7 @@ static void nikoUpdatePosition(void*p){
             auto*pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
             if(pad){const float x=reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,y=reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f;
                 const bool held=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad),tap=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407F0)(pad);
+                if(tap)event("niko_run_tap",nikoRef,nikoModel,"held="+std::to_string(held));
                 wanted=nm_locomotion_control(nikoMovement,std::min(1.f,std::sqrt(x*x+y*y)),tap,held,gameTime(),dt);
                 if(wanted<0){nikoActive=false;return;}
             }else if(data)wanted=std::clamp(at<float>(data,0x14),0.f,3.f);
@@ -91,13 +92,25 @@ static void nikoUpdatePosition(void*p){
     if(gameTime()-nikoTrace>=100){char clip[160]{};nm_locomotion_clip(nikoMovement,clip,sizeof(clip));nikoTrace=gameTime();
         event("niko_movement",nikoRef,nikoModel,"clip="+std::string(clip)+" ratio="+std::to_string(nikoState[3])+" phase="+std::to_string(nikoState[4])+" vx="+std::to_string(nikoState[1])+" vy="+std::to_string(nikoState[2])+" task="+std::to_string(nikoTask));}
 }
+// SA's own gait runs under Niko's. In the plain PLAYER group it is run_player and sprint_civi: X plays
+// sprint_civi at once, and copying the arms from it pumped them as a sprint over a jog (07/11). Only a real
+// weapon layer may give the arms: an armed group, or anything aiming or firing.
+static bool nikoNativeHoldsWeapon(void*p){
+    void*clump=at<void*>(p,0x18);void*assoc=clump?reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump):nullptr;
+    for(int count=0;assoc&&count<24;count++){
+        const unsigned group=at<unsigned short>(assoc,0xE);
+        if(group!=0&&group!=54&&at<float>(assoc,0x18)>.05f)return true;
+        assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+    }
+    return false;
+}
 static void nikoRender(void*p){
     if(!nikoActive||reference(p)!=nikoRef||!nikoRig||!nikoEligible(p)||nikoFrame!=*reinterpret_cast<unsigned*>(0xB7CB4C))return;
     auto*h=hierarchy(p);if(!h||h->num!=int(nikoRig->ids.size()))return;
     const T root=transform(*matrix(p));std::vector<T> bones;for(size_t i=0;i<nikoRig->ids.size();i++){const float*r=nikoPose.data()+7*i;bones.push_back(mul(root,T{{r[3],r[4],r[5],r[6]},{r[0],r[1],r[2]}}));}
     // Preserve SA's weapon/aim upper layer until its own IV retarget is complete.
     // Arms cannot inherit locomotion rotations while holding a two-handed gun.
-    if(combatWeapon(p)>1){std::array<T,21> parts{};std::vector<T> native;if(nikoRig->incoming(p,parts,native)){
+    if(combatWeapon(p)>1&&nikoNativeHoldsWeapon(p)){std::array<T,21> parts{};std::vector<T> native;if(nikoRig->incoming(p,parts,native)){
         for(size_t i=0;i<bones.size();i++)if(nikoRig->ids[i]>=3&&nikoRig->ids[i]<41){const int par=nikoRig->parents[i];if(par>=0&&par<int(i))bones[i]=mul(bones[par],mul(inverse(native[par]),native[i]));}
     }}
     const auto palette=nikoRig->renderPalette(h->matrices,bones);std::copy(palette.begin(),palette.end(),h->matrices);

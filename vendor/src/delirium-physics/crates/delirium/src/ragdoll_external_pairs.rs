@@ -52,6 +52,11 @@ fn side(ob:&Obstacle,owner:&ExternalOwner,point:Vec3,n:Vec3)->pedbodies::Side {
 fn point_j(owner:&ExternalOwner,p:Vec3,n:Vec3)->[f64;6]{
     let t=(p-owner.com).cross(n);[n.x as f64,n.y as f64,n.z as f64,t.x as f64,t.y as f64,t.z as f64]
 }
+// The original target is depth/dt, sized for ped overlaps of centimetres. A ped
+// found a metre inside a car asked for 60+ m/s against the car's finite mass:
+// impulses of 100000 launched a parked car and the one CJ had just left (07/11).
+const MAX_PAIR_SPEED:f32=6.;
+const MAX_PAIR_MOVE:f32=0.1;
 pub(super) fn collect(group:&mut Group,h:f32)->Vec<OwnerPairRow>{
     let profile=group.profile_enabled;let(mut prepare_ms,mut prepared_children,mut narrow_calls,mut paired_shapes)=(0.,0,0,0);
     let mut measured_prepare=|ob:&Obstacle|{
@@ -127,8 +132,8 @@ pub(super) fn collect(group:&mut Group,h:f32)->Vec<OwnerPairRow>{
                 let(ja,jb)=(point_j(&oa,point_a,n),point_j(&ob,point_b,-n));
                 let j=ja.into_iter().chain(jb).collect();let mj=oa.response(ja).into_iter().chain(ob.response(jb)).collect();
                 let relative=(a.vel_at(point_a)-oa.point_velocity(point_a))-(b.vel_at(point_b)-ob.point_velocity(point_b));
-                let row=Row{relaxation:pedbodies::SOR as f64,..Row::with(j,mj,(target.speed-relative.dot(n)) as f64,RowKind::Push)};
-                let(ma,mb)=target.moves.map_or((Vec3::ZERO,Vec3::ZERO),|(a,b)|(Vec3::from(a),Vec3::from(b)));
+                let row=Row{relaxation:pedbodies::SOR as f64,..Row::with(j,mj,(target.speed.min(MAX_PAIR_SPEED)-relative.dot(n)) as f64,RowKind::Push)};
+                let(ma,mb)=target.moves.map_or((Vec3::ZERO,Vec3::ZERO),|(a,b)|(Vec3::from(a).clamp_length_max(MAX_PAIR_MOVE),Vec3::from(b).clamp_length_max(MAX_PAIR_MOVE)));
                 pairs.push(OwnerPairRow{a:ia,b:ib,child_a:ca,child_b:cb,point_a,point_b,normal:n,row,move_a:ma,move_b:mb});
             }
         }}

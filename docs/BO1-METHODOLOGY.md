@@ -2,7 +2,7 @@
 
 Consulta de solo lectura solicitada por Adrii el 4 de noviembre de 2026.
 
-Referencia: `C:\Users\vieir\Desktop\Repo\Bo1 zombies con fisicas de Gta 4`.
+Referencia: el proyecto local de BO1 con físicas de GTA IV.
 Documentos consultados: `HANDOFF_RAGDOLL_RUST.md`,
 `HANDOFF_CODEX_GTA_SHOT_20261010.md`, `HANDOFF_CODEX_RAFAGAS_20261010.md`
 y `euphoria-resultados-windows.md`. No se modificó ni compiló ese proyecto.

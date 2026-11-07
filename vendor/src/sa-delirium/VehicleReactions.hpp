@@ -13,6 +13,8 @@ static bool sendMessage(NmAgent* agent){
 static void stopBehaviour(Active& a,const char* name){
     ok(nm_msg_begin(a.agent,name));ok(nm_msg_set_bool(a.agent,"start",false));sendMessage(a.agent);
 }
+// IV 0x82611028: the set follows the weapon slot; there is no SMG set.
+static const char* shotSet(int weapon){return weapon==30||weapon==31?"POWERFUL_WEAPON":weapon==33||weapon==34?"SNIPER_RIFLE":weapon>=25&&weapon<=27?"SHOTGUN":"*";}
 static void startReaction(Active& a,const Request& request){
     ok(nm_agent_vehicle_entry_cancel(a.agent));a.entryPhase=-1;a.entryHolding=-1;a.entryReady=false;
     ok(nm_agent_ped_bump_cancel(a.agent));a.bumpReady=false;
@@ -21,7 +23,9 @@ static void startReaction(Active& a,const Request& request){
     ok(nm_agent_road_cancel(a.agent,collision->world));
     a.roadReaction=0;a.roadRelaxLogged=false;
     a.stableFor=0;
+    const bool feedShot=request.kind==Reaction::Shot&&a.shotRunning;a.shotRunning=false;
     a.kind=request.kind;a.vehicle=request.vehicle;a.preview=request.kind==Reaction::Brace;
+    if(request.vehicle>=0&&inVehicle(player())&&vehicleRef(at<void*>(player(),0x58C))==request.vehicle)a.runOverByPlayer=true;
     a.physicalAnimation=request.physicalAnimation;a.animationDriveStatus=-1;
     a.roadDamage=request.roadDamage;a.resumeDeliveredRoadDamage=false;
     a.combatDamage=request.combatDamage;a.resumeDeliveredCombatDamage=false;
@@ -67,7 +71,27 @@ static void startReaction(Active& a,const Request& request){
         V threat=hit-request.direction*2.f;
         ok(nm_agent_task_flinch(a.agent,a.mountedWorld,"*",&threat.x));
     }else if(request.kind==Reaction::Shot){
-        ok(nm_agent_task_hit(a.agent,collision->world,"POWERFUL_WEAPON",request.part,&hit.x,&request.impulse.x,std::clamp(at<float>(a.ped,0x540),0.f,100.f)));
+        // A body already down takes the bullet where it lies: a new hit task raised it and replayed the reaction (07/11).
+        // So does one still falling from the last bullet: a new task restarted the fall at every round of an Uzi (07/11).
+        const bool falling=gameTime()-a.lastShotAt<1500&&nm_agent_is_balancing(a.agent)!=1;
+        if(falling||nm_agent_has_fallen(a.agent)==1||a.current[10].p.z-a.current[0].p.z<.25f){a.shotRunning=feedShot;a.lastShotAt=gameTime();event("grounded_shot_impulse",a.ref,a.model,"part="+std::to_string(request.part)+" falling="+std::to_string(falling));}
+        // A round on the heels of the last goes on pushing: restarting the hit held the body stiff and upright until the burst ended (07/11).
+        else if(feedShot&&at<float>(a.ped,0x540)>0&&gameTime()-a.lastShotAt<800){
+            V along=request.impulse;along.z=0;along=normalized(along);ok(nm_agent_shot_push(a.agent,&along.x,.4f,.5f));
+            a.shotRunning=true;a.lastShotAt=gameTime();event("shot_burst_push",a.ref,a.model,"weapon="+std::to_string(request.weapon)+" part="+std::to_string(request.part));
+        }else{
+            // IV's chooser 0x8226B618: a running NMShot takes the next bullet (shot with no start), or every bullet of a burst
+            // would stop all behaviours and start over. Its alive range is 100..200, so SA's 100..0 maps onto it: on SA's own
+            // scale the second bullet read as a wounded ped and took the relax branch, the body folding as in plain SA.
+            const float health=at<float>(a.ped,0x540);const unsigned slot=at<unsigned char>(a.ped,0x718);const int held=slot<13?at<int>(a.ped,0x5A0+slot*0x1C):-1;
+            const unsigned flags=(feedShot?1u:0u)|(held>=22&&held<=38?2u:0u)|(held>=25&&held<=27||held>=30&&held!=32?4u:0u)|(length(a.renderVelocity[0])>1.f?8u:0u)|(health<=0?16u:0u);
+            V head{};bool look=false;
+            if(void*shooter=pedFromRef(request.attackerRef))if(auto*h=hierarchy(shooter))
+                for(int n=0;h->nodes&&h->matrices&&n<h->num;n++)if(h->nodes[n].id==saBone::head&&finite(h->matrices[n].pos)){head=h->matrices[n].pos;look=true;break;}
+            ok(nm_agent_task_shot_hit(a.agent,collision->world,shotSet(request.weapon),request.part,&hit.x,&request.impulse.x,health>0?100.f+std::min(health,100.f):40.f,flags,look?&head.x:nullptr));
+            a.shotRunning=true;a.lastShotAt=gameTime();
+            event(feedShot?"shot_fed":"shot_started",a.ref,a.model,"weapon="+std::to_string(request.weapon)+" set="+shotSet(request.weapon)+" health="+std::to_string(health)+" flags="+std::to_string(flags));
+        }
     }else if(request.kind==Reaction::Impact){
         // The road task wakes on actual solved contact. Selecting catchFall
         // from car speed bypassed bump::react and original roll/relax entirely.
@@ -109,7 +133,7 @@ static void startReaction(Active& a,const Request& request){
             event("bike_throw_task_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(inherited))+" original_times=2_30 added_launch=0");
     }else if(request.kind==Reaction::Dive){
         const V velocity=request.velocity*50.f;
-        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,at<float>(a.ped,0x540)*2.f,1u))){
+        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,at<float>(a.ped,0x540)*2.f,3u))){
             startDivePitch(a,request.direction);
             event("player_dive_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(velocity))+" couple_ns="+std::to_string(diveCoupleNs));
         }

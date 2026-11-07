@@ -14,11 +14,14 @@ inline V triangleNear(V p,V a,V b,V c){
 }
 struct VehicleShape {int id=-1;std::vector<VehiclePrimitive> primitives;};
 static std::map<int,VehicleShape> vehicleShapes;
-inline std::vector<VehiclePrimitive> readVehiclePrimitives(const ColModel*col){
+// SurfaceInfos_c::IsGlass 0x55E790 on g_surfaceInfos 0xB79538: the windscreen's two triangles (CGlass::CarWindscreenShatters 0x71C2B0).
+inline bool glassSurface(unsigned char material){return reinterpret_cast<bool(__thiscall*)(void*,unsigned)>(0x55E790)(reinterpret_cast<void*>(0xB79538),material);}
+inline std::vector<VehiclePrimitive> readVehiclePrimitives(const ColModel*col,bool withoutGlass=false){
     std::vector<VehiclePrimitive> primitives;
     auto*d=col?col->data:nullptr;if(!d)return primitives;const V center=(col->box.min+col->box.max)*.5f;
     if(d->tri&&d->vertices&&d->triangles<=2048)for(int i=0;i<d->triangles;i++){
-        const auto t=d->tri[i];auto vertex=[&](int k){V p;reinterpret_cast<void(__thiscall*)(void*,V&,int)>(0x40F5E0)(d,p,k);return p-center;};
+        const auto t=d->tri[i];if(withoutGlass&&glassSurface(t.material))continue;
+        auto vertex=[&](int k){V p;reinterpret_cast<void(__thiscall*)(void*,V&,int)>(0x40F5E0)(d,p,k);return p-center;};
         const V a=vertex(t.a),b=vertex(t.c),c=vertex(t.b);
         if(!finite(a)||!finite(b)||!finite(c)||length(cross(b-a,c-a))<1.e-6f)continue;
         primitives.push_back({0,a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z});
@@ -33,10 +36,11 @@ inline std::vector<VehiclePrimitive> readVehiclePrimitives(const ColModel*col){
     }
     return primitives;
 }
-inline const VehicleShape& vehicleShape(int model,const ColModel*col){
-    auto [it,inserted]=vehicleShapes.try_emplace(model);auto&shape=it->second;
+// withoutGlass: the car's windscreen is gone (panel status 3, SetPanelDamage 0x6B1480 hid it): its glass no longer collides.
+inline const VehicleShape& vehicleShape(int model,const ColModel*col,bool withoutGlass=false){
+    auto [it,inserted]=vehicleShapes.try_emplace(withoutGlass?model|0x10000:model);auto&shape=it->second;
     if(!inserted)return shape;
-    shape.primitives=readVehiclePrimitives(col);
+    shape.primitives=readVehiclePrimitives(col,withoutGlass);
     if(!shape.primitives.empty())shape.id=nm_vehicle_shape_register(shape.primitives[0].data(),int(shape.primitives.size()));
     return shape;
 }

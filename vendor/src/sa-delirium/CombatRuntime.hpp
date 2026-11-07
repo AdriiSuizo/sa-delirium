@@ -76,7 +76,8 @@ static bool __cdecl combatGenerateDamage(void*victim,void*source,int weapon,int 
         auto*task=manager?reinterpret_cast<void*(__thiscall*)(void*)>(0x6819D0)(manager):nullptr;
         // GenerateDamageEvent's dead-ped branch only blends FloorHit. Retain
         // the existing corpse and deliver this contact to its physical part.
-        if(task&&reinterpret_cast<int(__thiscall*)(void*)>(at<void**>(task,0)[4])(task)==TASK_SIMPLE_DEAD){
+        if(a->corpseResting||(task&&reinterpret_cast<int(__thiscall*)(void*)>(at<void**>(task,0)[4])(task)==TASK_SIMPLE_DEAD)){
+            a->corpseResting=false;a->deadSince=gameTime();
             const int part=piece==9?12:piece==5?14:piece==6?18:piece==7?1:piece==8?4:piece==3?8:10;
             const V hit=a->current[part].p;
             const V impulse=directedHit(source?hit-position(source):matrix(victim)->up*-1.f,std::clamp(damage*.25f,3.f,35.f));
@@ -152,7 +153,7 @@ static void __fastcall combatUpdatePosition(void*p,void*){
         }
         return;
     }
-    nikoUpdatePosition(p);
+    nikoUpdatePosition(p);injuredUpdatePosition(p);
     originalCombatUpdatePosition(p);
 }
 static void(__thiscall* originalCombatDamageAnim)(DamageEvent*,void*,bool)=nullptr;
@@ -456,6 +457,7 @@ static void combatTick(float dt){
     if(combatCanFight(player()))wanted[cj]=true;
     for(auto&[ref,a]:fighters)if(pedFromRef(ref)==a.ped&&combatEligible(a.ped)&&combatResponseActive(a.ped))wanted[ref]=true;
     for(auto&[ref,a]:agents)if(pedFromRef(ref)==a->ped&&length(position(a->ped)-position(player()))<8.f)wanted[ref]=true;
+    std::erase_if(wanted,[](const auto&row){return injuredMoving(row.first);});
     for(auto it=fighters.begin();it!=fighters.end();){if(!wanted.contains(it->first)||pedFromRef(it->first)!=it->second.ped){nm_combat_remove(combat,it->first);it=fighters.erase(it);}else ++it;}
     for(auto[ref,_]:wanted){void*p=pedFromRef(ref);if(!p||!matrix(p)||!at<void*>(p,0x18))continue;
         watchSessionPed(p);
@@ -524,6 +526,7 @@ static void combatTick(float dt){
 }
 static void combatFinish(){
     if(!combatFrameReady||!combatAllowed())return;combatFrameReady=false;
+    injuredRender();
     const unsigned now=gameTime();const float dt=combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C));
     for(auto&[ref,a]:fighters){
         if(pedFromRef(ref)!=a.ped){nm_combat_remove(combat,ref);continue;}
