@@ -8,8 +8,8 @@ Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automát
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.7-Setup.exe** o el RAR de la
-[entrega0.3.7](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.7).
+Descarga **SA-Delirium-0.3.8-Setup.exe** o el RAR de la
+[entrega0.3.8](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.8).
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
 si tu juego está en otra carpeta, elígela. Elige la ISO si falta su ruta y pulsa
 **Instalar**.
@@ -47,8 +47,11 @@ de Windows. Los créditos y readmes originales se instalan en `SA/Documentation`
 Se conservan Urbanize, Grinch Trainer, Advanced Aiming y los eventos civiles de desarrollo.
 La configuración de combate, físicas y movimientos de Delirium se conserva.
 
-Quedan fuera los mods visuales sin permiso de redistribución registrado (HD Skin
-Pack299, BSOR/LOD Vegetation, NextGen Grass, NextGen Remaster Effects, Enhance
+El asistente te deja elegir los modelos de personajes: los originales del juego o
+**HD Skin Pack 299 de V@DO$**, que se descarga de su enlace original en GTAInside y
+nunca va dentro del instalador.
+
+Quedan fuera los mods visuales sin permiso de redistribución registrado (BSOR/LOD Vegetation, NextGen Grass, NextGen Remaster Effects, Enhance
 ParticleTXD, SA Brightened, Jefferson Retextured, Parallax Interiors, neones/lámparas
 y Rubbish GTA4). Puedes añadirlos tú desde sus autores con Mod Loader.
 
@@ -93,7 +96,7 @@ La entrega se comprueba desde416 archivos propios de Steam y una ISO externa,
 con caché vacía, mediante el EXE literal y con los extras embebidos y Urbanize descargado de su autor. Se comprueban
 arranque sin puente, intro de partida nueva, daño nativo, efectos, conservación
 de partidas, restauración y Jugar en Steam. La cobertura concreta y las huellas
-se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.7.md).
+se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.8.md).
 
 Las pruebas son acotadas. No certifican todos los vehículos, misiones, mandos,
 GPUs, idiomas o ediciones de ISO; tampoco equivalencia completa con GTA IV ni

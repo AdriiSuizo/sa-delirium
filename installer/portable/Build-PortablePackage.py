@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.7')
+    ap.add_argument('--version',default='0.3.8')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
@@ -182,7 +182,7 @@ def main():
     # Visual mods with no recorded permission stay out of the public package (Adrii, 07/11); only what changes
     # gameplay is kept. Visual Compatibility merges maps for them and places their objects, so it goes too.
     for folder in ('SA Brightened Project','Jefferson Retextured','Parallax Interiors','LOD Vegetation','LV Gas Station Neon','Visual Compatibility',
-                   'BSOR_Vegetation','NextGen Grass','NextGen Effects','Enhance ParticleTXD','Rubbish GTA 4','Improved Lamps','HD Skin Pack 299','Delirium Texture Fixes'):
+                   'BSOR_Vegetation','NextGen Grass','NextGen Effects','Enhance ParticleTXD','Rubbish GTA 4','Improved Lamps','Delirium Texture Fixes'):
         priorities.pop(folder,None)
     own['modloader/modloader.ini'] = '[Folder.Config]\nProfile=Default\nPriorityLimit=100\n[Profiles.Default.Config]\nIgnoreAllMods=false\nExcludeAllMods=false\n[Profiles.Default.Priority]\n' + ''.join(f'{k}={v}\n' for k,v in priorities.items()) + '[Profiles.Default.IgnoreMods]\n_ignore\n'
     licensed = {
@@ -255,7 +255,7 @@ def main():
             patches.append((patch_name, data, project / 'game' / f['path']))
         recipes.append(recipe)
 
-    visual_removed={'hd-skin-pack-299','jefferson-retextured','sa-brightened-project','parallax-interiors','bsor-vegetation','improved-lamps','nextgen-effects',
+    visual_removed={'jefferson-retextured','sa-brightened-project','parallax-interiors','bsor-vegetation','improved-lamps','nextgen-effects',
                     'lv-gas-station-neon','lod-vegetation','nextgen-grass','rubbish-gta-4','enhance-particletxd','visual-compatibility'}
     for f in frozen['files']:
         name = f['path']
@@ -388,7 +388,8 @@ def main():
     if args.embed_mods:
         # Urbanize's author forbids repackaging. Keep that original download
         # automatic; embed the other selected components and their notices.
-        original_downloads={'urbanize-21217a20e7'}
+        # V@DO$ forbids using the HD skins on other sites: never embedded, an installer choice fetched from its original link.
+        original_downloads={'urbanize-21217a20e7','skins-2aa371fddf'}
         extraction=tempfile.TemporaryDirectory(prefix='author-input-',dir=out)
         extracted={}
         groups=collections.defaultdict(list)
@@ -493,7 +494,8 @@ def main():
         c['bytes']=sum(f['bytes'] for f in recipes if c['id'] in f['components'])
         if c['id']=='izzy-s-lively-vehicle-physics':c['version']='1.6';c['distribution']='Explicit author permission; original files unchanged'
     for p in used_packages:
-        if p.startswith('urbanize'):packages[p]['optional']=True
+        if p.startswith('urbanize') or p=='skins-2aa371fddf':packages[p]['optional']=True
+        if p=='skins-2aa371fddf':packages[p].update(opt_in=True,title='HD Skin Pack 299',url=packages[p]['url'].replace(' ','%20'))
     manifest=dict(schema=1,version=args.version,lab_only=False,choose_compatible_renderer=True,prepare_legacy_directx=True,profile=profile,files=recipes,packages=[packages[p] for p in sorted(used_packages)],omissions=['GTA V HUD / minimap / weapon wheel','RoSA / bundled Proper Player Retex','GTA IV Textures and HQ Roads','Added weapon packs','Visual mods without recorded permission','Author saves and generated state'])
     if browser_package:manifest['webview_bootstrapper_package']=browser_package['id']
     bundle=out/'portable-tools.zip.new'

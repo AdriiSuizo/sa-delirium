@@ -1,6 +1,7 @@
 # Créditos
 
 - **AdriiSuizo** dirige la integración y el proyecto.
+- **V@DO$** (vados-mods.ru), autor de **HD Skin Pack 299**, con créditos a Rockstar. Es opcional: el asistente lo descarga sin cambios de [su publicación original](https://www.gtainside.com/sanandreas/skins/94757-hd-skin-pack-299-skins-updated/). No se aloja ni se incluye aquí, como pide su autor.
 - **Grinch_**, autor de **Grinch Trainer1.0**. ASI original sin modificar; distribución gratuita según el acuerdo incluido en `Documentation/Licenses/GrinchTrainer-License.txt`. [Proyecto y licencia originales](https://github.com/user-grinch/GrinchTrainer-III-VC-SA/tree/1.0).
 - **Izzy / Izzys Mods**, autora de **Lively Vehicle Physics 1.6**. Incluido con su permiso explícito, conservando su ASI, configuración y readme originales. [Publicación de la autora](https://libertycity.net/files/gta-san-andreas/246038-izzys-lively-vehicle-physics-1-6.html).
 - **FxsFuncs 1.1 Build 46 (47 fix)**, de Junior_Djjr, con soporte de Ezekiel. ASI original incluido según su permiso para compilaciones, con su readme y créditos. [Página original](https://www.mixmods.com.br/2025/06/fxsfuncs/).

@@ -69,7 +69,7 @@ namespace SAPortable {
             return edition.mode=="steam" || (lab && edition.executable=="gta-sa.exe" && Editions.AcceptedExecutables(manifest).Contains(edition.sha256));
         }
         public static Receipt Install(Manifest manifest,string steam,string iso,string cache,Action<long,long,string> progress,Func<bool> cancelled,bool unattended,bool lab,
-                                      string destination=null,string[] shortcuts=null,bool forceStandalone=false) {
+                                      string destination=null,string[] shortcuts=null,bool forceStandalone=false,bool hdModels=false) {
             if(manifest.lab_only && !lab)throw new IOException("Candidato local de validación; no es una distribución publicable.");
             var launcher=Resource("SteamLauncher.exe");var initial=new Engine(manifest.profile,launcher);
             var edition=Identify(manifest,steam);
@@ -80,7 +80,7 @@ namespace SAPortable {
                 if(!mutex.WaitOne(0))throw new IOException("Ya hay otro instalador trabajando en esta instalación de Steam.");
                 try {
                     var helper=Helpers(cache);
-                    var composer=new Composer(manifest,helper,cache){Progress=progress,Cancelled=cancelled,Unattended=unattended};
+                    var composer=new Composer(manifest,helper,cache){Progress=progress,Cancelled=cancelled,Unattended=unattended,HdModels=hdModels};
                     string prepared;
                     var index=composer.Prepare(steam,iso,out prepared);
                     destination=destination??Standalone.DefaultDestination;
@@ -108,9 +108,9 @@ namespace SAPortable {
                         case "--detect":result=new{version=Version,steam=Discovery.SteamGames(),editions=Discovery.SteamGames().Select(g=>Identify(manifest,g)).ToArray(),iso_required=true,development_source_required=false,omissions=manifest.omissions};break;
                         case "--identify":result=Identify(manifest,Option(args,"--target"));break;
                         case "--install":result=Install(manifest,Option(args,"--target"),Option(args,"--iso"),cache,delegate{},delegate{return false;},args.Contains("--unattended"),args.Contains("--lab"),
-                            Option(args,"--destination",Standalone.DefaultDestination),args.Contains("--no-shortcuts")?new string[0]:null,args.Contains("--standalone"));break;
+                            Option(args,"--destination",Standalone.DefaultDestination),args.Contains("--no-shortcuts")?new string[0]:null,args.Contains("--standalone"),args.Contains("--hd-models"));break;
                         case "--prepare":
-                            var composer=new Composer(manifest,Helpers(cache),cache){Unattended=args.Contains("--unattended")};string prepared;
+                            var composer=new Composer(manifest,Helpers(cache),cache){Unattended=args.Contains("--unattended"),HdModels=args.Contains("--hd-models")};string prepared;
                             var index=composer.Prepare(Option(args,"--target"),Option(args,"--iso"),out prepared);
                             result=new{status="prepared",prepared_root=prepared,index};break;
                         case "--restore":result=Restore(manifest,Option(args,"--target"));break;
@@ -143,12 +143,13 @@ namespace SAPortable {
         readonly Manifest manifest;
         readonly TextBox steam=new TextBox(),iso=new TextBox(),destination=new TextBox();
         readonly Button install=new Button(),restore=new Button(),cancel=new Button();
+        readonly RadioButton originalModels=new RadioButton(),hdModels=new RadioButton();
         readonly Label status=new Label();readonly ProgressBar progress=new ProgressBar();
         readonly BackgroundWorker worker=new BackgroundWorker {WorkerSupportsCancellation=true};
         DateTime lastProgress=DateTime.MinValue;bool busy;
         EditionReport edition;string identified;
         public SetupForm(Manifest value) {
-            manifest=value;Text="SA Delirium · Instalar";ClientSize=new Size(760,621);
+            manifest=value;Text="SA Delirium · Instalar";ClientSize=new Size(760,661);
             FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;
             Font=new Font("Segoe UI",10);BackColor=Color.FromArgb(246,248,251);
             Controls.Add(new Label {Text="San Andreas + Delirium",Font=new Font("Segoe UI",18,FontStyle.Bold),Location=new Point(28,24),Size=new Size(710,42)});
@@ -157,12 +158,15 @@ namespace SAPortable {
             AddPath("ISO de GTA IV para Xbox 360",iso,244,true);
             destination.Text=Standalone.DefaultDestination;
             AddPath("Carpeta del mod, si tu copia no es de Steam",destination,340,false,"Carpeta donde se instalará SA Delirium",true);
-            Controls.Add(new Label {Text="Conserva extras HD, trainer, fixes, aspecto PS2, Delirium e Izzy 1.6.\nUrbanize se descarga automáticamente del autor; los demás mods vienen incluidos.\nSin packs de armas, texturas IV, RoSA ni HUD GTA V. Partidas y original respaldados.",Location=new Point(31,410),Size=new Size(700,72),ForeColor=Color.FromArgb(65,77,96)});
-            progress.SetBounds(31,492,698,15);Controls.Add(progress);
-            status.SetBounds(31,518,698,40);Controls.Add(status);
-            restore.Text="Restaurar";restore.SetBounds(31,571,160,34);restore.Click+=delegate{BeginWork(true);};Controls.Add(restore);
-            cancel.Text="Cancelar";cancel.SetBounds(450,571,115,34);cancel.Click+=delegate{if(busy)worker.CancelAsync();else Close();};Controls.Add(cancel);
-            install.Text="Instalar";install.SetBounds(581,571,148,34);install.BackColor=Color.FromArgb(32,91,210);install.ForeColor=Color.White;install.FlatStyle=FlatStyle.Flat;install.Click+=delegate{BeginWork(false);};Controls.Add(install);
+            Controls.Add(new Label {Text="Incluye trainer, fixes, aspecto PS2, Delirium e Izzy 1.6. Urbanize se descarga de su autor.\nSin packs de armas, texturas IV, RoSA ni HUD GTA V. Partidas y original respaldados.",Location=new Point(31,410),Size=new Size(700,50),ForeColor=Color.FromArgb(65,77,96)});
+            Controls.Add(new Label{Text="Modelos de personajes",Location=new Point(31,466),Size=new Size(170,25)});
+            originalModels.Text="Originales del juego";originalModels.Checked=true;originalModels.SetBounds(205,464,520,25);Controls.Add(originalModels);
+            hdModels.Text="HD Skin Pack 299, de V@DO$ (se descargan 278 MB de GTAInside)";hdModels.SetBounds(205,490,520,25);Controls.Add(hdModels);
+            progress.SetBounds(31,532,698,15);Controls.Add(progress);
+            status.SetBounds(31,558,698,40);Controls.Add(status);
+            restore.Text="Restaurar";restore.SetBounds(31,611,160,34);restore.Click+=delegate{BeginWork(true);};Controls.Add(restore);
+            cancel.Text="Cancelar";cancel.SetBounds(450,611,115,34);cancel.Click+=delegate{if(busy)worker.CancelAsync();else Close();};Controls.Add(cancel);
+            install.Text="Instalar";install.SetBounds(581,611,148,34);install.BackColor=Color.FromArgb(32,91,210);install.ForeColor=Color.White;install.FlatStyle=FlatStyle.Flat;install.Click+=delegate{BeginWork(false);};Controls.Add(install);
             steam.TextChanged+=delegate{IdentifySteam();UpdateButtons();};iso.TextChanged+=delegate{UpdateButtons();};destination.TextChanged+=delegate{UpdateButtons();};
             FormClosing+=delegate(object sender,FormClosingEventArgs e){if(busy){worker.CancelAsync();e.Cancel=true;}};
             worker.RunWorkerCompleted+=delegate(object sender,RunWorkerCompletedEventArgs e){
@@ -213,7 +217,7 @@ namespace SAPortable {
             return null;
         }
         void BeginWork(bool undo) {
-            var target=undo?RestoreTarget():steam.Text;var image=iso.Text;var own=destination.Text;busy=true;UpdateButtons();steam.Enabled=iso.Enabled=destination.Enabled=false;status.Text=undo?"Restaurando…":"Comprobando tu juego y preparando el mod…";
+            var target=undo?RestoreTarget():steam.Text;var image=iso.Text;var own=destination.Text;var hd=hdModels.Checked;busy=true;UpdateButtons();steam.Enabled=iso.Enabled=destination.Enabled=false;status.Text=undo?"Restaurando…":"Comprobando tu juego y preparando el mod…";
             DoWorkEventHandler action=null;
             action=delegate(object sender,DoWorkEventArgs e) {
                 try {
@@ -221,7 +225,7 @@ namespace SAPortable {
                     else e.Result=Program.Install(manifest,target,image,Program.DefaultCache,delegate(long completed,long total,string item){
                         if((DateTime.UtcNow-lastProgress).TotalMilliseconds<150)return;lastProgress=DateTime.UtcNow;
                         BeginInvoke((Action)delegate{progress.Value=total>0?(int)Math.Min(1000,completed*1000/total):0;status.Text=item;});
-                    },delegate{return worker.CancellationPending;},false,false,own);
+                    },delegate{return worker.CancellationPending;},false,false,own,null,false,hd);
                 } finally {worker.DoWork-=action;}
             };
             worker.DoWork+=action;worker.RunWorkerAsync();

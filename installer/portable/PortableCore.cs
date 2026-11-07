@@ -13,7 +13,7 @@ using Microsoft.Win32;
 namespace SAPortable {
     public sealed class Package {
         public string id, title, filename, url, resolver, sha256, format, parent, member, password;
-        public bool optional;
+        public bool optional, opt_in;
         public string[] page_hosts, download_hosts;
         public string[] auto_click_selectors;
         public string download_button_id;
@@ -76,7 +76,7 @@ namespace SAPortable {
         readonly Dictionary<string,string> archivePasswords = new Dictionary<string,string>();
         public Action<long,long,string> Progress = delegate {};
         public Func<bool> Cancelled = delegate {return false;};
-        public bool Unattended;
+        public bool Unattended, HdModels;
         public readonly List<string> Skipped=new List<string>();
         void CheckCancellation() { if (Cancelled()) throw new OperationCanceledException(); }
         public Composer(Manifest manifest, string helperDirectory, string cacheDirectory) {
@@ -295,6 +295,8 @@ namespace SAPortable {
             preparedRoot=Paths.Inside(cache,"prepared-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(preparedRoot);
             var sources=new Dictionary<string,string>();
             // Urbanize comes from its author's Drive, whose daily quota runs out (07/11): the game installs without it.
+            foreach(var chosen in Manifest.packages.Where(x=>x.opt_in&&!HdModels))
+                Manifest.files=Manifest.files.Where(f=>f.package!=chosen.id).ToArray();
             foreach(var optional in Manifest.packages.Where(x=>x.optional&&Manifest.files.Any(f=>f.package==x.id)).ToArray()) {
                 try {Resolve(optional.id);}
                 catch(Exception error) {
