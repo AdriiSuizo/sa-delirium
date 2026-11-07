@@ -8,8 +8,8 @@ Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automát
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.6-Setup.exe** o el RAR de la
-[entrega0.3.6](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.6).
+Descarga **SA-Delirium-0.3.7-Setup.exe** o el RAR de la
+[entrega0.3.7](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.7).
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
 si tu juego está en otra carpeta, elígela. Elige la ISO si falta su ruta y pulsa
 **Instalar**.
@@ -39,18 +39,20 @@ Microsoft incluido; su instalador puede pedir permisos de administrador.
 
 Incluye Delirium y la integración de físicas/combate/movimientos, Izzy Lively
 Vehicle Physics1.6 con sus ajustes originales de puertas, SkyGfx Extended1.7,
-timecycle PS2, Project2DFX, NextGen Remaster Effects/FxsFuncs1.1 y Enhance
-ParticleTXD. También CLEO/CLEO+, Mod Loader, SilentPatch, GInput, Widescreen Fix,
+timecycle PS2, Project2DFX y FxsFuncs1.1. También CLEO/CLEO+, Mod Loader, SilentPatch, GInput, Widescreen Fix,
 Windowed Mode, Open Limit Adjuster, Framerate Vigilante y PortableGTA.
 DXVK se comprueba en el equipo; si no puede crear un dispositivo, se usa D3D9
 de Windows. Los créditos y readmes originales se instalan en `SA/Documentation`.
 
-Se conservan Urbanize, Grinch Trainer, Advanced Aiming, HD Skin Pack299,
-BSOR/LOD Vegetation, NextGen Grass, SA Brightened, Jefferson Retextured, Parallax
-Interiors, neones/lámparas, Rubbish GTA4 y los eventos civiles de desarrollo.
+Se conservan Urbanize, Grinch Trainer, Advanced Aiming y los eventos civiles de desarrollo.
 La configuración de combate, físicas y movimientos de Delirium se conserva.
 
-Quedan fuera **ambos packs de armas añadidos** (GTA V Weapons y NeXtGen Remaster
+Quedan fuera los mods visuales sin permiso de redistribución registrado (HD Skin
+Pack299, BSOR/LOD Vegetation, NextGen Grass, NextGen Remaster Effects, Enhance
+ParticleTXD, SA Brightened, Jefferson Retextured, Parallax Interiors, neones/lámparas
+y Rubbish GTA4). Puedes añadirlos tú desde sus autores con Mod Loader.
+
+También quedan fuera **ambos packs de armas añadidos** (GTA V Weapons y NeXtGen Remaster
 Weapons), RoSA/Proper Player Retex, GTA IV Textures and HQ Roads y el
 HUD/minimapa/rueda de GTA V. Las armas usan los recursos de San Andreas de Steam.
 Esta selección corresponde a la aclaración del usuario: «Todo menos las armas»,
@@ -91,7 +93,7 @@ La entrega se comprueba desde416 archivos propios de Steam y una ISO externa,
 con caché vacía, mediante el EXE literal y con los extras embebidos y Urbanize descargado de su autor. Se comprueban
 arranque sin puente, intro de partida nueva, daño nativo, efectos, conservación
 de partidas, restauración y Jugar en Steam. La cobertura concreta y las huellas
-se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.6.md).
+se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.7.md).
 
 Las pruebas son acotadas. No certifican todos los vehículos, misiones, mandos,
 GPUs, idiomas o ediciones de ISO; tampoco equivalencia completa con GTA IV ni

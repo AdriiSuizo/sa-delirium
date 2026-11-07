@@ -18,8 +18,7 @@
 Desarrollo asistido por OpenAI Codex (familia GPT-6). GTA San Andreas y GTA IV pertenecen a sus titulares.
 
 El perfil portátil completo incluye los fixes, SkyGfx Extended1.7 de aap y
-Junior_Djjr, el timecycle PS2 leído de Steam, Project2DFX, NextGen Remaster Effects
-de Ezekiel/Junior_Djjr y Enhance ParticleTXD de Junior_Djjr. Conserva los créditos,
+Junior_Djjr, el timecycle PS2 leído de Steam, Project2DFX y FxsFuncs. Conserva los créditos,
 readmes y licencias originales en `Documentation/Original` y
 `Documentation/Licenses`. Los plugins se incluyen en el instalador salvo Urbanize, adquirido automáticamente
 desde su distribución original; sus autores
@@ -27,7 +26,8 @@ conservan sus derechos y sus términos individuales. La lista de orígenes está
 `installer/portable/source-catalog.json` y el inventario de construcción.
 Se incluyen los avisos originales de las dependencias Rust, DXVK (zlib),
 Framerate Vigilante y PortableGTA (MIT), plugin-sdk (zlib), 7-Zip y DirectSetup.
-Se conservan los extras HD, trainer y Urbanize; se excluyen RoSA/Proper Player
+Se conservan el trainer y Urbanize; se excluyen los mods visuales sin permiso de
+redistribución registrado, RoSA/Proper Player
 Retex, GTA IV Textures and HQ Roads, el HUD GTA V y ambos packs de armas añadidos.
 Urbanize es de Junior_Djjr: https://www.mixmods.com.br/2026/02/urbanize/ .
 Sus originales no se reempaquetan. Los avisos de cada extra acompañan el perfil.

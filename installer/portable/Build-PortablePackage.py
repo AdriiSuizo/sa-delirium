@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.6')
+    ap.add_argument('--version',default='0.3.7')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
@@ -129,9 +129,6 @@ def main():
     # The same engine source built for AVX2/FMA/BMI CPUs; the ASI picks it at
     # run time (PhysicsEngineVariant.hpp) and keeps the baseline otherwise.
     sdk_avx2 = repo / 'build/bootstrap-portable-avx2/i686-pc-windows-msvc/release'
-    # Texture dictionaries rejoined where two embedded mods ship one each
-    # (installer/portable/Fix-TxdConflicts.py --game <development game> --only-mods-from full-manifest.json --mods-only --out build/texture-fixes-0.3.3).
-    texture_fixes = repo / 'build/texture-fixes-0.3.3'
     seven = Path(r'C:\Program Files\7-Zip\7z.exe')
     delta = repo / 'build/portable-tools/DeltaTool.exe'
     own_runtime = repo / 'build/portable-production-runtime18/DeliriumSA.asi'
@@ -182,6 +179,11 @@ def main():
     if args.preset in {'full','classic'}:
         priorities.pop('GTA V Weapons',None)
     priorities.pop('GTA IV Textures and HQ Roads',None)
+    # Visual mods with no recorded permission stay out of the public package (Adrii, 07/11); only what changes
+    # gameplay is kept. Visual Compatibility merges maps for them and places their objects, so it goes too.
+    for folder in ('SA Brightened Project','Jefferson Retextured','Parallax Interiors','LOD Vegetation','LV Gas Station Neon','Visual Compatibility',
+                   'BSOR_Vegetation','NextGen Grass','NextGen Effects','Enhance ParticleTXD','Rubbish GTA 4','Improved Lamps','HD Skin Pack 299','Delirium Texture Fixes'):
+        priorities.pop(folder,None)
     own['modloader/modloader.ini'] = '[Folder.Config]\nProfile=Default\nPriorityLimit=100\n[Profiles.Default.Config]\nIgnoreAllMods=false\nExcludeAllMods=false\n[Profiles.Default.Priority]\n' + ''.join(f'{k}={v}\n' for k,v in priorities.items()) + '[Profiles.Default.IgnoreMods]\n_ignore\n'
     licensed = {
         'd3d9.dll': ('DXVK-zlib.txt', 'https://github.com/doitsujin/dxvk/releases/tag/v3.1.1'),
@@ -253,10 +255,13 @@ def main():
             patches.append((patch_name, data, project / 'game' / f['path']))
         recipes.append(recipe)
 
+    visual_removed={'hd-skin-pack-299','jefferson-retextured','sa-brightened-project','parallax-interiors','bsor-vegetation','improved-lamps','nextgen-effects',
+                    'lv-gas-station-neon','lod-vegetation','nextgen-grass','rubbish-gta-4','enhance-particletxd','visual-compatibility'}
     for f in frozen['files']:
         name = f['path']
         components = f['components']
         if args.preset=='full' and set(components)&weapon_components:continue
+        if set(components)&visual_removed:continue
         if args.preset=='classic' and (name.endswith('.ini.0') or (components and not set(components)&classic_components)):continue
         if name.startswith('DeliriumSA/') or set(components) & {'rosa-project-evolved', 'proper-player-retex', 'gta-iv-textures-and-hq-roads', 'izzy-s-lively-vehicle-physics'} or name in {'gta-sa.exe', 'delirium_physics.dll', 'cleo/cleo_saves/cs1.sav', 'GrinchTrainerSA/update.json'}:
             continue
@@ -330,10 +335,6 @@ def main():
         assert added, 'No PC 1.0 US alternative was found in --classic-source'
     add_payload('scripts/sa_delirium_bootstrap.dll', sdk/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime; bundled third-party Rust notices required')
     add_payload('scripts/sa_delirium_bootstrap_avx2.dll', sdk_avx2/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime, same source for AVX2 CPUs; bundled third-party Rust notices required')
-    fixes = sorted(texture_fixes.glob('*.txd'))
-    assert fixes and (texture_fixes/'Delirium-Texture-Fixes.json').is_file(), 'Generate the texture fixes first'
-    for path in fixes+[texture_fixes/'Delirium-Texture-Fixes.json']:
-        add_payload('modloader/Delirium Texture Fixes/'+path.name, path, [], 'Textures of the embedded mods only, rejoined where two of them ship the same dictionary')
     add_payload('Documentation/Original/FxsFuncs-1.1/Leiame.txt',fxs_readme,[],'Original FxsFuncs supplied readme and compilation permission')
     izzy = args.izzy_source.resolve()
     izzy_receipt = read(project/'release-work/evidence/portable-installer/izzy-1.6-owner-input.json')
@@ -487,12 +488,13 @@ def main():
     for c in profile['components']:
         c['requested']=bool(c['requested'] and c['id'] not in ['rosa-project-evolved','proper-player-retex','gta-iv-textures-and-hq-roads'] and (args.preset!='classic' or c['id'] in classic_components))
         if args.preset=='full' and c['id'] in weapon_components:c['requested']=False
+        if c['id'] in visual_removed:c['requested']=False
         c['files']=sum(c['id'] in f['components'] for f in recipes)
         c['bytes']=sum(f['bytes'] for f in recipes if c['id'] in f['components'])
         if c['id']=='izzy-s-lively-vehicle-physics':c['version']='1.6';c['distribution']='Explicit author permission; original files unchanged'
     for p in used_packages:
         if p.startswith('urbanize'):packages[p]['optional']=True
-    manifest=dict(schema=1,version=args.version,lab_only=False,choose_compatible_renderer=True,prepare_legacy_directx=True,profile=profile,files=recipes,packages=[packages[p] for p in sorted(used_packages)],omissions=['GTA V HUD / minimap / weapon wheel','RoSA / bundled Proper Player Retex','GTA IV Textures and HQ Roads','Added weapon packs','Author saves and generated state'])
+    manifest=dict(schema=1,version=args.version,lab_only=False,choose_compatible_renderer=True,prepare_legacy_directx=True,profile=profile,files=recipes,packages=[packages[p] for p in sorted(used_packages)],omissions=['GTA V HUD / minimap / weapon wheel','RoSA / bundled Proper Player Retex','GTA IV Textures and HQ Roads','Added weapon packs','Visual mods without recorded permission','Author saves and generated state'])
     if browser_package:manifest['webview_bootstrapper_package']=browser_package['id']
     bundle=out/'portable-tools.zip.new'
     with zipfile.ZipFile(bundle,'w',zipfile.ZIP_DEFLATED,compresslevel=7,strict_timestamps=False) as zip:

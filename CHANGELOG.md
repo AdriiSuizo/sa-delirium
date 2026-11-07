@@ -1,5 +1,10 @@
 # Historial
 
+## 0.3.7 · instalador solo con lo que se puede redistribuir
+
+- Salen del instalador los mods visuales sin permiso de redistribución registrado: HD Skin Pack, Jefferson Retextured, SA Brightened, Parallax Interiors, BSOR y LOD Vegetation, NextGen Grass, NextGen Remaster Effects, Enhance ParticleTXD, Improved Lamps, LV Gas Station Neon y Rubbish GTA 4. También sus parches de mapa y texturas.
+- La jugabilidad no cambia. Se puede añadir cada mod desde su autor con Mod Loader.
+
 ## 0.3.6 · más fps, correr como en GTA IV y reacciones más sólidas
 
 - Correr: pulsar X ya no mueve los brazos como en un sprint. Con los puños, los brazos siguen la carrera de GTA IV; los clips armados de IV no están, así que las armas a dos manos conservan los brazos de San Andreas.
