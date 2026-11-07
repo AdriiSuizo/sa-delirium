@@ -1,6 +1,7 @@
 #pragma once
 #include "ABI.hpp"
 #include "ReactionPolicy.hpp"
+#include "RestSkeleton.hpp"
 #include "SABones.hpp"
 #include "SpineRetargetMath.hpp"
 #include "delirium_physics.h"
@@ -47,6 +48,10 @@ struct Rig {
     NmBuild* build=nullptr;
     std::vector<int> ids,partForBone,parents;
     std::vector<T> bind;
+    // The neutral skeleton the bodies are fitted to: bind, or for a model exported
+    // bent at the waist its own bones in the straight rest pose (restFrames).
+    std::vector<T> anatomy;bool straightened=false;
+    std::vector<V> restLocal;
     void* skinSource=nullptr; // the RpSkin this rig was fitted from
     std::vector<T> bodyToBone,bindLocal;
     std::array<int,21> node{};
@@ -69,7 +74,12 @@ struct Rig {
         return -1;
     }
     int index(int id)const{for(size_t n=0;n<ids.size();n++)if(ids[n]==id)return int(n);return -1;}
-    std::array<T,21> jointFrames(const std::vector<T>& bones)const{
+    // Animated bones of a straightened model, with their joints where the bodies
+    // were fitted: same rotations, the rest directions instead of the bent ones.
+    std::array<T,21> jointFrames(const std::vector<T>& animated)const{
+        std::vector<T> straight;
+        if(straightened&&&animated!=&anatomy){straight=animated;for(size_t i=0;i<straight.size();i++)if(parents[i]>=0&&ids[i]!=saBone::pelvis)straight[i].p=straight[parents[i]].p+rotate(straight[parents[i]].q,restLocal[i]);}
+        const auto& bones=straight.empty()?animated:straight;
         std::array<T,21> j;
         for(int i=0;i<21;i++)if(node[i]>=0)j[i]=bones[node[i]];
         // Preserve SA's actual two joints and flexion. The former straight
@@ -81,6 +91,24 @@ struct Rig {
         for(int i=0;i<4;i++)j[7+i]=torso[i];
         j[12]=mul(j[12],headOffset);
         return j;
+    }
+    static bool restPoseDisabled(){static const bool off=GetEnvironmentVariableA("GTASA_REST_POSE_OFF",nullptr,0)>0;return off;} // A/B only
+    // Clean skeletons measure about 0.4 degrees here and keep their own bind.
+    bool bentAtWaist()const{
+        const V torso=normalized(bind[index(saBone::chest)].p-bind[node[0]].p);
+        const V legs=normalized((bind[node[1]].p+bind[node[4]].p-bind[node[3]].p-bind[node[6]].p));
+        return dot(torso,legs)<.9962f;
+    }
+    // SA skin mesh space is X-up. Fit in an upright, right-handed NM frame.
+    // Offsets remain joint-local, so incoming world matrices need no extra rotation.
+    T bodyBasis(const std::vector<T>&b,int top)const{
+        const V up=normalized(b[index(top)].p-b[node[0]].p);
+        V right=b[node[4]].p-b[node[1]].p;
+        right=normalized(right-up*dot(up,right));
+        const V forward=normalized(cross(up,right));
+        if(length(up)<.9f||length(right)<.9f||length(forward)<.9f)throw std::runtime_error("degenerate skin body basis");
+        M basis{};basis.right=right;basis.up=forward;basis.at=up;
+        return inverse(transform(basis));
     }
     Rig(void* ped,NmBuild* original){
         auto*h=hierarchy(ped);if(!h||h->num<20||h->num>128||!h->matrices||!h->nodes)throw std::runtime_error("unsupported HAnim hierarchy");
@@ -106,16 +134,18 @@ struct Rig {
         }
         constexpr int boneIDs[21]={saBone::pelvis,41,42,43,51,52,53,saBone::spine,-1,saBone::chest,-1,saBone::neck,saBone::head,31,32,33,34,21,22,23,24};
         for(int i=0;i<21;i++){node[i]=boneIDs[i]<0?-1:index(boneIDs[i]);if(boneIDs[i]>=0&&node[i]<0)throw std::runtime_error("required SA bone missing "+std::to_string(boneIDs[i]));}
-        // SA skin mesh space is X-up. Fit in an upright, right-handed NM frame.
-        // Offsets remain joint-local, so incoming world matrices need no extra rotation.
-        const V up=normalized(bind[index(saBone::chest)].p-bind[node[0]].p);
-        V right=bind[node[4]].p-bind[node[1]].p;
-        right=normalized(right-up*dot(up,right));
-        const V forward=normalized(cross(up,right));
-        if(length(up)<.9f||length(right)<.9f||length(forward)<.9f)throw std::runtime_error("degenerate skin body basis");
-        M basis{};basis.right=right;basis.up=forward;basis.at=up;
-        const T canonical=inverse(transform(basis));
+        anatomy=bind;restLocal.resize(bind.size());straightened=bentAtWaist()&&!restPoseDisabled();
+        if(straightened)for(size_t i=0;i<bind.size();i++)if(parents[i]>=0){
+            T local=mul(inverse(bind[parents[i]]),bind[i]);
+            for(const auto&r:restFrames)if(r.id==ids[i]){
+                M m{};m.right={r.m[0],r.m[1],r.m[2]};m.up={r.m[3],r.m[4],r.m[5]};m.at={r.m[6],r.m[7],r.m[8]};local.q=rotation(m);
+                const V along{r.t[0],r.t[1],r.t[2]};local.p=length(along)<.01f?along:normalized(along)*length(local.p);
+            }
+            restLocal[i]=local.p;anatomy[i]=mul(anatomy[parents[i]],local);
+        }
+        const T canonical=bodyBasis(bind,saBone::chest),neutral=straightened?bodyBasis(anatomy,saBone::neck):canonical;
         for(auto& b:bind)b=mul(canonical,b);
+        for(auto& b:anatomy)b=mul(neutral,b);
         V zero{};auto* reference=nm_agent_create(original,&zero.x,0,.3f);
         if(!reference)throw std::runtime_error("reference anatomy unavailable");
         V root,neck,head;Q q;int parent;float limits[3];
@@ -129,10 +159,10 @@ struct Rig {
         // Fit the physical head pivot relative to SA's actual neck/head. Keep
         // a virtual physical head joint at the reference neck/head spacing, attached
         // rigidly to the real SA head bone, to avoid a near-zero neck inertia.
-        T headJoint=bind[node[12]];
-        headJoint.p.z=bind[node[11]].p.z+(head.z-neck.z)*(bind[node[11]].p.z-bind[node[0]].p.z)/torso;
-        headOffset=mul(inverse(bind[node[12]]),headJoint);
-        auto joints=jointFrames(bind);
+        T headJoint=anatomy[node[12]];
+        headJoint.p.z=anatomy[node[11]].p.z+(head.z-neck.z)*(anatomy[node[11]].p.z-anatomy[node[0]].p.z)/torso;
+        headOffset=mul(inverse(anatomy[node[12]]),headJoint);
+        auto joints=jointFrames(anatomy);
         for(int i=0;i<21;i++){fitPoints[3*i]=joints[i].p.x;fitPoints[3*i+1]=joints[i].p.y;fitPoints[3*i+2]=joints[i].p.z;}
         build=nm_build_fit(original,fitPoints.data());if(!build)throw std::runtime_error("nm_build_fit rejected skeleton");
         fitSkinShapes(ped,canonical);
@@ -141,13 +171,13 @@ struct Rig {
             nm_build_part_info(build,i,nullptr,&partRadius[i],&partHalf[i],nullptr);
             if(i==0)rootToPelvis=body.p;
         }
-        for(int id:ids){int part=mapped(id);if(part<0){part=0;float best=1.e9f;const V p=bind[index(id)].p;for(int i=0;i<21;i++){float d=length(p-joints[i].p);if(d<best){best=d;part=i;}}}partForBone.push_back(part);}
+        for(int id:ids){int part=mapped(id);if(part<0){part=0;float best=1.e9f;const V p=anatomy[index(id)].p;for(int i=0;i<21;i++){float d=length(p-joints[i].p);if(d<best){best=d;part=i;}}}partForBone.push_back(part);}
         for(size_t i=0;i<ids.size();i++){
             T body;nm_build_part_frame(build,partForBone[i],&body.p.x,&body.q.x);
-            bodyToBone.push_back(mul(inverse(body),bind[i]));
+            bodyToBone.push_back(mul(inverse(body),anatomy[i]));
             bindLocal.push_back(parents[i]<0?bind[i]:mul(inverse(bind[parents[i]]),bind[i]));
         }
-        rootClearance=-std::min(bind[node[3]].p.z,bind[node[6]].p.z)+.12f;
+        rootClearance=-std::min(anatomy[node[3]].p.z,anatomy[node[6]].p.z)+.12f;
         rootClearance=std::clamp(rootClearance,.65f,1.5f);
     }
     // The fitted NM shapes are GTA IV's, scaled by the skeleton: a leaf part
@@ -176,7 +206,8 @@ struct Rig {
             if(dominant<0||!finite(vertices[i]))continue;
             const int part=mapped(ids[dominant]);
             if(part!=12&&part!=15&&part!=16&&part!=19&&part!=20)continue;
-            const V c=canonical.p+rotate(canonical.q,vertices[i]);
+            V c=canonical.p+rotate(canonical.q,vertices[i]);
+            if(straightened){const T shift=mul(anatomy[dominant],inverse(bind[dominant]));c=shift.p+rotate(shift.q,c);}
             local[part].push_back(rotate(conjugate(body[part].q),c-body[part].p));
         }
         for(int k:{12,15,16,19,20}){

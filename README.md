@@ -47,7 +47,8 @@ de Windows. Los créditos y readmes originales se instalan en `SA/Documentation`
 Se conservan Urbanize, Grinch Trainer, Advanced Aiming y los eventos civiles de desarrollo.
 La configuración de combate, físicas y movimientos de Delirium se conserva.
 
-El asistente te deja elegir los modelos de personajes: los originales del juego o
+El asistente te deja elegir los modelos de personajes: los originales del juego, con codos
+y rodillas suavizados en tu PC a partir de tu propia copia, o
 **HD Skin Pack 299 de V@DO$**, que se descarga de su enlace original en GTAInside y
 nunca va dentro del instalador.
 

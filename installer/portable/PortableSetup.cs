@@ -106,6 +106,7 @@ namespace SAPortable {
                     object result;var report=Option(args,"--report");var cache=Option(args,"--cache",DefaultCache);
                     switch(args[0]) {
                         case "--detect":result=new{version=Version,steam=Discovery.SteamGames(),editions=Discovery.SteamGames().Select(g=>Identify(manifest,g)).ToArray(),iso_required=true,development_source_required=false,omissions=manifest.omissions};break;
+                        case "--soften":{var kept=new List<ProfileFile>();result=new{models=SoftModels.Write(Option(args,"--target"),kept,delegate{}),files=kept};break;}
                         case "--identify":result=Identify(manifest,Option(args,"--target"));break;
                         case "--install":result=Install(manifest,Option(args,"--target"),Option(args,"--iso"),cache,delegate{},delegate{return false;},args.Contains("--unattended"),args.Contains("--lab"),
                             Option(args,"--destination",Standalone.DefaultDestination),args.Contains("--no-shortcuts")?new string[0]:null,args.Contains("--standalone"),args.Contains("--hd-models"));break;
@@ -160,7 +161,7 @@ namespace SAPortable {
             AddPath("Carpeta del mod, si tu copia no es de Steam",destination,340,false,"Carpeta donde se instalará SA Delirium",true);
             Controls.Add(new Label {Text="Incluye trainer, fixes, aspecto PS2, Delirium e Izzy 1.6. Urbanize se descarga de su autor.\nSin packs de armas, texturas IV, RoSA ni HUD GTA V. Partidas y original respaldados.",Location=new Point(31,410),Size=new Size(700,50),ForeColor=Color.FromArgb(65,77,96)});
             Controls.Add(new Label{Text="Modelos de personajes",Location=new Point(31,466),Size=new Size(170,25)});
-            originalModels.Text="Originales del juego";originalModels.Checked=true;originalModels.SetBounds(205,464,520,25);Controls.Add(originalModels);
+            originalModels.Text="Originales del juego, con codos y rodillas suavizados";originalModels.Checked=true;originalModels.SetBounds(205,464,520,25);Controls.Add(originalModels);
             hdModels.Text="HD Skin Pack 299, de V@DO$ (se descargan 278 MB de GTAInside)";hdModels.SetBounds(205,490,520,25);Controls.Add(hdModels);
             progress.SetBounds(31,532,698,15);Controls.Add(progress);
             status.SetBounds(31,558,698,40);Controls.Add(status);

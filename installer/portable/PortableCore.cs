@@ -374,6 +374,10 @@ namespace SAPortable {
                 Paths.NoLinks(path);
                 files.Add(new ProfileFile {path="DeliriumSA-local-v3/"+path.Substring(resources.Length+1).Replace('\\','/'),sha256=Engine.Hash(path),bytes=new FileInfo(path).Length,components=new[]{"delirium"}});
             }
+            if(!HdModels) {
+                Progress(0,0,"Suavizando codos y rodillas de tus modelos…");
+                SoftModels.Write(preparedRoot,files,x=>{Skipped.Add(x);Progress(0,0,x);});
+            }
             var index=Json.Serializer().Deserialize<ProfileIndex>(Json.Serializer().Serialize(Manifest.profile));
             index.files=files.ToArray();index.total_bytes=files.Sum(f=>f.bytes);
             Json.Write(Paths.Inside(preparedRoot,"portable-preparation.json"),new{status="prepared",index,omissions=Manifest.omissions,iso_copied=false});
@@ -430,6 +434,115 @@ namespace SAPortable {
                 if(process.ExitCode!=0&&process.ExitCode!=3010)throw new IOException("Microsoft DirectX no pudo completar la instalación.");
             }
             Run(probe,"--check-legacy-runtime",log,false,15000);
+        }
+    }
+    // Softens the elbows and knees of the owner's own ped models: only skin
+    // weights change, same size and same shape at rest. Nothing of these models
+    // ships with the mod; they are written from the game being installed.
+    public static class SoftModels {
+        public const string Folder="modloader/Modelos Suavizados";
+        static readonly int[,] Joints={{22,23,24},{32,33,34},{41,42,43},{51,52,53}};
+        static readonly double[] Bands={.05,.05,.07,.07};
+        sealed class Skin {public int Start,Vertices,Count,Used,MaxWeights;public long VertexData;}
+        public static int Write(string root,List<ProfileFile> files,Action<string> skipped) {
+            var image=Path.Combine(root,"models","gta3.img");
+            if(!File.Exists(image)){skipped("Sin modelos suavizados: falta gta3.img.");return 0;}
+            var folder=Paths.Inside(root,Folder);int done=0;
+            using(var f=new FileStream(image,FileMode.Open,FileAccess.Read,FileShare.Read)) {
+                var head=new byte[8];f.Read(head,0,8);
+                if(Encoding.ASCII.GetString(head,0,4)!="VER2"){skipped("Sin modelos suavizados: gta3.img no reconocido.");return 0;}
+                var directory=new byte[32*BitConverter.ToInt32(head,4)];f.Read(directory,0,directory.Length);
+                for(int e=0;e+32<=directory.Length;e+=32) {
+                    int end=Array.IndexOf(directory,(byte)0,e+8,24);
+                    var name=Encoding.ASCII.GetString(directory,e+8,(end<0?e+32:end)-e-8);
+                    if(!name.EndsWith(".dff",StringComparison.OrdinalIgnoreCase))continue;
+                    long offset=BitConverter.ToUInt32(directory,e);int blocks=BitConverter.ToUInt16(directory,e+4);
+                    if(blocks==0)blocks=BitConverter.ToUInt16(directory,e+6);
+                    var data=new byte[blocks*2048L];f.Seek(offset*2048,SeekOrigin.Begin);f.Read(data,0,data.Length);
+                    byte[] soft=null;
+                    try {soft=Soften(data);}
+                    catch(IndexOutOfRangeException){}
+                    catch(ArgumentException){}
+                    if(soft==null)continue;
+                    Directory.CreateDirectory(folder);
+                    var path=Path.Combine(folder,name.ToLowerInvariant());File.WriteAllBytes(path,soft);
+                    files.Add(new ProfileFile{path=Folder+"/"+name.ToLowerInvariant(),sha256=Engine.Hash(path),bytes=soft.Length,components=new[]{"delirium"}});
+                    done++;
+                }
+            }
+            return done;
+        }
+        static void Walk(byte[] d,int a,int b,Skin geometry,List<Skin> found) {
+            while(a+12<=b) {
+                int kind=BitConverter.ToInt32(d,a),size=BitConverter.ToInt32(d,a+4),start=a+12,stop=start+size;
+                if(size<0||stop>b||kind==0)return;
+                if(kind==0xF) {
+                    if(BitConverter.ToInt32(d,start)!=1)throw new ArgumentException("geometry");
+                    int p=start+12,flags=BitConverter.ToInt32(d,p),triangles=BitConverter.ToInt32(d,p+4),vertices=BitConverter.ToInt32(d,p+8);p+=16;
+                    if((flags&8)!=0)p+=4*vertices;
+                    int sets=(flags>>16)&255;if(sets==0)sets=(flags&4)!=0?1:(flags&0x80)!=0?2:0;
+                    p+=8*vertices*sets+8*triangles+16+8;
+                    Walk(d,start,stop,new Skin{Vertices=vertices,VertexData=p},found);
+                } else if(kind==0x10||kind==0x1A||kind==0x0E||kind==3||kind==0x14)Walk(d,start,stop,geometry,found);
+                else if(kind==0x116&&geometry!=null) {
+                    geometry.Start=start;geometry.Count=d[start];geometry.Used=d[start+1];geometry.MaxWeights=d[start+2];found.Add(geometry);
+                }
+                a=stop;
+            }
+        }
+        static int[] BoneIds(byte[] d) {
+            for(int i=0;i+32<d.Length;i++) {
+                if(BitConverter.ToInt32(d,i)!=0x11E||BitConverter.ToInt32(d,i+4)<=20)continue;
+                int count=BitConverter.ToInt32(d,i+20);
+                if(BitConverter.ToInt32(d,i+12)!=0x100||count<=10||count>=128)continue;
+                var ids=new int[count];for(int k=0;k<count;k++)ids[k]=BitConverter.ToInt32(d,i+32+12*k);
+                return ids;
+            }
+            return null;
+        }
+        static double[] Vec(byte[] d,long at){return new double[]{BitConverter.ToSingle(d,(int)at),BitConverter.ToSingle(d,(int)at+4),BitConverter.ToSingle(d,(int)at+8)};}
+        // Position of a bone: the translation of its inverse-bind matrix, inverted.
+        static double[] BonePosition(byte[] d,int at) {
+            var m=new double[3,3];for(int r=0;r<3;r++)for(int c=0;c<3;c++)m[r,c]=BitConverter.ToSingle(d,at+16*r+4*c);
+            var t=Vec(d,at+48);
+            double c00=m[1,1]*m[2,2]-m[1,2]*m[2,1],c01=m[0,2]*m[2,1]-m[0,1]*m[2,2],c02=m[0,1]*m[1,2]-m[0,2]*m[1,1];
+            double c10=m[1,2]*m[2,0]-m[1,0]*m[2,2],c11=m[0,0]*m[2,2]-m[0,2]*m[2,0],c12=m[0,2]*m[1,0]-m[0,0]*m[1,2];
+            double c20=m[1,0]*m[2,1]-m[1,1]*m[2,0],c21=m[0,1]*m[2,0]-m[0,0]*m[2,1],c22=m[0,0]*m[1,1]-m[0,1]*m[1,0];
+            double det=m[0,0]*c00+m[0,1]*c10+m[0,2]*c20;
+            return new double[]{-(t[0]*c00+t[1]*c10+t[2]*c20)/det,-(t[0]*c01+t[1]*c11+t[2]*c21)/det,-(t[0]*c02+t[1]*c12+t[2]*c22)/det};
+        }
+        public static byte[] Soften(byte[] blocks) {
+            int size=BitConverter.ToInt32(blocks,4)+12;if(size<=12||size>blocks.Length)return null;
+            var source=new byte[size];Array.Copy(blocks,source,size);
+            var found=new List<Skin>();Walk(source,0,size,null,found);
+            if(found.Count==0)return null;
+            var g=found.OrderByDescending(x=>x.Vertices).First();var ids=BoneIds(source);
+            if(ids==null||g.MaxWeights<2)return null;
+            var output=(byte[])source.Clone();
+            int indices=g.Start+4+g.Used,weights=indices+4*g.Vertices,matrices=weights+16*g.Vertices;
+            int stride=g.Used!=0?64:68,first=g.Used!=0?0:4,changed=0;
+            Func<int,bool> palette=x=>{if(g.Used==0)return x<g.Count;for(int k=0;k<g.Used;k++)if(source[g.Start+4+k]==x)return true;return false;};
+            for(int j=0;j<4;j++) {
+                int upper=Array.IndexOf(ids,Joints[j,0]),lower=Array.IndexOf(ids,Joints[j,1]),hand=Array.IndexOf(ids,Joints[j,2]);
+                if(upper<0||lower<0||hand<0||!palette(upper)||!palette(lower))continue;
+                var a=BonePosition(source,matrices+upper*stride+first);var el=BonePosition(source,matrices+lower*stride+first);var wr=BonePosition(source,matrices+hand*stride+first);
+                double ax=wr[0]-a[0],ay=wr[1]-a[1],az=wr[2]-a[2],n=Math.Sqrt(ax*ax+ay*ay+az*az);ax/=n;ay/=n;az/=n;
+                for(int i=0;i<g.Vertices;i++) {
+                    bool live=false,only=true;
+                    for(int k=0;k<4;k++)if(BitConverter.ToSingle(source,weights+16*i+4*k)>1e-4f) {
+                        int bone=source[indices+4*i+k];live=true;if(bone!=upper&&bone!=lower)only=false;
+                    }
+                    if(!live||!only)continue;
+                    var v=Vec(source,g.VertexData+12L*i);
+                    double s=(v[0]-el[0])*ax+(v[1]-el[1])*ay+(v[2]-el[2])*az,band=Bands[j];
+                    if(Math.Abs(s)>=band)continue;
+                    double t=(s/band+1)/2,w=t*t*(3-2*t);
+                    output[indices+4*i]=(byte)upper;output[indices+4*i+1]=(byte)lower;output[indices+4*i+2]=0;output[indices+4*i+3]=0;
+                    Array.Copy(BitConverter.GetBytes((float)(1-w)),0,output,weights+16*i,4);Array.Copy(BitConverter.GetBytes((float)w),0,output,weights+16*i+4,4);
+                    Array.Clear(output,weights+16*i+8,8);changed++;
+                }
+            }
+            return changed==0?null:output;
         }
     }
 }

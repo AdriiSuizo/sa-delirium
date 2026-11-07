@@ -1,5 +1,11 @@
 # Historial
 
+## 0.3.9 · reacciones correctas con los modelos originales
+
+- Los personajes ya no se doblan por la cintura al recibir disparos. Muchos modelos originales guardan el esqueleto inclinado 14-20° y las físicas lo tomaban como postura recta; ahora usan sus mismos huesos en postura recta.
+- Un cadáver ya no se queda congelado doblado y sin colisiones: solo se congela cuando está tumbado y quieto.
+- La opción de modelos originales suaviza codos y rodillas en tu PC, a partir de los modelos de tu propio juego. No se reparte ningún modelo.
+
 ## 0.3.8 · elige los modelos de personajes
 
 - El asistente pregunta qué modelos quieres: los originales del juego o HD Skin Pack 299 de V@DO$, que se descarga sin cambios de su enlace original en GTAInside (278 MB). Si la descarga falla, se instala con los originales.

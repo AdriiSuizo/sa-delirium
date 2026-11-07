@@ -350,7 +350,7 @@ static bool activate(void*p,const Request&r){
              for(int k:{12,15,16,19,20}){float box[3]{};const bool boxed=nm_build_part_box(g.build,k,box)==1;
                 d+=" part"+std::to_string(k)+"="+std::to_string(g.skinShape[k])+":"+std::to_string(g.skinVertices[k])+":"+
                    (boxed?std::to_string(box[0])+","+std::to_string(box[1])+","+std::to_string(box[2]):std::to_string(g.partRadius[k])+","+std::to_string(g.partHalf[k]));}
-             event("skin_shapes",ref,model,d.substr(1));}
+             event("skin_shapes",ref,model,d.substr(1)+" straightened="+std::to_string(g.straightened));}
         }
         auto a=std::make_unique<Active>();a->ref=ref;a->model=model;a->ped=p;a->playerVehicle=p==player()&&permitsPlayer(r);
         // CJ's clothes/body can change without changing model ID 0.
@@ -1172,7 +1172,10 @@ static void simulatePhysicsFrame(){
                 V linear{},spin{};nm_agent_get_part_velocity(a.agent,0,&linear.x,&spin.x);
                 // The next step undid the freeze, every frame (29 corpses, up to 729 times each, 07/11), and each stayed
                 // in the solver. A resting corpse now skips it until something reaches it.
-                if(now-a.deadSince>1000&&length(linear)<.05f){
+                // Stillness of the pelvis alone froze bodies still folding over planted feet: bent in the air, no collision (07/11).
+                V headLinear{};nm_agent_get_part_velocity(a.agent,12,&headLinear.x,&spin.x);
+                const bool lying=a.current[0].p.z-std::min(a.current[3].p.z,a.current[6].p.z)<.4f;
+                if(now-a.deadSince>1000&&length(linear)<.05f&&length(headLinear)<.05f&&lying){
                     ok(nm_agent_freeze(a.agent));a.corpseResting=true;event("corpse_frozen",a.ref,a.model,"since_death_ms="+std::to_string(now-a.deadSince));
                 }
             }
