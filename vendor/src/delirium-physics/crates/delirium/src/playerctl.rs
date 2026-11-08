@@ -21,6 +21,10 @@ pub struct Wander {
     frames: i32,
 }
 
+impl Wander {
+    pub const ZERO: Wander = Wander { x: 0.0, y: 0.0, frames: 0 };
+}
+
 fn wrap(mut h: f32) -> f32 {
     use std::f32::consts::{PI, TAU};
     h = h.clamp(-delirium_data::kv!(35), delirium_data::kv!(35));

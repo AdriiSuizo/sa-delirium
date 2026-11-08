@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.10')
+    ap.add_argument('--version',default='0.3.11')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
@@ -131,7 +131,7 @@ def main():
     sdk_avx2 = repo / 'build/bootstrap-portable-avx2/i686-pc-windows-msvc/release'
     seven = Path(r'C:\Program Files\7-Zip\7z.exe')
     delta = repo / 'build/portable-tools/DeltaTool.exe'
-    own_runtime = repo / 'build/portable-production-runtime20/DeliriumSA.asi'
+    own_runtime = repo / 'build/portable-production-runtime21/DeliriumSA.asi'
     fxs_archive=project/'tools/downloads/security-review-20261105/GTA SA - FxsFuncs.7z'
     assert sha(fxs_archive)=='5c53fae0effa2c16ce927450aa8deb92065a1849122212dce6a84df094b5110b'
     fxs11=subprocess.run([str(seven),'x','-so','-spd','-p-',str(fxs_archive),'FxsFuncs/FxsFuncs.asi'],capture_output=True,check=True).stdout

@@ -1,5 +1,14 @@
 # Historial
 
+## 0.3.11 · CJ borracho como Niko y sin atravesar el suelo
+
+- Borracho: cuando el juego pone a CJ borracho (por ejemplo, con el "Efecto borracho" de Grinch Trainer), CJ se comporta como Niko totalmente borracho en GTA IV durante 180 s:
+  - va con su cuerpo físico, tambaleándose con el equilibrio de GTA IV, y el stick lo inclina hacia donde quieras ir;
+  - si se cae, espera quieto en el suelo, se levanta y sigue tambaleándose hasta que se acaba el tiempo;
+  - la cámara de borracho dura los mismos 180 s y luego se desvanece en 10 s;
+  - en las misiones se mantiene el efecto de San Andreas.
+- Atropellos: CJ ya no atraviesa el suelo. Si un golpe empuja el cuerpo a través del suelo, se deshace ese paso. Si aun así queda bajo el mapa, vuelve encima del suelo.
+
 ## 0.3.10 · daño a CJ, atropellos rápidos y sin cierre sobre el agua
 
 - CJ recibe daño de GTA IV con su cuerpo físico: al caer, al saltar de un coche en marcha, al salir despedido por una explosión y al ser atropellado. El daño sale del cálculo original de IV para cada golpe; San Andreas aplica el chaleco como siempre.

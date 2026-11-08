@@ -92,10 +92,10 @@ static bool validPed(void*p,bool allowDead=false,bool allowMounted=false,bool al
     if(!allowScripted&&p!=player()&&at<unsigned char>(p,0x484)!=1)return false;
     return player()&&length(position(p)-position(player()))<=radius;
 }
-enum class Reaction {Shot,Melee,Impact,Brace,BikeFall,Mounted,Explosion,VehicleExit,Bump,DoorEntry,Dive};
+enum class Reaction {Shot,Melee,Impact,Brace,BikeFall,Mounted,Explosion,VehicleExit,Bump,DoorEntry,Dive,Drunk};
 struct Request {V impulse{},direction{0,1,0};unsigned time=0;int part=10;bool test=false;Reaction kind=Reaction::Shot;int vehicle=-1;std::shared_ptr<PoseSeed> pose;bool playerVehicle=false;bool velocityOverride=false;V velocity{},deltaVelocity{};int weapon=-1;int attackerRef=-1;MeleeResponse melee=MeleeResponse::Flinch;bool contactKnown=false;V contact{};V strikeVelocity{},contactNormal{};float strikingMass=0,reactionDraw=0;bool meleeContactReady=false;bool originalMeleeBlow=false;bool physicalAnimation=false;int nativeMeleePart=10;RoadDamageReceipt roadDamage{};CombatDamageReceipt combatDamage{};float bumpImpulse=0,bumpDt=0;int entryComponent=0;T entryFrame{};};
 struct MeleePush {int part=0;V partLocal{},force{};float left=0;unsigned hitTime=0;V delivered{};float duration=.15f;};
-static bool permitsPlayer(const Request&r){return r.playerVehicle&&(r.kind==Reaction::Bump||(r.kind==Reaction::Melee&&r.meleeContactReady)||(r.kind==Reaction::Impact&&playerVehicleImpacts)||(r.kind==Reaction::BikeFall&&playerBikeCrashEjections)||(r.kind==Reaction::Explosion&&playerExplosions)||(r.kind==Reaction::VehicleExit&&physicalVehicleExits)||r.kind==Reaction::Dive);}
+static bool permitsPlayer(const Request&r){return r.playerVehicle&&(r.kind==Reaction::Bump||(r.kind==Reaction::Melee&&r.meleeContactReady)||(r.kind==Reaction::Impact&&playerVehicleImpacts)||(r.kind==Reaction::BikeFall&&playerBikeCrashEjections)||(r.kind==Reaction::Explosion&&playerExplosions)||(r.kind==Reaction::VehicleExit&&physicalVehicleExits)||r.kind==Reaction::Dive||r.kind==Reaction::Drunk);}
 static std::map<int,Request> pending;
 struct NmAgent;struct Active;static void windscreenBodyStarted(Active&a);
 struct Active {
@@ -659,6 +659,7 @@ static void acceptedDamage(DamageEvent* hitEvent,void*p);
 static void __fastcall damage(DamageEvent* hitEvent,void*,void*p){originalDamage(hitEvent,p);}
 #include "HitDetection.hpp"
 #include "Explosions.hpp"
+#include "Drunk.hpp"
 #include "Aiming.hpp"
 #include "MeleeResponse.hpp"
 #include "CombatRuntime.hpp"
@@ -765,6 +766,37 @@ static void rejectSolverLaunch(Active&a){
     if(finite(linear)&&(after<=14.f+nearby*1.5f||after<=before*1.5f+6.f))return;
     for(int k=0;k<21;k++)ok(nm_agent_set_part_state(a.agent,k,&a.current[k].p.x,&a.current[k].q.x,&a.stepLinear[k].x,&a.stepSpin[k].x));
     event("solver_launch_rejected",a.ref,a.model,"before_mps="+std::to_string(before)+" after_mps="+std::to_string(after));
+}
+// A car's box pushing a body out through its bottom took CJ under Grove Street's road in one step; below the
+// one-sided ground nothing held him and he fell to z -43 until the game was closed (08/11). The trunk may never
+// cross an upward surface of the physics world going down: that step is undone, keeping only upward motion.
+// Should a body still end up under the map (no SA ground below it, ground above), it is put back on that ground.
+static void rejectGroundTunnel(Active&a,const std::array<T,21>&before){
+    if(!collision||!collision->world)return;
+    for(int k:{0,10,12}){
+        const V from=before[k].p+V{0,0,.05f},to=a.current[k].p,d=to-from;const float len=length(d);
+        if(!finite(from)||!finite(to)||len<1e-4f||d.z>=0)continue;
+        float hit=0;V normal{};
+        if(nm_world_raycast(collision->world,&from.x,&d.x,len,&hit,&normal.x)!=1||normal.z<.5f)continue;
+        const float surface=from.z+d.z*(hit/len);if(surface-to.z<.15f)continue;
+        for(int j=0;j<21;j++){V linear=a.stepLinear[j];linear.z=std::max(linear.z,0.f);
+            ok(nm_agent_set_part_state(a.agent,j,&before[j].p.x,&before[j].q.x,&linear.x,&a.stepSpin[j].x));}
+        a.current=before;
+        event("ground_tunnel_rejected",a.ref,a.model,"part="+std::to_string(k)+" surface_z="+std::to_string(surface)+" solved_z="+std::to_string(to.z)+" normal_z="+std::to_string(normal.z));
+        return;
+    }
+    V linear{},spin{};nm_agent_get_part_velocity(a.agent,0,&linear.x,&spin.x);
+    if(!(linear.z<-3.f))return;
+    const V pelvis=a.current[0].p;bool below=false,above=false;
+    reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(0x5696C0)(pelvis.x,pelvis.y,pelvis.z,&below,nullptr);
+    if(below)return;
+    const float top=reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(0x5696C0)(pelvis.x,pelvis.y,1000.f,&above,nullptr);
+    if(!above||top<pelvis.z+1.f)return;
+    float lowest=pelvis.z;for(const auto&t:a.current)lowest=std::min(lowest,t.p.z);
+    const V lift{0,0,top+.3f-lowest};
+    for(int j=0;j<21;j++){const V p=a.current[j].p+lift;const V zero{};
+        ok(nm_agent_set_part_state(a.agent,j,&p.x,&a.current[j].q.x,&zero.x,&zero.x));a.current[j].p=p;}
+    event("under_map_body_restored",a.ref,a.model,"pelvis_z="+std::to_string(pelvis.z)+" ground_z="+std::to_string(top));
 }
 // A get-up is an animation on SA's capsule: a car reaching it threw the ped up 1.35 m at 30 m/s and the clip
 // played on over the ambulance (07/11). The body goes back to physics before the car arrives.
@@ -888,8 +920,9 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
                 if(a.physicalAnimation){const int status=nm_agent_animation_pose_status(a.agent);if(status!=a.animationDriveStatus){event("combat_physical_animation",a.ref,a.model,"motor_status="+std::to_string(status)+" body_pose_not_overwritten=1");a.animationDriveStatus=status;}}
                 for(auto h=a.vehicleHistory.begin();h!=a.vehicleHistory.end();)if(!collision->findIdentity(h->first))h=a.vehicleHistory.erase(h);else ++h;
                 if(!a.mounted){selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);playerImpactDamage(a,stepSeconds);}
+                const auto poseBeforeStep=a.current;
                 if(!readPose(a,a.current)){invalid.push_back(a.ref);continue;}steps++;noteSolverGapAudit(a,now);
-                if(!a.mounted&&!a.preview)rejectSolverLaunch(a);
+                if(!a.mounted&&!a.preview){rejectSolverLaunch(a);rejectGroundTunnel(a,poseBeforeStep);}
                 if(a.kind==Reaction::DoorEntry&&!a.mounted&&!a.preview)observeVehicleEntrySolvedStep(a,stepSeconds);
                 if(a.kind==Reaction::Melee&&a.meleeMotionSample<4){
                     static constexpr unsigned times[]={100,250,500,1000};
@@ -1189,6 +1222,12 @@ static void simulatePhysicsFrame(){
                     ok(nm_agent_freeze(a.agent));a.corpseResting=true;event("corpse_frozen",a.ref,a.model,"since_death_ms="+std::to_string(now-a.deadSince));
                 }
             }
+            if(a.kind==Reaction::Drunk&&!a.recovering&&!a.mounted&&at<float>(p,0x540)>0){
+                // Drunk CJ stays on the ragdoll while he keeps his balance; only the watch hands him to the get-up.
+                if(drunkAgentFrame(a,now)&&beginRecovery(a)){++it;continue;}
+                if(applyBones)holdRoot();
+                ++it;continue;
+            }
             const bool exitReady=updateVehicleExitTask(a)&&updateVehicleEntryTask(a);
             const bool bumpReady=updatePedBumpTask(a);
             const float responseSeconds=a.kind==Reaction::VehicleExit||((a.kind==Reaction::BikeFall||a.kind==Reaction::Dive)&&[&]{float s[4]{};return nm_agent_vehicle_exit_status(a.agent,s)>0;}())||a.kind==Reaction::DoorEntry||a.kind==Reaction::Bump||a.meleeTaskOriginal?0.f:activeSeconds;
@@ -1320,6 +1359,7 @@ static void __cdecl process(){
     if(ready&&lastArea==area()&&(!lastTime||gameTime()>=lastTime))combatTick(0);
     if(ready)tickPlayerShove(combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C)));
     if(ready)tickPlayerDive();
+    if(ready)tickDrunk();
     captureStandingContacts();captureVehicleVelocities();captureBikeMotionSeeds();
     if(ready)tickVehicleEntryProbe();
     captureHostPredictorStarts();
@@ -1558,6 +1598,7 @@ static DWORD WINAPI setup(void*){
     playerVehicleImpacts=GetPrivateProfileIntW(L"Player",L"VehicleImpacts",1,ini.c_str())!=0;
     playerBikeCrashEjections=GetPrivateProfileIntW(L"Player",L"BikeCrashEjections",1,ini.c_str())!=0;
     playerExplosions=GetPrivateProfileIntW(L"Player",L"Explosions",1,ini.c_str())!=0;
+    drunkReplace=GetPrivateProfileIntW(L"Player",L"DrunkAsNiko",1,ini.c_str())!=0;
     physicalVehicleExits=GetPrivateProfileIntW(L"VehicleReactions",L"MovingExits",1,ini.c_str())!=0;
     playerDives=GetPrivateProfileIntW(L"Player",L"CircleDive",1,ini.c_str())!=0;
     windscreenEjection=GetPrivateProfileIntW(L"Vehicle",L"WindscreenEjection",1,ini.c_str())!=0;

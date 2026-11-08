@@ -1330,6 +1330,53 @@ pub unsafe extern "C" fn nm_agent_task_balance(a: *mut NmAgent, w: *const NmWorl
     0
 }
 
+/// Drunk Niko's bodyBalance (romandrink 0x4CD5, `delirium::drunk::BALANCE`): with `start` 1 as the scripts start it on the
+/// script-controlled ragdoll, 0 as they stop it (0x4C24: the same message without start).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_drunk_balance(a: *mut NmAgent, w: *const NmWorld, start: i32) -> i32 {
+    let a = agent!(a);
+    let Some(w) = (unsafe { w.as_ref() }) else { return fail(NM_E_ARG, "null world") };
+    let mut ps: Vec<(&str, Value)> = vec![("start", Value::Bool(start != 0))];
+    if start != 0 {
+        ps.extend(delirium::drunk::BALANCE.iter().map(|&(n, v)| (n, Value::Float(v))));
+        ps.push(("maxSteps", Value::Int(delirium::drunk::MAX_STEPS)));
+        ps.push(("armsOutOnPush", Value::Bool(delirium::drunk::ARMS_OUT_ON_PUSH)));
+    }
+    let mut st = std::mem::take(&mut a.agent.msgs);
+    let r = msg::send(&mut a.agent, &a.build, &w.0, &mut st, "bodyBalance", &ps);
+    a.agent.msgs = st;
+    match r {
+        Ok(n) => n as i32,
+        Err(e) => fail(NM_E_PARAM, format!("drunk bodyBalance: {e:?}")),
+    }
+}
+
+static DRUNK_WANDER: std::sync::Mutex<delirium::playerctl::Wander> = std::sync::Mutex::new(delirium::playerctl::Wander::ZERO);
+
+/// The player's ragdoll under the stick (GIVE_PLAYER_RAGDOLL_CONTROL, 82616DC0), once a game frame: `stick` the pad's
+/// left stick as bytes 0..255 (centre 127.5, as 822B7958 reads them), `camera` the camera's heading (0 along +y), `ped`
+/// the ped's place. Pushes the root for the next step and turns bodyBalance to look the stick's way.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_player_control(a: *mut NmAgent, w: *const NmWorld, stick_x: i32, stick_y: i32, camera: f32, ped: *const f32) -> i32 {
+    let a = agent!(a);
+    let Some(w) = (unsafe { w.as_ref() }) else { return fail(NM_E_ARG, "null world") };
+    if ped.is_null() || !camera.is_finite() { return fail(NM_E_ARG, "bad player control"); }
+    let stick = (delirium::playerctl::stick_axis(stick_x.clamp(0, 255) as u8), delirium::playerctl::stick_axis(stick_y.clamp(0, 255) as u8));
+    let msgs = {
+        let mut wander = DRUNK_WANDER.lock().unwrap_or_else(|e| e.into_inner());
+        let mut rand = RAND.lock().unwrap_or_else(|e| e.into_inner());
+        delirium::playerctl::control(&mut a.agent, stick, camera, unsafe { v3(ped) }, &mut wander, &mut rand)
+    };
+    let mut st = std::mem::take(&mut a.agent.msgs);
+    let mut r = 0;
+    for (m, ps) in &msgs {
+        if msg::send(&mut a.agent, &a.build, &w.0, &mut st, m, ps).is_err() { r = NM_E_PARAM; }
+    }
+    a.agent.msgs = st;
+    if r != 0 { return fail(r, "player control bodyBalance"); }
+    0
+}
+
 /// A measured game hit. Unlike the legacy demo helper, this never inserts a
 /// fixed 400-unit bullet velocity. The host supplies the actual reaction scale.
 #[unsafe(no_mangle)]

@@ -159,6 +159,10 @@ NM_API int32_t nm_agent_get_stance(const NmAgent* a, float* pos);
 NM_API int32_t nm_agent_feedback_count(const NmAgent* a);
 NM_API int32_t nm_agent_feedback_get(const NmAgent* a, int32_t i, char* buf, int32_t len, int32_t* slot, float* value);
 NM_API int32_t nm_agent_task_shot(NmAgent* a, const NmWorld* w, const char* set, int32_t part, const float* at, const float* dir, float health);
+/* Drunk Niko (romandrink 0x4CD5 / 0x4C24): the bodyBalance with start=1, or without start=0. */
+NM_API int32_t nm_agent_drunk_balance(NmAgent* a, const NmWorld* w, int32_t start);
+/* GIVE_PLAYER_RAGDOLL_CONTROL's frame (82616DC0): stick bytes 0..255, camera heading (0 along +y), ped place. */
+NM_API int32_t nm_agent_player_control(NmAgent* a, const NmWorld* w, int32_t stick_x, int32_t stick_y, float camera, const float* ped);
 NM_API int32_t nm_agent_task_balance(NmAgent* a, const NmWorld* w, const char* set, const float* look);
 /* A measured game hit. Unlike the legacy demo helper, this never inserts a fixed 400-unit bullet velocity. The host supplies the actual reaction scale. */
 NM_API int32_t nm_agent_task_hit(NmAgent* a, const NmWorld* w, const char* set, int32_t part, const float* at, const float* impulse, float health);

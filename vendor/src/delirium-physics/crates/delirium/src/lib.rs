@@ -87,6 +87,7 @@ pub mod nmshot;
 pub mod nmsit;
 pub mod nmst;
 pub mod playerctl;
+pub mod drunk;
 pub mod shottask;
 pub mod meleetask;
 pub mod rigid;

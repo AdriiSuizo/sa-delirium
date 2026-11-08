@@ -131,6 +131,9 @@ static void startReaction(Active& a,const Request& request){
         const V inherited=request.pose?request.pose->velocity*50.f:at<V>(a.ped,0x44)*50.f;
         if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&inherited.x,at<float>(a.ped,0x540)*2.f,a.ped==player()?1u:0u)))
             event("bike_throw_task_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(inherited))+" original_times=2_30 added_launch=0");
+    }else if(request.kind==Reaction::Drunk){
+        // romandrink 0x4CD5: SWITCH_PED_TO_RAGDOLL kind 1 (script control, no reaction of its own), then bodyBalance.
+        if(ok(nm_agent_drunk_balance(a.agent,collision->world,1)))event("drunk_ragdoll_started",a.ref,a.model,"original_balance=0x4CD5 stick_control=1");
     }else if(request.kind==Reaction::Dive){
         const V velocity=request.velocity*50.f;
         if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,at<float>(a.ped,0x540)*2.f,3u))){
