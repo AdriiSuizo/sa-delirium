@@ -1,5 +1,12 @@
 # Historial
 
+## 0.3.10 · daño a CJ, atropellos rápidos y sin cierre sobre el agua
+
+- CJ recibe daño de GTA IV con su cuerpo físico: al caer, al saltar de un coche en marcha, al salir despedido por una explosión y al ser atropellado. El daño sale del cálculo original de IV para cada golpe; San Andreas aplica el chaleco como siempre.
+- Los atropellos a mucha velocidad ya no pierden la física: el cuerpo atropellado se quedaba fuera de la zona de física por el retraso del coche y volvía a la animación de San Andreas.
+- Arreglado un cierre al volar bajo sobre el agua: el instalador llevaba unos ajustes de FxsFuncs pensados para NextGen Effects, que ya no se instala. Ahora va el archivo original del autor.
+- Límite de 90 fps (FramerateVigilante). Se aplica con el limitador de fotogramas del juego activado.
+
 ## 0.3.9 · reacciones correctas con los modelos originales
 
 - Los personajes ya no se doblan por la cintura al recibir disparos. Muchos modelos originales guardan el esqueleto inclinado 14-20° y las físicas lo tomaban como postura recta; ahora usan sus mismos huesos en postura recta.

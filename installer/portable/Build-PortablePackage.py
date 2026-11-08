@@ -89,7 +89,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='Write routing report only; no distributable ZIP')
     ap.add_argument('--update', action='store_true', help='Refresh this unpublished production package in place')
     ap.add_argument('--preset',choices=['development','classic','full'],default='full')
-    ap.add_argument('--version',default='0.3.9')
+    ap.add_argument('--version',default='0.3.10')
     ap.add_argument('--embed-mods',action='store_true',help='Embed selected mod members except Urbanize, acquired automatically from its author')
     ap.add_argument('--classic-source',type=Path,
                     help='Folder with the PC 1.0 US versions of the files that differ from Steam (for example '
@@ -131,12 +131,17 @@ def main():
     sdk_avx2 = repo / 'build/bootstrap-portable-avx2/i686-pc-windows-msvc/release'
     seven = Path(r'C:\Program Files\7-Zip\7z.exe')
     delta = repo / 'build/portable-tools/DeltaTool.exe'
-    own_runtime = repo / 'build/portable-production-runtime19/DeliriumSA.asi'
+    own_runtime = repo / 'build/portable-production-runtime20/DeliriumSA.asi'
     fxs_archive=project/'tools/downloads/security-review-20261105/GTA SA - FxsFuncs.7z'
     assert sha(fxs_archive)=='5c53fae0effa2c16ce927450aa8deb92065a1849122212dce6a84df094b5110b'
     fxs11=subprocess.run([str(seven),'x','-so','-spd','-p-',str(fxs_archive),'FxsFuncs/FxsFuncs.asi'],capture_output=True,check=True).stdout
     assert hashlib.sha256(fxs11).hexdigest()=='cd9ccf96e6a20a721825608636e88dc15a11bc988616dc8f8c8c9a8d6cb0eaf4'
     fxs_readme=subprocess.run([str(seven),'x','-so','-spd','-p-',str(fxs_archive),'Leiame.txt'],capture_output=True,check=True).stdout
+    # The author's own settings from the same archive. The development profile's ini was written for NextGen Effects,
+    # which the installer no longer ships: its HeliDustWaterPrims=4 enabled a heli_dust prim the stock effect lacks and
+    # crashed low flights over water (gta_sa+0xA9F54 from FxsFuncs, 08/11).
+    fxs_ini=subprocess.run([str(seven),'x','-so','-spd','-p-',str(fxs_archive),'FxsFuncs/FxsFuncs.ini'],capture_output=True,check=True).stdout
+    assert b'HeliDustWaterPrims = -1' in fxs_ini
     receipts = []
     recipes = []
     payload = {}
@@ -294,8 +299,7 @@ def main():
         elif name=='modloader/FxsFuncs/FxsFuncs.asi':
             add_payload(name,fxs11,components,'Explicit original author compilation permission; original supplied1.1 ASI unchanged')
         elif name=='modloader/FxsFuncs/FxsFuncs.ini':
-            assert sha(target)==f['sha256']
-            add_payload(name,target,components,'FxsFuncs author permits compilation; profile effects configuration')
+            add_payload(name,fxs_ini,components,'FxsFuncs author permits compilation; original supplied settings unchanged')
         elif name in own:
             add_payload(name, own[name], components, 'Authored distribution configuration')
         elif name in licensed:

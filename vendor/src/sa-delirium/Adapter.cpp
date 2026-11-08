@@ -142,7 +142,7 @@ struct Active {
     unsigned lastVehicleContactReport=0;
     bool runOverByPlayer=false,corpseResting=false,shotRunning=false;
     MeleeResponse melee=MeleeResponse::Flinch;
-    bool physicalAnimation=false;int animationDriveStatus=-1;unsigned entryDamageReport=0;
+    bool physicalAnimation=false;int animationDriveStatus=-1;unsigned entryDamageReport=0;float impactDamageCarry=0;unsigned impactDamageReport=0;
     float nativeGroundClearance=0;V recoveryVelocity{};
     std::array<T,21> renderedParts{};std::array<V,21> renderVelocity{},renderSpin{};
     std::array<T,21> incoming{},previous{},current{};std::vector<T> bones;
@@ -168,11 +168,21 @@ static V physicsWorldOrigin(){
     // CJ decides the box: ejected 40 m from NPC bodies, the midpoint left him outside it and he was released at once (07/11).
     if(const int ref=reference(player());pending.contains(ref))return cj;
     else if(auto a=agents.find(ref);a!=agents.end()&&!a->second->mounted&&pedFromRef(ref)==a->second->ped)return bodyPoint(*a->second);
+    // Nearest first, and only while CJ, the pending hits and every body already taken still fit the box: at 30 m/s
+    // bodies left 80 m behind put the midpoint 41 m back, and each new victim in front of the car was released in the
+    // frame it was hit, outside the box, back to SA's own fall (08/11). A body that no longer fits leaves instead.
+    std::vector<std::pair<float,V>> points;
+    for(const auto&[ref,r]:pending)if(void*p=pedFromRef(ref))points.push_back({-1.f,position(p)});
     for(const auto&[ref,a]:agents){
         if(a->mounted||pedFromRef(ref)!=a->ped)continue;
-        const V b=bodyPoint(*a);
-        if(!finite(b)||std::abs(b.x-cj.x)>2*(worldHalfExtent-worldEdgeMargin)||std::abs(b.y-cj.y)>2*(worldHalfExtent-worldEdgeMargin)||std::abs(b.z-cj.z)>15.f)continue;
-        lo={std::min(lo.x,b.x),std::min(lo.y,b.y),std::min(lo.z,b.z)};hi={std::max(hi.x,b.x),std::max(hi.y,b.y),std::max(hi.z,b.z)};
+        const V b=bodyPoint(*a);if(finite(b))points.push_back({length(b-cj),b});
+    }
+    std::stable_sort(points.begin(),points.end(),[](const auto&x,const auto&y){return x.first<y.first;});
+    const float span=2*(worldHalfExtent-worldEdgeMargin)-2.f;
+    for(const auto&[distance,b]:points){
+        const V l{std::min(lo.x,b.x),std::min(lo.y,b.y),std::min(lo.z,b.z)},h{std::max(hi.x,b.x),std::max(hi.y,b.y),std::max(hi.z,b.z)};
+        if(h.x-l.x>span||h.y-l.y>span||h.z-l.z>15.f)continue;
+        lo=l;hi=h;
     }
     return (lo+hi)*.5f;
 }
@@ -877,7 +887,7 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
         for(auto*entry:live){auto&a=*entry;if(bad(a.ref))continue;
                 if(a.physicalAnimation){const int status=nm_agent_animation_pose_status(a.agent);if(status!=a.animationDriveStatus){event("combat_physical_animation",a.ref,a.model,"motor_status="+std::to_string(status)+" body_pose_not_overwritten=1");a.animationDriveStatus=status;}}
                 for(auto h=a.vehicleHistory.begin();h!=a.vehicleHistory.end();)if(!collision->findIdentity(h->first))h=a.vehicleHistory.erase(h);else ++h;
-                if(!a.mounted){selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);}
+                if(!a.mounted){selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);playerImpactDamage(a,stepSeconds);}
                 if(!readPose(a,a.current)){invalid.push_back(a.ref);continue;}steps++;noteSolverGapAudit(a,now);
                 if(!a.mounted&&!a.preview)rejectSolverLaunch(a);
                 if(a.kind==Reaction::DoorEntry&&!a.mounted&&!a.preview)observeVehicleEntrySolvedStep(a,stepSeconds);

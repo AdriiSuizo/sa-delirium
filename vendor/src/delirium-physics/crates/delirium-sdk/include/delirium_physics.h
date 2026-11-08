@@ -174,6 +174,8 @@ NM_API int32_t nm_agent_road_preview(NmAgent* a, const NmWorld* w, int32_t weak)
 NM_API int32_t nm_agent_road_cancel(NmAgent* a, const NmWorld* w);
 NM_API int32_t nm_agent_road_arm(NmAgent* a, const NmWorld* w);
 /* Call immediately after a solver step, before replacing obstacle identities. Returns 0 unchanged, 1 brace, 2 roll-up, 3 relax; negatives are SDK errors. report: solved Ns, component, roll milliseconds, minimum task milliseconds. health_iv is the ped's health (IV scale) BEFORE this hit; the SDK derives IV's impact damage from the solved impulse to decide dying. */
+/* IV per-impact damage input since the last call: impulse, component, other id (-1 world), inverse mass. */
+NM_API int32_t nm_agent_take_impact(NmAgent* a, float* out);
 NM_API int32_t nm_agent_road_contact(NmAgent* a, const NmWorld* w, int32_t vehicle, float health_iv, uint32_t flags, float dt, float* report);
 NM_API int32_t nm_agent_road_recovery_ready(const NmAgent* a);
 /* All coordinates are world-space. The original task performs the local conversion. */

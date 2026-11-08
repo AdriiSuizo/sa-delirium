@@ -63,6 +63,21 @@ pub unsafe extern "C" fn nm_agent_road_arm(a: *mut NmAgent, w: *const NmWorld) -
     0
 }
 
+/// IV's per-impact damage input (82465360): the strongest solved contact of the
+/// steps since the last call, ground included. out: summed impulse (N s),
+/// component, other obstacle id (-1 world), inverse mass. Returns 1 when there
+/// was a contact, 0 when none; the record is cleared either way.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_take_impact(a: *mut NmAgent, out: *mut f32) -> i32 {
+    let a = agent!(a);
+    if out.is_null() { return fail(NM_E_ARG, "null impact output"); }
+    let r = std::mem::replace(&mut a.agent.doll.hurt, bump::ContactRecord::new());
+    let hit = r.strongest > 0.0 && r.sum > 0.0;
+    let values = [if hit { r.sum } else { 0.0 }, r.component as f32, r.other.map_or(-1.0, |o| o as f32), 1.0 / a.agent.doll.mass()];
+    unsafe { std::ptr::copy_nonoverlapping(values.as_ptr(), out, 4) };
+    hit as i32
+}
+
 /// Call immediately after a solver step, before replacing obstacle identities.
 /// Returns 0 unchanged, 1 brace, 2 roll-up, 3 relax; negatives are SDK errors.
 /// report: solved Ns, component, roll milliseconds, minimum task milliseconds.

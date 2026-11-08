@@ -1,4 +1,5 @@
 #pragma once
+#include "OriginalImpactDamage.hpp"
 struct BlastContext {V centre{};float radius=0;std::map<int,V> velocities;};
 static const BlastContext* currentBlast=nullptr;
 static void(__cdecl* originalExplosion)(const V&,float,float,void*,void*,bool,float)=nullptr;
@@ -60,6 +61,50 @@ static void vehicleEntryDragDamage(Active&a,float dt){
         if(!accepted)a.entryFatalAt=0;
         event("vehicle_entry_fatal_event",a.ref,a.model,"accepted="+std::to_string(accepted!=nullptr)+
             " event_ms="+std::to_string(hit.time)+" vehicle="+std::to_string(a.vehicle)+" calculated_once=1");
+    }
+    destroyHit();
+}
+// IV's per-impact damage for CJ's physical body (82465360, OriginalImpactDamage.hpp): every solved world or obstacle
+// contact of the step, ground included, so landings after a fall, a jump from a moving car, a run-over or being thrown
+// by a blast hurt him. SA calculates armour and attribution natively; only the requested amount comes from IV (08/11).
+static void playerImpactDamage(Active&a,float dt){
+    if(dt<=0||a.ped!=player()||a.preview||inVehicle(a.ped))return;
+    float out[4]{};
+    if(nm_agent_take_impact(a.agent,out)!=1)return;
+    const float before=at<float>(a.ped,0x540);if(!(before>0))return;
+    void*car=nullptr;original_impact_damage::Kind kind=original_impact_damage::Kind::Building;
+    if(out[2]>=0){
+        kind=original_impact_damage::Kind::Other;
+        for(const auto&v:collision->vehicles)if(v.index==int(out[2])&&vehicleFromRef(v.ref)==v.entity){car=v.entity;kind=original_impact_damage::Kind::Vehicle;break;}
+    }
+    original_impact_damage::Facts f{};
+    f.impulse=out[0];f.dt=dt;f.invMass=out[3];f.health=before*2.f;f.component=int(out[1]);f.other=kind;f.playerCut=true;
+    const auto r=original_impact_damage::calculate(f);
+    if(!r.valid||!(r.amountIV>0))return;
+    // IV 200 <-> SA 100; SA's player stat multiplies by .33 before armour, so request the IV amount through it.
+    a.impactDamageCarry+=r.amountIV*.5f/.33f;
+    if(a.impactDamageCarry<3.f)return;
+    const float amount=a.impactDamageCarry;a.impactDamageCarry=0;
+    DamageEvent hit{};
+    reinterpret_cast<void*(__thiscall*)(void*,void*,unsigned,int,int,unsigned char,bool,bool)>(0x4AD830)
+        (&hit,car,gameTime(),r.weapon,3,0,false,false);
+    const auto destroyHit=[&](){reinterpret_cast<void(__thiscall*)(void*,unsigned)>
+        ((*reinterpret_cast<void***>(&hit))[0])(&hit,0);};
+    if(!reinterpret_cast<bool(__thiscall*)(void*,void*)>(0x4B35A0)(&hit,a.ped)){destroyHit();return;}
+    DamageCalculator calculator{car,amount,3,{},r.weapon,false};DamageResponse response{};
+    originalCalculateDamage(&calculator,a.ped,response,false);
+    if(gameTime()-a.impactDamageReport>=250||response.zero){
+        a.impactDamageReport=gameTime();
+        event("player_iv_impact_damage",a.ref,a.model,"impulse="+std::to_string(out[0])+" part="+std::to_string(int(out[1]))+
+            " other="+std::to_string(int(out[2]))+" vehicle="+std::to_string(car!=nullptr)+" amount_iv="+std::to_string(r.amountIV)+
+            " sa_requested="+std::to_string(amount)+" health_before="+std::to_string(before)+" health="+std::to_string(at<float>(a.ped,0x540))+
+            " armour="+std::to_string(at<float>(a.ped,0x548)));
+    }
+    if(response.zero){
+        hit.response=response;
+        auto*intelligence=at<unsigned char*>(a.ped,0x47C);
+        void*accepted=intelligence?reinterpret_cast<void*(__thiscall*)(void*,void*,bool)>(0x4AB420)(intelligence+0x68,&hit,true):nullptr;
+        event("player_iv_impact_fatal",a.ref,a.model,"accepted="+std::to_string(accepted!=nullptr)+" weapon="+std::to_string(r.weapon));
     }
     destroyHit();
 }

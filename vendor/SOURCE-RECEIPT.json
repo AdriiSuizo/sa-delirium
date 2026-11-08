@@ -53,7 +53,7 @@
     "src/delirium-physics/crates/delirium/src/onfire.rs": "0877efdf82777e3308121454e7a53696f47289972dfafebc90a63059334aec1f",
     "src/delirium-physics/crates/delirium/src/original_ground.rs": "ff100d0d23ec60f23fb092441f6053ffa1b2f85ed51e4448abe2e5df5f6a4247",
     "src/delirium-physics/crates/delirium/src/playerctl.rs": "ff6972950a5021654b5be3d038b31b3afed8f39ef9d7ffcc0d4b60c7ed358eb2",
-    "src/delirium-physics/crates/delirium/src/ragdoll.rs": "13675f70c2c1c494ae401d01d938a7d18a95afd6d980c05a571de4819f7bb18f",
+    "src/delirium-physics/crates/delirium/src/ragdoll.rs": "774437a7782c304736eea986ba51385fa890f938107c8726763ebea46a752cfa",
     "src/delirium-physics/crates/delirium/src/ragdoll_animated.rs": "a2b7c24b87085caf0f4a5c9009b7496dcf4209e361aa4cffd347a45d54d7131c",
     "src/delirium-physics/crates/delirium/src/ragdoll_car_slots.rs": "52edfe4e171378889daf2afef6c5677e84c65554313f319b1f1f6eaf65de353e",
     "src/delirium-physics/crates/delirium/src/ragdoll_child_bounds.rs": "20e179cbbbc9c26f600bc0a5058bcb6b1403e5a3450d642ca988f95bf6e3e059",
@@ -96,7 +96,7 @@
     "src/delirium-physics/crates/delirium-sdk/examples/mujoco_follow.py": "ef60249026188b832529cfde0da5434c76213a0be4528c070bf3ae10c23f9ba9",
     "src/delirium-physics/crates/delirium-sdk/examples/replay_contact_construction.rs": "7533f5a79290759e327b1ea7ed045a928e8647a26176dc3b741d77a07fe85bbc",
     "src/delirium-physics/crates/delirium-sdk/examples/replay_external_placement.rs": "73b4b39814b254b5d566698ece0f555d8d113ac789490b22f9718e0b3ec60ecb",
-    "src/delirium-physics/crates/delirium-sdk/include/delirium_physics.h": "1f15ccb12f2a6089dfa2b9ac6b2029cb312b57ecd95dca12440b7b0bcb80009a",
+    "src/delirium-physics/crates/delirium-sdk/include/delirium_physics.h": "67388535cf205acacb064c3c39587e4771016e7cd18ec70d5d06a6827c657c7c",
     "src/delirium-physics/crates/delirium-sdk/include/delirium_physics.hpp": "c30d00b0214592c3a3824ac58c146f1c5ecf1313f8f7e9711bdec5d2b709b37b",
     "src/delirium-physics/crates/delirium-sdk/src/animated_contacts.rs": "0f497d885c5323ec1e1c2c17288155b5f97909f08f036da05d924cd839c00d08",
     "src/delirium-physics/crates/delirium-sdk/src/animated_sweep_regressions.rs": "91bb1e7190662a58e4716fa14f269a7bc3f41f66e2398eac4377db8a7b47f070",
@@ -119,7 +119,7 @@
     "src/delirium-physics/crates/delirium-sdk/src/original_event_runtime.rs": "03c67a416ffecf83460331f7fe49d05422c280e7586917994b53dde05e322f69",
     "src/delirium-physics/crates/delirium-sdk/src/ped_contacts.rs": "140692d4998764b6222d9db9ae7d98060c4e0b44c1109b2d56625d7886a69f82",
     "src/delirium-physics/crates/delirium-sdk/src/recovery_contacts.rs": "313fed036dc18ca97afcaf587da89964bf7d93f20dd4682bfc1e7f7edbf15dcc",
-    "src/delirium-physics/crates/delirium-sdk/src/road.rs": "e36486e1bb7d6a9a6e0322df8cf16d1ae36679c600ce8daf0f3e9ad056592a63",
+    "src/delirium-physics/crates/delirium-sdk/src/road.rs": "00f26ebf20b35f17aa2a37d643a630b8d487fd8e0731f8e22d2171fe690b5702",
     "src/delirium-physics/crates/delirium-sdk/src/vehicle_entry.rs": "514df8e42bd70cdeb687ca0cb0e47fc6c1ecc7c0198c3129193b361c71a7677a",
     "src/delirium-physics/crates/delirium-sdk/src/vehicle_exit.rs": "74628efc906ef2d016af95e19b5236e5cb6f973bca68f36b68a4bfe3ade2cb89",
     "src/delirium-physics/crates/delirium-sdk/src/vehicle_probe.rs": "49c267be04bb6ec19dea6c34eefde963fa4633e0d5bc2bfd8593b53bd3b7545c",
@@ -260,7 +260,7 @@
     "src/lsc4-combat/src/weapons.rs": "93219a74428109203d84fa0b7ddb447a8fb517e318b1a72b1675c87af83b95e4",
     "src/lsc4-combat/src/xenon.rs": "c298de2493c0034ae74368de0b7fd507ed1638c73efc59c35566cc918418352a",
     "src/sa-delirium/ABI.hpp": "651c2207a151b895528ca9c080f02c3f5a95543921f783794447160114b702e7",
-    "src/sa-delirium/Adapter.cpp": "b459ce03663036999243718edc384a48ae91c5ad7c94f19571d17de119317835",
+    "src/sa-delirium/Adapter.cpp": "a58eb39754840dfaaf593524350bbf7317b55e5327f64c67f153e995e2e8281f",
     "src/sa-delirium/Aiming.hpp": "7caf55cb5b00a49cb166fcc5ced7a9d94be83f123711f19666c05576e6d554f8",
     "src/sa-delirium/AnimatedBodyCollider.hpp": "14a86229bf6a0b2656825a99db89ac6894d3e507f2281b138fd68441c28d9151",
     "src/sa-delirium/BikeComponentFrames.hpp": "b9e18a339e46d26b2827f3e3e353f30c9d5a30b35ad9ed0344c337d59d6cdaf2",
@@ -309,7 +309,7 @@
     "src/sa-delirium/ExpandedSkinTestHooks.hpp": "7423cf6a9e8668fe2deb51b41bd6b21bd73b6ce77dec122ec61167ec658abcb4",
     "src/sa-delirium/ExpandedSkinTestHost.hpp": "dd7b9b73b46ad664d686c03ac07fcd88d65ca95fb6e37017707a022ce8b4a0d2",
     "src/sa-delirium/ExpansionProbe.hpp": "f1e6b39d0314f8b149906ad5ff20d7f6b2d4e298dbd829007eff4174da07064b",
-    "src/sa-delirium/Explosions.hpp": "d31f813926c29a140e8d9295d9bbcad102a6f547c1eb8c84789576cda488b8d7",
+    "src/sa-delirium/Explosions.hpp": "39de2a42676ea39cf396634584729e44bef1f9de230cda53bc19b84a62da60e0",
     "src/sa-delirium/ExternalMobility.hpp": "30779285224230387a30805c321d73d21daa6b4fc25a22d817e81f2d45c9b633",
     "src/sa-delirium/FinalPedPoseHistory.hpp": "b361ef9e0ab854fea497d0cb3352dc5e9d179e089130444ca3a1d870d5bf0e4e",
     "src/sa-delirium/FootSupport.hpp": "192b733e31ee5e5236292c43cc4eaa71e23edeb8b8810ebdadfde2e358400b47",
@@ -742,6 +742,12 @@
       "added": [
         "src/sa-delirium/RestSkeleton.hpp"
       ],
+      "modifications_merged_upstream": [],
+      "modifications_kept": []
+    },
+    {
+      "copied": 5,
+      "added": [],
       "modifications_merged_upstream": [],
       "modifications_kept": []
     }

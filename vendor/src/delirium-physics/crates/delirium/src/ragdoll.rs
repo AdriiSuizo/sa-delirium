@@ -751,6 +751,8 @@ struct Block {
     pin: bool,
     grip: Option<(usize, f32)>,
     external: Option<ExternalContact>,
+    /// World or obstacle contact on this part: recorded for impact damage.
+    part: Option<usize>,
 }
 
 #[derive(Clone,Copy,PartialEq)]
@@ -837,7 +839,7 @@ impl Block {
 
     fn with(j: [Vec<f64>; 3], mj: [Vec<f64>; 3], k: DMat3, target: DVec3, mu: f64, held: Option<(usize, usize)>, warm: Vec3) -> Block {
         let nonzero=Self::nonzero_indices(&j);
-        Block { j:Arc::new(j), mj:Arc::new(mj), nonzero, unbound:None, kinv: ldl_inverse(k), mass_matrix:k, axis: k.row(0) / k.x_axis.x, target, lambda: warm.as_dvec3(), mu, held, scale: DVec3::ONE, warm_divisor:DVec3::ONE, ob: None, at: Spot::OWN, pin: false, grip: None, external:None }
+        Block { j:Arc::new(j), mj:Arc::new(mj), nonzero, unbound:None, kinv: ldl_inverse(k), mass_matrix:k, axis: k.row(0) / k.x_axis.x, target, lambda: warm.as_dvec3(), mu, held, scale: DVec3::ONE, warm_divisor:DVec3::ONE, ob: None, at: Spot::OWN, pin: false, grip: None, external:None, part: None }
     }
 
     /// Original standalone NM stores an unscaled solve impulse, then applies
@@ -1326,6 +1328,10 @@ pub struct Ragdoll {
     pub contact_off: u32,
     pub hit: Vec<Option<(Vec3, Vec3, i32)>>,
     pub contact: crate::bump::ContactRecord<i32>,
+    /// Every world and obstacle contact, ground included, for IV's per-impact
+    /// damage (82465360). Separate from `contact`, whose road decisions stay as
+    /// they were; nothing consumes it unless the host asks (nm_agent_take_impact).
+    pub hurt: crate::bump::ContactRecord<i32>,
     pub ob_hits: Vec<(i32, Vec3, Vec3)>,
     /// Diagnostics only: the deepest signed gap of every contact this step's
     /// solve collected (state left by the previous step), per category.
@@ -1442,7 +1448,7 @@ impl Ragdoll {
             at += 1;
             order.extend((0..n).filter(|&c| build.parts[c].parent == Some(k)));
         }
-        Ragdoll { nm: build.nm, pins: vec![None; n], cons: vec![(None, None); n], grips: vec![], grip_target_velocities: vec![], grip_target_owners:vec![], snapped: vec![], grip_load: [0.;4], grip_solved_target: None, gone: 0, grip_rows: vec![], touch: vec![0; n], contact_off: 0, hit: vec![None; n], contact: crate::bump::ContactRecord::new(), ob_hits: vec![], gap_audit: Default::default(), held: vec![vec![]; n], stage_vel: vec![], stage_lt: vec![], roll_push: None, stage_lim: vec![], stiff: vec![], bodies, order, mode: 1, still: [SLEEP_STOP() - 2, SLEEP_SLEEP() - 2],
+        Ragdoll { nm: build.nm, pins: vec![None; n], cons: vec![(None, None); n], grips: vec![], grip_target_velocities: vec![], grip_target_owners:vec![], snapped: vec![], grip_load: [0.;4], grip_solved_target: None, gone: 0, grip_rows: vec![], touch: vec![0; n], contact_off: 0, hit: vec![None; n], contact: crate::bump::ContactRecord::new(), hurt: crate::bump::ContactRecord::new(), ob_hits: vec![], gap_audit: Default::default(), held: vec![vec![]; n], stage_vel: vec![], stage_lt: vec![], roll_push: None, stage_lim: vec![], stiff: vec![], bodies, order, mode: 1, still: [SLEEP_STOP() - 2, SLEEP_SLEEP() - 2],
                   sleep_tol: [SLEEP_V2(), SLEEP_W2(), SLEEP_MEAN2()], asleep: false, age: 0.0, fresh: false, pending: vec![], pairs: vec![], seen: vec![], contact_history: None, coll: vec![], held_pairs: vec![], held_car: vec![], prep_twist: vec![], rigid: None, inertia: None, inst: None, out: vec![(Vec3::ZERO, Vec3::ZERO); n], joint_torque: vec![Vec3::ZERO; n], armature: vec![0.0; n], o, bound_off: Vec3::ZERO,
                   rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default(), no_collision:None, no_collision_met:false, no_collision_seen:0, no_collision_parts:0, no_collision_hold:0 }
     }
@@ -2465,7 +2471,7 @@ impl Ragdoll {
             let ob = source.map(|&(_, id, at, n,_)| (id, k, at, n));
             let external=source.and_then(|x|x.4);
             let block=if cache_responses{Block::cached(artic,k,j,to,mu as f64,held,warm,&mut response_cache)}else{Block::new(artic,j,to,mu as f64,held,warm,false)};
-            blocks.push(Block { scale: elastic(e as f64), ob, external, ..block });
+            blocks.push(Block { scale: elastic(e as f64), ob, external, part: Some(k), ..block });
             push_blocks.push(Self::push_block(blocks.last().unwrap(), gap, h, held.map_or(Vec3::ZERO, |r| self.rec(r).pimp)));
         }
         audit.add(4,block_tick);
@@ -2886,6 +2892,13 @@ impl Ragdoll {
             let c = crate::bump::Contact { other: Some(id), other_ragdoll: true, impulse, normal: [n.x, n.y, n.z, 0.0], point: [at.x, at.y, at.z, 0.0],
                                            component: k as i32, extra: [0; 2] };
             self.contact.add(crate::bump::Gate { ragdoll: true, flagged: false, damages: false }, &c, mass, 0);
+        }
+        for b in &st.blocks {
+            let Some(k) = b.part else { continue };
+            let l = (b.lambda/b.warm_divisor).as_vec3();
+            let c = crate::bump::Contact { other: b.ob.map(|o| o.0), other_ragdoll: true, impulse: Vec3::new(l.length(), 0.0, 0.0),
+                                           normal: [0.0; 4], point: [0.0; 4], component: k as i32, extra: [0; 2] };
+            self.hurt.add(crate::bump::Gate { ragdoll: true, flagged: false, damages: false }, &c, mass, 0);
         }
         for b in &st.blocks {
             match b.held {
