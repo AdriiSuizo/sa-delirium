@@ -1,5 +1,9 @@
 # SA Delirium
 
+<p align="center">
+  <img src="docs/media/sa-delirium-gameplay.gif" alt="Combate y reacciones físicas de Delirium en GTA San Andreas" width="640">
+</p>
+
 San Andreas clásico con Delirium, fixes, aspecto PS2, extras de desarrollo
 y Lively Vehicle Physics1.6 de Izzy. Se instala con un asistente desde tu copia del
 juego, de Steam o de PC 1.0 US. Con Steam se abre con **Jugar**; con otra copia, con
