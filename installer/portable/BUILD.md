@@ -51,6 +51,16 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
 8. Build-PortableSetup.ps1 embeds the manifest, freshly compiled current Steam
    launcher and small verified tools ZIP. No development sidecar is used.
 
+To prepare an x86 candidate, build DeltaTool with the third argument `x86` to
+Build-Delta.cmd and acquire the official x86 7-Zip executable, DLL and license.
+Prepare-X86Package.py takes an existing verified `--package`, a new `--out`,
+the extracted `--sevenzip` folder, the x86 `--delta` executable and a `--version`.
+It replaces the helper tools and retains the game recipes and mod payload.
+Then run Build-PortableSetup.ps1 with `-Architecture x86`. This compiles the
+setup as a required 32-bit process and rejects embedded x64 executables or DLLs.
+Build prerequisites above describe the development PC. Target validation still
+needs a real 32-bit Windows installation in addition to tests under WOW64.
+
 Do not publish a package merely because these commands complete. Validate the
 literal EXE/RAR from owned stock Steam files and an external owner ISO with an
 empty archive cache; inspect every acquired component, normal startup, native

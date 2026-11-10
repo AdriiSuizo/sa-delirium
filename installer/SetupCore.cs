@@ -134,7 +134,9 @@ namespace SASetup {
                 using (var registry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view))
                 using (var key = registry.OpenSubKey(@"Software\Valve\Steam"))
                     if (key != null && key.GetValue("InstallPath") is string) roots.Add((string)key.GetValue("InstallPath"));
-            roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam"));
+            var programFiles=Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            if(String.IsNullOrEmpty(programFiles))programFiles=Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            roots.Add(Path.Combine(programFiles, "Steam"));
             var games = new List<string>();
             foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase)) {
                 if (!Directory.Exists(root)) continue;
