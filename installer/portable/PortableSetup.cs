@@ -145,7 +145,8 @@ namespace SAPortable {
         readonly TextBox steam=new TextBox(),iso=new TextBox(),destination=new TextBox();
         readonly Button install=new Button(),restore=new Button(),cancel=new Button();
         readonly RadioButton originalModels=new RadioButton(),hdModels=new RadioButton();
-        readonly Label status=new Label();readonly ProgressBar progress=new ProgressBar();
+        readonly Label status=new Label();
+        readonly ProgressBar progress=new ProgressBar { Maximum = 1000 };
         readonly BackgroundWorker worker=new BackgroundWorker {WorkerSupportsCancellation=true};
         DateTime lastProgress=DateTime.MinValue;bool busy;
         EditionReport edition;string identified;
@@ -173,7 +174,7 @@ namespace SAPortable {
             worker.RunWorkerCompleted+=delegate(object sender,RunWorkerCompletedEventArgs e){
                 busy=false;steam.Enabled=iso.Enabled=destination.Enabled=true;identified=null;IdentifySteam(false);UpdateButtons();
                 if(e.Error!=null){status.Text=e.Error.Message;progress.Value=0;return;}
-                var receipt=(Receipt)e.Result;bool own=receipt.Mode=="standalone";progress.Value=1000;
+                var receipt=(Receipt)e.Result;bool own=receipt.Mode=="standalone";progress.Value=progress.Maximum;
                 var carried=receipt.SavesFrom!=null?" Se han copiado las partidas de tu instalación anterior.":"";
                 status.Text=receipt.State=="installed"?(own?"Instalado en "+receipt.Target+". Abre SA Delirium desde el acceso directo del escritorio.":"Instalado. Abre San Andreas con Jugar en Steam.")+carried:
                     (own?"Desinstalado. Tu juego no se tocó; el perfil y sus partidas se conservan en el respaldo.":"Steam restaurado. El perfil y sus partidas se conservan en el respaldo.");
@@ -217,6 +218,11 @@ namespace SAPortable {
             } catch(Exception) { }
             return null;
         }
+        void ShowProgress(long completed, long total, string item) {
+            double fraction = total > 0 ? Math.Min(1.0, Math.Max(0.0, (double)completed / total)) : 0.0;
+            progress.Value = (int)(fraction * progress.Maximum);
+            status.Text = item;
+        }
         void BeginWork(bool undo) {
             var target=undo?RestoreTarget():steam.Text;var image=iso.Text;var own=destination.Text;var hd=hdModels.Checked;busy=true;UpdateButtons();steam.Enabled=iso.Enabled=destination.Enabled=false;status.Text=undo?"Restaurando…":"Comprobando tu juego y preparando el mod…";
             DoWorkEventHandler action=null;
@@ -225,7 +231,7 @@ namespace SAPortable {
                     if(undo)e.Result=Program.Restore(manifest,target);
                     else e.Result=Program.Install(manifest,target,image,Program.DefaultCache,delegate(long completed,long total,string item){
                         if((DateTime.UtcNow-lastProgress).TotalMilliseconds<150)return;lastProgress=DateTime.UtcNow;
-                        BeginInvoke((Action)delegate{progress.Value=total>0?(int)Math.Min(1000,completed*1000/total):0;status.Text=item;});
+                        BeginInvoke((Action)delegate { ShowProgress(completed, total, item); });
                     },delegate{return worker.CancellationPending;},false,false,own,null,false,hd);
                 } finally {worker.DoWork-=action;}
             };

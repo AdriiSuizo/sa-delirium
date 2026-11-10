@@ -12,8 +12,8 @@ Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automát
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.12-Setup.exe** o el RAR de la
-[versión 0.3.12](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.12).
+Descarga **SA-Delirium-0.3.13-Setup.exe** o el RAR de la
+[versión 0.3.13](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.13).
 Las copias clásicas compatibles de PC se pueden instalar aunque no tengan el
 archivo de Steam `installscript.vdf`.
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;

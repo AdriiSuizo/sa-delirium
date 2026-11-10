@@ -1,5 +1,10 @@
 # Historial
 
+## 0.3.13 · barra de progreso del instalador
+
+- Corregidos los avisos de error al mostrar el progreso durante la instalación.
+- El asistente muestra el progreso completo al terminar.
+
 ## 0.3.12 · instalación en copias clásicas sin archivos de Steam
 
 - El instalador admite copias compatibles de PC 1.0 US sin `installscript.vdf`.
