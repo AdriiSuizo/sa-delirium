@@ -1,5 +1,9 @@
 # Historial
 
+## 0.3.12 · instalación en copias clásicas sin archivos de Steam
+
+- El instalador admite copias compatibles de PC 1.0 US sin `installscript.vdf`.
+
 ## 0.3.11 · CJ borracho como Niko y sin atravesar el suelo
 
 - Borracho: cuando el juego pone a CJ borracho (por ejemplo, con el "Efecto borracho" de Grinch Trainer), CJ se comporta como Niko totalmente borracho en GTA IV durante 180 s:

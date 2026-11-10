@@ -265,6 +265,9 @@ def main():
     for f in frozen['files']:
         name = f['path']
         components = f['components']
+        # Steam consumes this from its original library, not from the prepared SA directory.
+        if name.casefold() == 'installscript.vdf':
+            continue
         if args.preset=='full' and set(components)&weapon_components:continue
         if set(components)&visual_removed:continue
         if args.preset=='classic' and (name.endswith('.ini.0') or (components and not set(components)&classic_components)):continue
