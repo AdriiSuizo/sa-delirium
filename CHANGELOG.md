@@ -1,5 +1,10 @@
 # Historial
 
+## 0.3.14 · GTA IV USA para Xbox 360
+
+- El instalador admite la compilación USA de GTA IV para Xbox 360 con Media ID `6AC07221`, además de la compilación Europa/Asia ya compatible.
+- El asistente comprueba la ISO antes de copiar San Andreas. Si falla la instalación, muestra el paso y la ruta del registro en un aviso.
+
 ## 0.3.13 · barra de progreso del instalador
 
 - Corregidos los avisos de error al mostrar el progreso durante la instalación.

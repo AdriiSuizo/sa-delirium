@@ -12,8 +12,8 @@ Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automát
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.13-Setup.exe** o el RAR de la
-[versión 0.3.13](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.13).
+Descarga **SA-Delirium-0.3.14-Setup.exe** o el RAR de la
+[versión 0.3.14](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.14).
 Las copias clásicas compatibles de PC se pueden instalar aunque no tengan el
 archivo de Steam `installscript.vdf`.
 Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
@@ -30,6 +30,11 @@ carpeta, el asistente dice qué edición ha encontrado y por qué sirve o no: St
 alemana, PC 1.0, otras versiones de disco, Definitive Edition o un ejecutable
 desconocido, cuyo código SHA-256 muestra para poder añadirlo. Si algún archivo está
 modificado o falta, se detiene sin tocar nada y dice cuál.
+
+Para GTA IV, el asistente comprueba el ejecutable dentro de la ISO antes de
+copiar San Andreas. Admite las compilaciones verificadas de Xbox 360
+Europa/Asia (Media ID `4A53F9F6`) y USA (Media ID `6AC07221`). La comprobación
+se basa en la huella del ejecutable dentro de la imagen.
 No necesitas la carpeta de desarrollo ni otra instalación de GTA IV de PC.
 Solo Urbanize requiere conexión durante la instalación; el asistente lo descarga
 automáticamente de su distribución original, sin pedir otro archivo. Los recursos de GTA IV

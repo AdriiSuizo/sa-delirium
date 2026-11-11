@@ -118,23 +118,38 @@ namespace SAPortable {
             if(value.Contains('"') || value.EndsWith("\\")) throw new IOException("Argumento de herramienta no válido.");
             return "\""+value+"\"";
         }
-        void Run(string filename, string arguments, string log, bool allowRestart=false, int timeoutMilliseconds=0) {
+        void Run(string filename, string arguments, string log, string operation, bool allowRestart=false, int timeoutMilliseconds=0, bool showToolError=false) {
             CheckCancellation();
             var start = new ProcessStartInfo(filename,arguments) {UseShellExecute=false,CreateNoWindow=true,
                 WorkingDirectory=Path.GetDirectoryName(Path.GetFullPath(log)),
                 RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
-            using(var process=Process.Start(start)) using(var output=new StreamWriter(log,false,Encoding.UTF8)) {
+            using(var output=new StreamWriter(log,false,Encoding.UTF8)) using(var process=new Process {StartInfo=start}) {
+                var failure="Falló "+operation+".";
+                var logLocation="\r\n\r\nRegistro: "+log;
+                try {process.Start();}
+                catch(System.ComponentModel.Win32Exception error) {
+                    output.WriteLine(error.Message);
+                    throw new System.ComponentModel.Win32Exception(error.NativeErrorCode,failure+" "+error.Message+logLocation);
+                }
                 var watch=Stopwatch.StartNew();
                 object sync=new object();
+                string toolError=null;
                 DataReceivedEventHandler receive=delegate(object s,DataReceivedEventArgs e){if(e.Data!=null)lock(sync)output.WriteLine(e.Data);};
-                process.OutputDataReceived+=receive;process.ErrorDataReceived+=receive;
+                process.OutputDataReceived+=receive;
+                process.ErrorDataReceived+=delegate(object s,DataReceivedEventArgs e){
+                    receive(s,e);
+                    if(showToolError && !String.IsNullOrWhiteSpace(e.Data))toolError=e.Data;
+                };
                 process.BeginOutputReadLine();process.BeginErrorReadLine();
                 while(!process.WaitForExit(200)) {
                     if(Cancelled()) {process.Kill();process.WaitForExit();throw new OperationCanceledException();}
-                    if(timeoutMilliseconds>0&&watch.ElapsedMilliseconds>timeoutMilliseconds){process.Kill();process.WaitForExit();throw new TimeoutException("Tiempo agotado comprobando el dispositivo gráfico.");}
+                    if(timeoutMilliseconds>0&&watch.ElapsedMilliseconds>timeoutMilliseconds){process.Kill();process.WaitForExit();throw new TimeoutException("Tiempo agotado en "+operation+"."+logLocation);}
                 }
                 process.WaitForExit();
-                if(process.ExitCode!=0 && !(allowRestart&&process.ExitCode==3010)) throw new IOException("No se pudo preparar el contenido. Registro: "+log);
+                if(process.ExitCode!=0 && !(allowRestart&&process.ExitCode==3010)) {
+                    var detail=toolError==null?"":"\r\n"+toolError.Substring(0,Math.Min(toolError.Length,400));
+                    throw new IOException(failure+" Código "+process.ExitCode+"."+detail+logLocation);
+                }
             }
         }
         void Verify(string path,string hash,long size=-1) {
@@ -169,7 +184,7 @@ namespace SAPortable {
                 var request=Paths.Inside(directory,"browser-request.json");
                 Json.Write(request,new {title=p.title??p.id,page=p.url,destination=path,p.sha256,p.bytes,p.max_bytes,p.member_pins_only,p.page_hosts,p.download_hosts,p.download_button_id,p.auto_click_selectors,
                     browser_profile=Paths.Inside(cache,"browser-profile")});
-                try {Run(Path.Combine(tools,"BrowserDownload.exe"),Quote(request)+" "+Quote(report)+(Unattended?" --unattended":""),Paths.Inside(directory,"browser.log"));}
+                try {Run(Path.Combine(tools,"BrowserDownload.exe"),Quote(request)+" "+Quote(report)+(Unattended?" --unattended":""),Paths.Inside(directory,"browser.log"),"la descarga de "+(p.title??p.id));}
                 catch(IOException) {
                     if(File.Exists(report)) {
                         var result=Json.Read<Dictionary<string,object>>(report);
@@ -225,7 +240,7 @@ namespace SAPortable {
             Progress(0,0,"Preparando el componente de descargas de Microsoft…");
             var installer=Resolve(id);Verify(installer,package.sha256,package.bytes);
             var log=Paths.Inside(cache,"webview2-runtime-install.log");
-            Run(installer,"/silent /install",log,true);
+            Run(installer,"/silent /install",log,"la instalación de WebView2",true);
             if(!BrowserRuntimePresent())throw new IOException("No se ha podido preparar el componente de descargas de Microsoft. Registro: "+log);
         }
         void VerifyArchive(string path,Package p) {
@@ -244,7 +259,7 @@ namespace SAPortable {
         List<ArchiveMember> ArchiveMembers(string archive) {
             var control=Paths.Inside(cache,"extraction-control");Directory.CreateDirectory(control);
             var log=Paths.Inside(control,Guid.NewGuid().ToString("N")+".listing.txt");
-            Run(Path.Combine(tools,"7z.exe"),"l -slt -sccUTF-8"+PasswordArgument(archive)+" "+Quote(archive),log);
+            Run(Path.Combine(tools,"7z.exe"),"l -slt -sccUTF-8"+PasswordArgument(archive)+" "+Quote(archive),log,"la lectura del paquete "+Path.GetFileName(archive));
             if(new FileInfo(log).Length>64L*1024*1024)throw new IOException("Índice de archivo demasiado grande.");
             var result=new List<ArchiveMember>();var fields=new Dictionary<string,string>();bool started=false;
             Action finish=delegate {
@@ -281,7 +296,7 @@ namespace SAPortable {
             var controls=Paths.Inside(cache,"extraction-control");Directory.CreateDirectory(controls);
             var list=Paths.Inside(controls,Guid.NewGuid().ToString("N")+".members.txt");
             File.WriteAllLines(list,selected,new UTF8Encoding(false));
-            Run(Path.Combine(tools,"7z.exe"),"x -y -scsUTF-8 -sccUTF-8"+PasswordArgument(archive)+" "+Quote(archive)+" -o"+Quote(root)+" @"+Quote(list),list+".log");
+            Run(Path.Combine(tools,"7z.exe"),"x -y -scsUTF-8 -sccUTF-8"+PasswordArgument(archive)+" "+Quote(archive)+" -o"+Quote(root)+" @"+Quote(list),list+".log","la extracción del paquete "+Path.GetFileName(archive));
             foreach(var name in selected)Paths.NoLinks(Paths.Inside(root,name));
             return root;
         }
@@ -292,6 +307,9 @@ namespace SAPortable {
             if(!edition.accepted)throw new IOException(edition.message);
             if(!File.Exists(iso) || !Path.GetExtension(iso).Equals(".iso",StringComparison.OrdinalIgnoreCase))throw new IOException("Selecciona la ISO de GTA IV para Xbox 360.");
             Directory.CreateDirectory(cache);
+            var bootstrap=Path.Combine(tools,"sa-delirium-bootstrap.exe");
+            Progress(0,0,"Comprobando la ISO de GTA IV…");
+            Run(bootstrap,"--check-iso "+Quote(iso),Paths.Inside(cache,"iso-check-"+Guid.NewGuid().ToString("N")+".log"),"la comprobación de la ISO de GTA IV",showToolError:true);
             preparedRoot=Paths.Inside(cache,"prepared-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(preparedRoot);
             var sources=new Dictionary<string,string>();
             // Urbanize comes from its author's Drive, whose daily quota runs out (07/11): the game installs without it.
@@ -346,7 +364,7 @@ namespace SAPortable {
                     // matched by its measured hash, never by store or name.
                     var choice=ChooseOriginal(f,steam,measured);outputs[f.path]=choice;
                     source=Paths.Inside(steam,choice.source);
-                    if(choice.patch!=null)Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+choice.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"));
+                    if(choice.patch!=null)Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+choice.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"),"la preparación de "+f.path);
                     else File.Copy(source,destination);
                     Verify(destination,choice.sha256,choice.bytes);completed+=f.bytes;Progress(completed,total,f.path);
                     continue;
@@ -358,12 +376,12 @@ namespace SAPortable {
                 }
                 if(f.kind.EndsWith("_delta",StringComparison.Ordinal)) {
                     Verify(source,f.source_sha256,f.source_bytes);
-                    Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+f.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"));
+                    Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+f.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"),"la preparación de "+f.path);
                 } else {Verify(source,f.sha256,f.bytes);File.Copy(source,destination);}
                 Verify(destination,f.sha256,f.bytes);completed+=f.bytes;Progress(completed,total,f.path);
             }
             Progress(total,total,"Preparando Delirium desde tu ISO…");
-            Run(Path.Combine(tools,"sa-delirium-bootstrap.exe"),Quote(preparedRoot)+" --iso "+Quote(iso),Paths.Inside(preparedRoot,"iso-import.log"));
+            Run(bootstrap,Quote(preparedRoot)+" --iso "+Quote(iso),Paths.Inside(preparedRoot,"iso-import.log"),"la importación desde la ISO de GTA IV",showToolError:true);
             var files=Manifest.files.Select(f=>{RecipeSource o;var used=outputs.TryGetValue(f.path,out o);
                 return new ProfileFile {path=f.path,sha256=used?o.sha256:f.sha256,bytes=used?o.bytes:f.bytes,components=f.components};}).ToList();
             if(Manifest.prepare_legacy_directx)EnsureLegacyRuntime(preparedRoot);
@@ -402,7 +420,7 @@ namespace SAPortable {
             var log=Paths.Inside(root,"renderer-probe.log");
             bool supported=true;string reason="device_created";
             Progress(0,0,"Comprobando la compatibilidad gráfica…");
-            try {Run(probe,Quote(path),log,false,20000);}
+            try {Run(probe,Quote(path),log,"la comprobación del dispositivo gráfico",timeoutMilliseconds:20000);}
             catch(IOException e){supported=false;reason=e.Message;}
             catch(System.ComponentModel.Win32Exception e){supported=false;reason=e.Message;}
             catch(TimeoutException e){supported=false;reason=e.Message;}
@@ -420,7 +438,7 @@ namespace SAPortable {
         void EnsureLegacyRuntime(string root) {
             var probe=Paths.Inside(tools,"RendererProbe.exe");
             var log=Paths.Inside(root,"legacy-runtime-probe.log");
-            try {Run(probe,"--check-legacy-runtime",log,false,15000);return;}
+            try {Run(probe,"--check-legacy-runtime",log,"la comprobación de DirectX",timeoutMilliseconds:15000);return;}
             catch(IOException) { }
             var installer=Paths.Inside(tools,"directx/DXSETUP.exe");
             Progress(0,0,"Preparando los componentes DirectX de Microsoft…");
@@ -433,7 +451,7 @@ namespace SAPortable {
                 process.WaitForExit();
                 if(process.ExitCode!=0&&process.ExitCode!=3010)throw new IOException("Microsoft DirectX no pudo completar la instalación.");
             }
-            Run(probe,"--check-legacy-runtime",log,false,15000);
+            Run(probe,"--check-legacy-runtime",log,"la comprobación de DirectX",timeoutMilliseconds:15000);
         }
     }
     // Softens the elbows and knees of the owner's own ped models: only skin

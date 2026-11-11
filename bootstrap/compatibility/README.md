@@ -5,8 +5,8 @@ by the alpha.4 release build**. They do not add Delirium gameplay to Steam.
 
 `legacy-kv.rs` replaces the adapted SDK's encrypted tuning payload with reads
 through the pinned 0.6 data reader. The 992 legacy 32-bit and 64-bit words match
-the previous reader exactly for the verified Europe/Asia retail program. Other
-program fingerprints are rejected by this experiment. `legacy-slot-map.json`
+for the verified Europe/Asia retail program and the original USA reference.
+The reader requires one of those exact program fingerprints. `legacy-slot-map.json`
 records the typed mapping; it contains slot numbers and conversion kinds, not
 extracted game values.
 

@@ -173,7 +173,13 @@ namespace SAPortable {
             FormClosing+=delegate(object sender,FormClosingEventArgs e){if(busy){worker.CancelAsync();e.Cancel=true;}};
             worker.RunWorkerCompleted+=delegate(object sender,RunWorkerCompletedEventArgs e){
                 busy=false;steam.Enabled=iso.Enabled=destination.Enabled=true;identified=null;IdentifySteam(false);UpdateButtons();
-                if(e.Error!=null){status.Text=e.Error.Message;progress.Value=0;return;}
+                if(e.Error!=null) {
+                    progress.Value=0;
+                    if(e.Error is OperationCanceledException) {status.Text="Operación cancelada.";return;}
+                    status.Text="La operación no se completó.";
+                    MessageBox.Show(this,e.Error.Message,"SA Delirium",MessageBoxButtons.OK,MessageBoxIcon.Error);
+                    return;
+                }
                 var receipt=(Receipt)e.Result;bool own=receipt.Mode=="standalone";progress.Value=progress.Maximum;
                 var carried=receipt.SavesFrom!=null?" Se han copiado las partidas de tu instalación anterior.":"";
                 status.Text=receipt.State=="installed"?(own?"Instalado en "+receipt.Target+". Abre SA Delirium desde el acceso directo del escritorio.":"Instalado. Abre San Andreas con Jugar en Steam.")+carried:

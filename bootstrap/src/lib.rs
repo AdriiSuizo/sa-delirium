@@ -174,21 +174,42 @@ fn iso_path(root: &Path) -> Result<PathBuf, String> {
     }
 }
 
-fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
-    let disc = Disc::open(iso)?;
-    let xex_bytes = disc_file(&disc, "default.xex", 32 << 20)?;
+pub fn check_iso(iso: &Path) -> Result<(), String> {
+    supported_disc(iso).map(|_| ())
+}
+
+fn supported_disc(iso: &Path) -> Result<(Disc, Vec<u8>, ArchiveKey), String> {
+    let disc = Disc::open(iso).map_err(|error| {
+        format!("No se pudo leer la ISO como disco de GTA IV para Xbox 360. Comprueba que es una imagen completa. {error}")
+    })?;
+    let xex_bytes = disc_file(&disc, "default.xex", 32 << 20)
+        .map_err(|error| format!("La ISO no contiene un default.xex de Xbox 360 legible. {error}"))?;
     // Xenia's BSD-licensed format constant is bundled with its notice. The
     // owner's program still comes exclusively from the supplied retail ISO.
     // First installation must not depend on curl, Internet or a shared cache.
-    let program = xex::XexImage::parse_with_key(&xex_bytes, &xenia_xex_key::RETAIL_KEY)?.image;
+    let program = xex::XexImage::parse_with_key(&xex_bytes, &xenia_xex_key::RETAIL_KEY)
+        .map_err(|error| format!("No se pudo leer el ejecutable de la ISO. {error}"))?
+        .image;
     if !kv::unlock_program(&program) {
-        return Err(
-            "Esta edición de la ISO no coincide con el ejecutable admitido por Delirium".into(),
-        );
+        return Err(format!(
+            "Este ejecutable de GTA IV no coincide con las compilaciones verificadas de Xbox 360. Huella de default.xex descifrado (BLAKE3): {}",
+            blake3::hash(&program)
+        ));
     }
-    let header = disc.read_at("xbox360.rpf", 0, 0x810)?;
+    let header = disc.read_at("xbox360.rpf", 0, 0x810)
+        .map_err(|error| format!("No se pudo leer xbox360.rpf de la ISO. {error}"))?;
     let (key, _) =
         ArchiveKey::find_by_trial(&program, &header).ok_or("Archivo de Xbox 360 incompatible")?;
+    for path in ["common.rpf", "xbox360/anim/anim.img", "xbox360/models/cdimages/componentpeds.img"] {
+        if disc.len(path).is_none_or(|size| size == 0) {
+            return Err(format!("Falta {path} en la ISO de GTA IV."));
+        }
+    }
+    Ok((disc, program, key))
+}
+
+fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
+    let (disc, program, key) = supported_disc(iso)?;
     let character = archive_file(&disc, &key, "xbox360.rpf", "data/naturalmotion/fred.xrt")?;
     let tasks = archive_file(&disc, &key, "common.rpf", "data/taskparams.txt")?;
     sdk_check(

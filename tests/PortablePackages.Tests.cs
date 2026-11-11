@@ -1,17 +1,23 @@
 // Package boundary tests only. Synthetic bytes are not gameplay evidence.
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using SASetup;
 using SAPortable;
 
 static class PortablePackageTests {
     static void Assert(bool value,string message){if(!value)throw new Exception(message);}
+    static void CopyBootstrapFixture(string tools) {
+        File.Copy(Assembly.GetExecutingAssembly().Location,Path.Combine(tools,"sa-delirium-bootstrap.exe"));
+    }
+    static bool ImportBoundary(Exception failure) {
+        return failure is IOException && failure.Message.Contains("la importación desde la ISO");
+    }
     static void Case(string root,string name,bool contentPin,bool corrupt,bool traversal,bool link,bool duplicate,bool cancel,bool encrypted=false,bool wrongPassword=false) {
         var folder=Path.Combine(root,name);Directory.CreateDirectory(folder);
         var steam=Path.Combine(folder,"steam");Directory.CreateDirectory(steam);
@@ -42,13 +48,16 @@ static class PortablePackageTests {
         var manifest=new Manifest {schema=1,packages=new[]{package},files=new[]{recipe},profile=new ProfileIndex {schema=1,profile="synthetic package boundary test",stock_steam_executable_sha256=stock}};
         var identity=package.sha256??Engine.Hash(Encoding.UTF8.GetBytes(Json.Serializer().Serialize(package)+Json.Serializer().Serialize(manifest.files.Where(f=>f.package==package.id).OrderBy(f=>f.path).ToArray())));
         var cached=Path.Combine(cache,"downloads",identity);Directory.CreateDirectory(cached);File.Copy(zip,Path.Combine(cached,"source.zip"));
+        var tools=Path.Combine(folder,"tools");Directory.CreateDirectory(tools);
+        foreach(var file in new[]{"7z.exe","7z.dll"})File.Copy(Path.Combine(@"C:\Program Files\7-Zip",file),Path.Combine(tools,file));
+        CopyBootstrapFixture(tools);
         bool reachedIso=false;Exception failure=null;string prepared=null;
-        var composer=new Composer(manifest,@"C:\Program Files\7-Zip",cache) {Cancelled=delegate{return cancel;},Progress=delegate(long a,long b,string message){if(message.StartsWith("Preparando Delirium"))reachedIso=true;}};
+        var composer=new Composer(manifest,tools,cache) {Cancelled=delegate{return cancel;},Progress=delegate(long a,long b,string message){if(message.StartsWith("Preparando Delirium"))reachedIso=true;}};
         try{composer.Prepare(steam,iso,out prepared);}catch(Exception e){failure=e;}
         Assert(Engine.Hash(exe)==stock,name+": target Steam bytes changed");
         Assert(failure!=null,name+": fixture must stop before a real ISO importer");
         if(!corrupt&&!traversal&&!link&&!duplicate&&!cancel&&!wrongPassword) {
-            Assert(reachedIso && failure is Win32Exception,name+": ordinary package did not reach the ISO boundary: "+failure);
+            Assert(reachedIso && ImportBoundary(failure),name+": ordinary package did not reach the ISO boundary: "+failure);
             Assert(Engine.Hash(Path.Combine(prepared,"mods","part.dat"))==recipe.sha256,name+": selected member not reproduced");
         } else {
             Assert(!reachedIso,name+": rejected input reached runtime preparation");
@@ -89,6 +98,7 @@ static class PortablePackageTests {
         var folder=Path.Combine(root,name);Directory.CreateDirectory(folder);
         var tools=Path.Combine(folder,"tools");Directory.CreateDirectory(Path.Combine(tools,"patches"));
         File.Copy(deltaTool,Path.Combine(tools,"DeltaTool.exe"));
+        CopyBootstrapFixture(tools);
         var inputs=Path.Combine(folder,"inputs");Directory.CreateDirectory(inputs);
         var stock=Path.Combine(inputs,"stock.bin");var other=Path.Combine(inputs,"other.bin");var output=Path.Combine(inputs,"one-zero.bin");
         var target=Bytes("one-zero-output",65536);var stockBytes=Bytes("stock-steam-build",49152);var otherBytes=(byte[])stockBytes.Clone();
@@ -109,7 +119,7 @@ static class PortablePackageTests {
         try{composer.Prepare(steam,iso,out prepared);}catch(Exception e){failure=e;}
         Assert(Engine.Hash(exe)==before,name+": Steam executable changed");
         if(expectPrepared) {
-            Assert(reachedIso && failure is Win32Exception,name+": did not reach the ISO boundary: "+failure);
+            Assert(reachedIso && ImportBoundary(failure),name+": did not reach the ISO boundary: "+failure);
             Assert(Engine.Hash(Path.Combine(prepared,"gta_sa.exe"))==recipe.sha256,name+": verified output not reproduced");
         } else Assert(!reachedIso && failure is IOException,name+": unexpected result: "+failure);
     }
@@ -119,6 +129,7 @@ static class PortablePackageTests {
         var folder=Path.Combine(root,"classic-copy");Directory.CreateDirectory(folder);
         var tools=Path.Combine(folder,"tools");Directory.CreateDirectory(Path.Combine(tools,"patches"));
         File.Copy(deltaTool,Path.Combine(tools,"DeltaTool.exe"));
+        CopyBootstrapFixture(tools);
         var inputs=Path.Combine(folder,"inputs");Directory.CreateDirectory(inputs);
         var steamExe=Bytes("steam-exe",40960);var classicExe=Bytes("classic-exe",65536);var output=(byte[])classicExe.Clone();output[60]^=0x20;
         var steamAudio=Bytes("steam-cut-radio",8192);var classicAudio=Bytes("classic-full-radio",12288);var shared=Bytes("shared-map",4096);
@@ -148,7 +159,7 @@ static class PortablePackageTests {
             foreach(var item in before)Assert(Engine.Hash(item.Key)==item.Value,name+": game file changed "+item.Key);
             if(expect) {
                 Assert(report.accepted && report.mode=="standalone",name+": not accepted as standalone: "+report.message);
-                Assert(reachedIso && failure is Win32Exception,name+": did not reach the ISO boundary: "+failure);
+                Assert(reachedIso && ImportBoundary(failure),name+": did not reach the ISO boundary: "+failure);
                 Assert(Engine.Hash(Path.Combine(prepared,"gta_sa.exe"))==exeOut,name+": executable output");
                 Assert(Engine.Hash(Path.Combine(prepared,"audio","streams","CH"))==audioOut,name+": audio kept as the owner's edition");
                 Assert(Engine.Hash(Path.Combine(prepared,"data","maps","shared.ipl"))==h(shared),name+": shared file");
@@ -203,11 +214,12 @@ static class PortablePackageTests {
     // Full preparation with test doubles for the ISO importer and probe:
     // the profile index must record the edition actually used, and a
     // missing DirectX runtime must stop an unattended install clearly.
-    static void FullPreparation(string root,string bootstrap,string probe,List<string> results) {
-        foreach(var missing in new[]{false,true}) {
-            var name=missing?"directx-missing-unattended":"full-preparation-index";
+    static void FullPreparation(string root,List<string> results) {
+        foreach(var name in new[]{"full-preparation-index","directx-missing-unattended","invalid-iso-before-preparation"}) {
+            var missing=name=="directx-missing-unattended";
+            var invalid=name=="invalid-iso-before-preparation";
             var folder=Path.Combine(root,name);var tools=Path.Combine(folder,"tools");Directory.CreateDirectory(tools);
-            File.Copy(bootstrap,Path.Combine(tools,"sa-delirium-bootstrap.exe"));File.Copy(probe,Path.Combine(tools,"RendererProbe.exe"));
+            CopyBootstrapFixture(tools);File.Copy(Assembly.GetExecutingAssembly().Location,Path.Combine(tools,"RendererProbe.exe"));
             var steamAudio=Bytes("steam-cut-radio",8192);var classicAudio=Bytes("classic-full-radio",12288);var exeBytes=Bytes("game-exe",20480);
             var exe=new Recipe{path="gta_sa.exe",kind="steam",source="gta-sa.exe",sha256=Engine.Hash(exeBytes),bytes=exeBytes.Length,components=new string[0],
                 alternatives=new[]{new RecipeSource{source="gta_sa.exe",source_sha256=Engine.Hash(exeBytes),source_bytes=exeBytes.Length}}};
@@ -217,13 +229,23 @@ static class PortablePackageTests {
                 profile=new ProfileIndex{schema=1,profile="full preparation",stock_steam_executable_sha256=new string('a',64)}};
             var game=Path.Combine(folder,"game");Directory.CreateDirectory(Path.Combine(game,"audio","streams"));
             File.WriteAllBytes(Path.Combine(game,"gta_sa.exe"),exeBytes);File.WriteAllBytes(Path.Combine(game,"audio","streams","CH"),classicAudio);
-            var iso=Path.Combine(folder,"synthetic.iso");File.WriteAllText(iso,"unit fixture");
+            var iso=Path.Combine(folder,invalid?"rejected.iso":"synthetic.iso");File.WriteAllText(iso,"unit fixture");
             var cache=Path.Combine(folder,"cache");Directory.CreateDirectory(cache);
             Environment.SetEnvironmentVariable("FAKE_DIRECTX_MISSING",missing?"1":null);
+            Environment.SetEnvironmentVariable("FAKE_BOOTSTRAP_IMPORT","1");
             Exception failure=null;string prepared=null;ProfileIndex index=null;
             try{index=new Composer(manifest,tools,cache){Unattended=true}.Prepare(game,iso,out prepared);}catch(Exception e){failure=e;}
-            Environment.SetEnvironmentVariable("FAKE_DIRECTX_MISSING",null);
-            if(missing) Assert(failure is IOException && failure.Message.Contains("DirectX"),name+": unexpected "+failure);
+            finally {
+                Environment.SetEnvironmentVariable("FAKE_DIRECTX_MISSING",null);
+                Environment.SetEnvironmentVariable("FAKE_BOOTSTRAP_IMPORT",null);
+            }
+            if(invalid) {
+                Assert(failure is IOException && failure.Message.Contains("la comprobación de la ISO") &&
+                    failure.Message.Contains("Imagen de prueba rechazada"),name+": missing ISO diagnostic: "+failure);
+                Assert(!Directory.GetDirectories(cache,"prepared-*").Any(),name+": staged files before verifying the ISO");
+                Assert(Directory.GetFiles(cache,"iso-check-*.log").Length==1,name+": missing log");
+            }
+            else if(missing) Assert(failure is IOException && failure.Message.Contains("DirectX"),name+": unexpected "+failure);
             else {
                 Assert(failure==null,name+": "+failure);
                 var ch=index.files.Single(f=>f.path=="audio/streams/CH");
@@ -253,6 +275,19 @@ static class PortablePackageTests {
     }
     static int Main(string[] args) {
         Paths.EnableLongPaths();
+        var executable=Path.GetFileName(Assembly.GetExecutingAssembly().Location);
+        if(executable=="RendererProbe.exe")return Environment.GetEnvironmentVariable("FAKE_DIRECTX_MISSING")=="1"?1:0;
+        if(executable=="sa-delirium-bootstrap.exe") {
+            if(args[0]=="--check-iso") {
+                if(Path.GetFileName(args[1])!="rejected.iso")return 0;
+                Console.Error.WriteLine("Imagen de prueba rechazada");
+                return 1;
+            }
+            if(Environment.GetEnvironmentVariable("FAKE_BOOTSTRAP_IMPORT")!="1")return 1;
+            var generated=Path.Combine(args[0],"DeliriumSA-local-v3");
+            Directory.CreateDirectory(generated);File.WriteAllText(Path.Combine(generated,"generated.bin"),"synthetic import");
+            return 0;
+        }
         string root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);var results=new List<string>();
         try {
             Action<string,bool,bool,bool,bool,bool,bool> run=delegate(string name,bool content,bool corrupt,bool traversal,bool link,bool duplicate,bool cancel){Case(root,name,content,corrupt,traversal,link,duplicate,cancel);results.Add(name);};
@@ -269,7 +304,7 @@ static class PortablePackageTests {
             EditionCases(root,results);
             StandaloneCases(root,results);
             SavesCarry(root,results);
-            if(args.Length>3)FullPreparation(root,Path.GetFullPath(args[2]),Path.GetFullPath(args[3]),results);
+            FullPreparation(root,results);
             if(args.Length>1) {
                 var tool=Path.GetFullPath(args[1]);
                 Action<string,bool,bool,bool,bool> delta=delegate(string name,bool listed,bool alternative,bool fromAlternative,bool prepared){AlternativeDelta(root,tool,name,listed,alternative,fromAlternative,prepared);results.Add(name);};

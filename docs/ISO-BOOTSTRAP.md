@@ -10,7 +10,12 @@ El preparador incorpora la constante pública de formato XEX del proyecto Xenia 
 
 ## Compatibilidad comprobada
 
-El lector de programas procede de Delirium 0.6.0, revisión `93eed4d6a0aafa2e84526730ea1f54dab48ac7d4`. El motor de jugabilidad conserva nuestras adaptaciones y su correspondencia verificada de 992 valores. Esta ruta adaptada admite únicamente la edición Europa/Asia comprobada, huella `e87cf5277aa90de585b1af9b4e85d422ea2a2331419146aefdef2c7877e29964`; no dar por compatibles otras ediciones por compartir el SDK.
+El lector de programas procede de Delirium 0.6.0, revisión `93eed4d6a0aafa2e84526730ea1f54dab48ac7d4`. El motor de jugabilidad conserva nuestras adaptaciones y su correspondencia verificada de 992 valores. La identidad se comprueba con BLAKE3 del ejecutable descifrado:
+
+| Disco Xbox 360 | Media ID | Huella del ejecutable |
+| --- | --- | --- |
+| Europa/Asia | `4A53F9F6` | `e87cf5277aa90de585b1af9b4e85d422ea2a2331419146aefdef2c7877e29964` |
+| USA, referencia original del SDK | `6AC07221` | `5d164b473a0ed043502e4fbb1af8dafc68f64e87b27d22aefe64dba3bd9a0a00` |
 
 El mapa de Europa/Asia contiene 121 cambios únicos de desplazamiento. Se localizaron por igualdad de bytes y por contexto cuando estaba disponible. El SDK valida la huella de la edición y un segundo BLAKE3 de los 770 tramos que va a leer. Todos los tramos coincidieron byte por byte con la edición de referencia. La tabla de compatibilidad contiene desplazamientos, sin copiar los valores de la ISO al repositorio. El mapa original queda disponible para la edición admitida por Delirium.
 
