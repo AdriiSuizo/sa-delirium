@@ -4,21 +4,22 @@
   <img src="docs/media/sa-delirium-gameplay.gif" alt="Combate y reacciones físicas de Delirium en GTA San Andreas" width="640">
 </p>
 
-San Andreas clásico con Delirium, fixes, aspecto PS2, extras de desarrollo
-y Lively Vehicle Physics1.6 de Izzy. Se instala con un asistente desde tu copia del
-juego, de Steam o de PC 1.0 US. Con Steam se abre con **Jugar**; con otra copia, con
-el acceso directo **SA Delirium**.
-Los mods seleccionados vienen incluidos, salvo Urbanize, que se obtiene automáticamente de su autor. Si su enlace está saturado, el juego se instala sin Urbanize.
+Delirium lleva físicas, combate y conducción inspirados en GTA IV a GTA San
+Andreas clásico de PC. Puedes instalar el núcleo en tu juego o preparar un
+perfil completo con los extras.
 
 ## Instalar
 
-Descarga **SA-Delirium-0.3.14-Setup.exe** o el RAR de la
-[versión 0.3.14](https://github.com/AdriiSuizo/sa-delirium/releases/tag/v0.3.14).
-Las copias clásicas compatibles de PC se pueden instalar aunque no tengan el
-archivo de Steam `installscript.vdf`.
-Extrae el RAR si elegiste ese formato y abre el EXE. El asistente detecta Steam;
-si tu juego está en otra carpeta, elígela. Elige la ISO si falta su ruta y pulsa
-**Instalar**.
+Descarga [SA-Delirium-0.4.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
+Andreas y selecciona tu ISO de GTA IV para Xbox 360.
+
+- **Instalación completa** prepara un perfil con Delirium, los arreglos y los
+  extras que se describen abajo. Admite Steam clásico y copias verificadas de
+  PC 1.0 US. La descarga de Urbanize se hace desde su autor.
+- **Solo Delirium** instala el núcleo en una carpeta de PC 1.0 US con un
+  ejecutable admitido. Conserva los archivos existentes. Reutiliza un cargador
+  ASI verificado o añade uno compatible si hace falta.
 
 Necesitas Windows10/11 x64 con .NET Framework4.8, tu **GTA San Andreas clásico**
 y una **ISO compatible propia de GTA IV para Xbox360**. Sirve la copia de Steam
@@ -46,7 +47,18 @@ SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
 
-## Contenido
+## Cambios en 0.4.0
+
+En **Pausa → Opciones** puedes cambiar entre Delirium GTA IV y Clásico retocado
+en partida. La instalación completa también ofrece Izzy 1.6, que se aplica
+al reiniciar. La deformación y el movimiento de CJ tienen sus propios ajustes.
+Desde un vehículo, **L1** apunta y **R1** dispara. Mantén **L3 + R3** para
+alternar la gravedad reducida.
+
+Consulta el [historial](CHANGELOG.md) para ver los cambios de combate, cobertura,
+físicas y conducción.
+
+## Contenido de la instalación completa
 
 Incluye Delirium y la integración de físicas/combate/movimientos, Izzy Lively
 Vehicle Physics1.6 con sus ajustes originales de puertas, SkyGfx Extended1.7,
@@ -80,6 +92,9 @@ locales verificados. Se instalan sus readmes/licencia y se acredita a
 
 ## Partidas, restauración y diagnóstico
 
+En **Solo Delirium**, abre tu juego como siempre. **Restaurar** retira los
+archivos registrados por el asistente y conserva las partidas de la instalación.
+
 Con Steam, el mod crea su perfil independiente en **SA** dentro de la carpeta de
 Steam. Se adapta la versión interna del juego para los plugins y se respalda el
 `gta-sa.exe` original. Un lanzador espera a que termine el juego para mantener
@@ -104,11 +119,29 @@ No mezcles este perfil con otros loaders/renderizadores o SA-MP.
 
 ## Validación y límites
 
-La entrega se comprueba desde416 archivos propios de Steam y una ISO externa,
-con caché vacía, mediante el EXE literal y con los extras embebidos y Urbanize descargado de su autor. Se comprueban
-arranque sin puente, intro de partida nueva, daño nativo, efectos, conservación
-de partidas, restauración y Jugar en Steam. La cobertura concreta y las huellas
-se documentan en [VALIDATION.md](installer/portable/VALIDATION-0.3.8.md).
+En el asistente se puede elegir el ejecutable directamente o pegar la
+ruta de la carpeta. Antes de preparar el perfil, el asistente verifica los
+archivos originales que necesita. Admite nombres alternativos y la variante
+LAA de un ejecutable cuando puede reconstruir exactamente una entrada ya
+verificada. También recupera `vorbisHooked.dll` o `vorbisFileHooked.dll` si
+contienen la DLL original verificada.
+
+Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
+devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
+
+```powershell
+Start-Process -Wait .\SA-Delirium-0.4.0-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+```
+
+Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
+compilaciones con cambios en el código nativo, como 1.01, 2.0 y Rockstar Games
+Launcher, requieren sus propias referencias. El asistente excluye Definitive
+Edition. [Versiones de San Andreas en Plugin-SDK](https://github.com/DK22Pac/plugin-sdk/blob/master/shared/GameVersion.h).
+
+Las pruebas históricas de la instalación con Steam se documentan en
+[VALIDATION.md](installer/portable/VALIDATION-0.3.8.md). La entrega 0.4.0 se
+comprobó también en una copia clásica de PC con instalación completa y
+Solo Delirium.
 
 Las pruebas son acotadas. No certifican todos los vehículos, misiones, mandos,
 GPUs, idiomas o ediciones de ISO; tampoco equivalencia completa con GTA IV ni

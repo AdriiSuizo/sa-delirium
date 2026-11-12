@@ -17,10 +17,12 @@ pub unsafe extern "C" fn nm_group_set_external_environment(g:*mut NmGroup,epoch:
         for n in 0..count as usize{
             let(id,component,shape)=(unsafe{*ids.add(n)},unsafe{*components.add(n)},unsafe{*shapes.add(n)});
             let r=unsafe{std::slice::from_raw_parts(rows.add(n*19),19)};
-            if id==0||component<0||shape<0||r.iter().any(|v|!v.is_finite()){return Err("invalid environment identity or geometry".into())}
+            if id==0||component<0||shape< -1||r.iter().any(|v|!v.is_finite()){return Err("invalid environment identity or geometry".into())}
             let q=Quat::from_xyzw(r[3],r[4],r[5],r[6]);
             if (q.length_squared()-1.).abs()>0.001||r[7..10].iter().any(|v|*v<=0.){return Err("invalid environment transform or bounds".into())}
-            let Some((_,parts))=cache.get(shape as usize)else{return Err("unknown native environment shape".into())};
+            let parts=if shape == -1 { ObstacleParts::default() } else {
+                cache.get(shape).cloned().ok_or("unknown native environment shape")?
+            };
             let at=Vec3::from_slice(r);
             staged.push(Obstacle{id:component,owner:Some(id),at,rot:q,centre:at,half:Vec3::from_slice(&r[7..]),vel:Vec3::from_slice(&r[10..]),spin:Vec3::from_slice(&r[13..]),com:Vec3::from_slice(&r[16..]),parts,..Default::default()});
         }

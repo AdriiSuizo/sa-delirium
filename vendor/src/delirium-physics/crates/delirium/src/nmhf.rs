@@ -202,7 +202,7 @@ impl HighFall {
             let v = d.normalize_or_zero() * t;
             crate::nmdbm::slen(v - crate::nmdbm::shz(v, up, b"zyx"), b"yxz")
         });
-        let g = crate::ragdoll::GRAVITY();
+        let g = c.b.doll.gravity();
         self.land = match h {
             Some(h) => ((vz.mul_add(vz, g * h * 2.0).sqrt() - vz.abs()) / g) + self.t,
             None => self.t + delirium_data::kv!(80),

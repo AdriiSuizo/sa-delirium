@@ -69,28 +69,32 @@ static bool(__thiscall* originalBikeCollisionTwo)(void*,void*,ColPoint&,float&,f
 static bool(__thiscall* originalBikeSoftCollisionTwo)(void*,void*,ColPoint&,float&,float&)=nullptr;
 static bool(__thiscall* originalBikeCollisionAlt)(void*,void*,ColPoint&,float&,V&,V&)=nullptr;
 static bool __fastcall bikeCollisionOne(void*self,void*,void*other,const ColPoint&point,float&damage){
+    const auto road=beforeRoadContact(self,other,point);
     NativePairAudit::Scope audit(NativePairAudit::Path::HardSingle,self,other,reinterpret_cast<NativePairAudit::Point*>(const_cast<ColPoint*>(&point)),reinterpret_cast<uintptr_t>(_ReturnAddress()));
     const auto before=beforeBikeContact(self);const bool result=originalBikeCollisionOne(self,other,point,damage);
     audit.finish(reinterpret_cast<NativePairAudit::Point*>(const_cast<ColPoint*>(&point)),result,&damage);
-    if(result)afterBikeContact(before,other,point,damage,1,0x5435C0);return result;
+    if(result){acceptRoadContact(road,0x5435C0);afterBikeContact(before,other,point,damage,1,0x5435C0);}return result;
 }
 static bool __fastcall bikeSoftCollisionOne(void*self,void*,void*other,const ColPoint&point,float&damage){
+    const auto road=beforeRoadContact(self,other,point);
     NativePairAudit::Scope audit(NativePairAudit::Path::SoftSingle,self,other,reinterpret_cast<NativePairAudit::Point*>(const_cast<ColPoint*>(&point)),reinterpret_cast<uintptr_t>(_ReturnAddress()));
     const auto before=beforeBikeContact(self);const bool result=originalBikeSoftCollisionOne(self,other,point,damage);
     audit.finish(reinterpret_cast<NativePairAudit::Point*>(const_cast<ColPoint*>(&point)),result,&damage);
-    if(result)afterBikeContact(before,other,point,damage,1,0x543890);return result;
+    if(result){acceptRoadContact(road,0x543890);afterBikeContact(before,other,point,damage,1,0x543890);}return result;
 }
 static bool __fastcall bikeCollisionTwo(void*self,void*,void*other,ColPoint&point,float&own,float&theirs){
+    const auto road=beforeRoadContact(self,other,point);
     NativePairAudit::Scope audit(NativePairAudit::Path::HardPair,self,other,reinterpret_cast<NativePairAudit::Point*>(&point),reinterpret_cast<uintptr_t>(_ReturnAddress()));
     const auto a=beforeBikeContact(self),b=beforeBikeContact(other);const bool result=originalBikeCollisionTwo(self,other,point,own,theirs);
     audit.finish(reinterpret_cast<NativePairAudit::Point*>(&point),result,&own,&theirs);
-    if(result){afterBikeContact(a,other,point,own,1,0x548680);afterBikeContact(b,self,point,theirs,-1,0x548680);}return result;
+    if(result){acceptRoadContact(road,0x548680);afterBikeContact(a,other,point,own,1,0x548680);afterBikeContact(b,self,point,theirs,-1,0x548680);}return result;
 }
 static bool __fastcall bikeSoftCollisionTwo(void*self,void*,void*other,ColPoint&point,float&own,float&theirs){
+    const auto road=beforeRoadContact(self,other,point);
     NativePairAudit::Scope audit(NativePairAudit::Path::SoftPair,self,other,reinterpret_cast<NativePairAudit::Point*>(&point),reinterpret_cast<uintptr_t>(_ReturnAddress()));
     const auto a=beforeBikeContact(self),b=beforeBikeContact(other);const bool result=originalBikeSoftCollisionTwo(self,other,point,own,theirs);
     audit.finish(reinterpret_cast<NativePairAudit::Point*>(&point),result,&own,&theirs);
-    if(result){afterBikeContact(a,other,point,own,1,0x54A2C0);afterBikeContact(b,self,point,theirs,-1,0x54A2C0);}return result;
+    if(result){acceptRoadContact(road,0x54A2C0);afterBikeContact(a,other,point,own,1,0x54A2C0);afterBikeContact(b,self,point,theirs,-1,0x54A2C0);}return result;
 }
 static bool installBikeContactCallSites(){
     // This executable reads the operand at 0x54A2C1 as DATA in its native
@@ -162,6 +166,7 @@ static bool installBikeContactCallSites(){
     return false;
 }
 static bool __fastcall bikeCollisionAlt(void*self,void*,void*other,ColPoint&point,float&damage,V&linear,V&angular){
+    const auto road=beforeRoadContact(self,other,point);
     NativePairAudit::Scope audit(NativePairAudit::Path::Alt,self,other,reinterpret_cast<NativePairAudit::Point*>(&point),reinterpret_cast<uintptr_t>(_ReturnAddress()));
     // Native ProcessCollisionSectorList initializes these accumulators, adds
     // each accepted contact, then divides by the accepted contact count. The
@@ -169,7 +174,7 @@ static bool __fastcall bikeCollisionAlt(void*self,void*,void*other,ColPoint&poin
     const V linearBefore=linear,angularBefore=angular;
     const auto before=beforeBikeContact(self);const bool result=originalBikeCollisionAlt(self,other,point,damage,linear,angular);
     audit.finish(reinterpret_cast<NativePairAudit::Point*>(&point),result,&damage,nullptr,reinterpret_cast<NativePairAudit::Vec*>(&linear),reinterpret_cast<NativePairAudit::Vec*>(&angular));
-    if(result){const V linearDelta=linear-linearBefore,angularDelta=angular-angularBefore;
+    if(result){acceptRoadContact(road,0x544D50);const V linearDelta=linear-linearBefore,angularDelta=angular-angularBefore;
         afterBikeContact(before,other,point,damage,1,0x544D50,&linearDelta,&angularDelta);}return result;
 }
 static bool(__cdecl* originalBikeDamageKnockOff)(void*,float,unsigned short,void*,const V&,const V&)=nullptr;

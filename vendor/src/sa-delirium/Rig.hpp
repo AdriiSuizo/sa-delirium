@@ -4,6 +4,7 @@
 #include "RestSkeleton.hpp"
 #include "SABones.hpp"
 #include "SpineRetargetMath.hpp"
+#include "WristPose.hpp"
 #include "delirium_physics.h"
 #include <array>
 #include <vector>
@@ -28,7 +29,10 @@ inline void* __cdecl findSkinGeometry(void* atomic,void* arg){
 // Smallest circle enclosing 2D points (Welzl, iterative, deterministic order).
 inline void enclosingCircle(std::vector<std::array<float,2>> pts,float&cx,float&cy,float&r){
     unsigned seed=12345u;for(size_t i=pts.size();i>1;i--){seed=seed*1664525u+1013904223u;std::swap(pts[i-1],pts[seed%i]);}
-    auto inside=[&](const std::array<float,2>&p){return std::hypot(p[0]-cx,p[1]-cy)<=r*1.00001f+1e-6f;};
+    auto inside=[&](const std::array<float,2>&p){
+        const float x=p[0]-cx,y=p[1]-cy,limit=r*1.00001f+1e-6f;
+        return x*x+y*y<=limit*limit;
+    };
     auto two=[&](const std::array<float,2>&a,const std::array<float,2>&b){cx=(a[0]+b[0])*.5f;cy=(a[1]+b[1])*.5f;r=std::hypot(a[0]-cx,a[1]-cy);};
     auto three=[&](const std::array<float,2>&a,const std::array<float,2>&b,const std::array<float,2>&c){
         const float bx=b[0]-a[0],by=b[1]-a[1],qx=c[0]-a[0],qy=c[1]-a[1],d=2*(bx*qy-by*qx);
@@ -256,33 +260,19 @@ struct Rig {
         }
         // IV draws half of the hand's roll on a forearm roll bone (gta4-data
         // neckroll.rs:60-61, bones 0x1B/0x1E: forearm roll + 0.5 x hand roll).
-        // SA has none, so catchFall's full wrist twist (IV target 1.0 rad,
-        // nmcf.rs:383, held at the 0.9 limit) read as a broken wrist. Roll the
-        // forearm by half the hand's twist about the forearm axis; the hand keeps
-        // its physical orientation and position.
+        // SA has no roll bone. Distribute the axial rotation along its
+        // forearm and limit the remaining bend and twist in the skin pose.
         if(!wristRollDisabled())for(const auto[fore,hand]:{std::pair{33,34},std::pair{23,24}}){
             const int f=index(fore),h=index(hand);if(f<0||h<0||parents[h]!=f)continue;
             const V axis=normalized(bindLocal[h].p);
-            const Q r=mul(mul(conjugate(out[f].q),out[h].q),conjugate(bindLocal[h].q));
-            const float along=r.x*axis.x+r.y*axis.y+r.z*axis.z;
-            const Q twist=unit(Q{axis.x*along,axis.y*along,axis.z*along,r.w});
-            out[f].q=mul(out[f].q,mix(Q{},twist,.5f));
-            // The wrist's swing (bend) is drawn at most 30 deg from SA's bind
-            // relation: IV's +-0.9 rad soft wrist hangs the hand 60-90 deg
-            // sideways under gravity in Balance/catchFall, read as broken
-            // (Adrii, 06/11 captures). Fingers follow the drawn hand.
-            const Q local=mul(conjugate(out[f].q),out[h].q),rel=mul(local,conjugate(bindLocal[h].q));
-            const float along2=rel.x*axis.x+rel.y*axis.y+rel.z*axis.z;
-            const Q relTwist=unit(Q{axis.x*along2,axis.y*along2,axis.z*along2,rel.w}),swing=mul(rel,conjugate(relTwist));
-            const float angle=2.f*std::acos(std::clamp(std::abs(swing.w),0.f,1.f)),limit=30.f*3.14159265f/180.f;
-            if(angle>limit){
-                const Q kept=mix(Q{},swing,limit/angle);
-                const Q drawn=mul(out[f].q,mul(mul(kept,relTwist),bindLocal[h].q)),delta=mul(drawn,conjugate(out[h].q));
-                for(size_t i=size_t(h);i<ids.size();i++){
-                    int up=int(i);while(up>=0&&up!=h)up=parents[up];if(up!=h)continue;
-                    out[i].q=mul(delta,out[i].q);
-                    if(int(i)!=h)out[i].p=out[parents[i]].p+rotate(out[parents[i]].q,bindLocal[i].p);
-                }
+            if(length(axis)<.9f)continue;
+            const auto limited=wrist_pose::limit(out[f].q,out[h].q,bindLocal[h].q,axis);
+            const Q delta=mul(limited.hand,conjugate(out[h].q));
+            out[f].q=limited.forearm;
+            for(size_t i=size_t(h);i<ids.size();i++){
+                int up=int(i);while(up>=0&&up!=h)up=parents[up];if(up!=h)continue;
+                out[i].q=mul(delta,out[i].q);
+                if(int(i)!=h)out[i].p=out[parents[i]].p+rotate(out[parents[i]].q,bindLocal[i].p);
             }
         }
         return out;

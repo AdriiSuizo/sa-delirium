@@ -7,16 +7,24 @@ static void* taskManager(void*p){auto*i=at<void*>(p,0x47C);return i?static_cast<
 static void* physicalTask(void*p){auto*m=taskManager(p);return m?at<void*>(m,0):nullptr;}
 static bool recoveryAllowed(){return ready&&applyBones&&playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}
 static ShotDamageReceipt shotReceipt(const DamageEvent&d){return {d.time,reinterpret_cast<uintptr_t>(d.source),d.weapon,d.piece};}
-static Active* groundShotOwner(void*p){
+static Active* shotOwner(void*p){
     if(!recoveryAllowed()||p==player()||!validPed(p,true))return nullptr;
     const auto i=agents.find(reference(p));if(i==agents.end())return nullptr;
     auto&a=*i->second;
-    return a.ped==p&&!a.mounted&&!a.preview&&
-        (a.recovering||a.current[10].p.z-a.current[0].p.z<.25f||nm_agent_has_fallen(a.agent)==1)?&a:nullptr;
+    return a.ped==p&&!a.mounted&&!a.preview?&a:nullptr;
+}
+static Active* groundShotOwner(void*p){
+    auto*a=shotOwner(p);
+    return a&&(a->corpseResting||a->recovering||a->current[10].p.z-a->current[0].p.z<.25f||nm_agent_has_fallen(a->agent)==1)?a:nullptr;
 }
 static Active* matchedGroundShot(DamageEvent&d,void*p){
-    auto*a=groundShotOwner(p);
-    return a&&d.response.calculated&&sameDeliveredShot(a->groundShot,shotReceipt(d),gameTime())?a:nullptr;
+    auto*a=shotOwner(p);
+    if(!a||!d.response.calculated||!firearmDamage(d.weapon))return nullptr;
+    const auto delivered=shotReceipt(d);
+    const auto now=gameTime();
+    return std::any_of(a->acceptedShots.begin(),a->acceptedShots.end(),[&](const auto& hit){
+        return sameDeliveredShot(hit,delivered,now);
+    })?a:nullptr;
 }
 static bool matchesEntryFatalDamage(const Active&a,const DamageEvent&d){
     // Match only our queued, calculated terminal drag event, not an unrelated
@@ -302,6 +310,7 @@ static void maintainRecoverySupport(){
         const V root=position(a.ped),from=root+V{0,0,.4f};ColPoint ground{};void*support=nullptr;
         if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
             (from,root.z-2.5f,ground,support,true,true,false,true,true,false,nullptr)&&ground.normal.z>.45f){
+            if (a.kind == Reaction::Impact && vehicleRef(support) >= 0) continue;
             const float target=ground.point.z+(a.nativeGroundClearance>0?a.nativeGroundClearance:a.rig->rootClearance);
             if(root.z<target){matrix(a.ped)->pos.z=target;if(at<V>(a.ped,0x44).z<0)at<V>(a.ped,0x44).z=0;
                 reinterpret_cast<void(__thiscall*)(void*)>(0x542560)(a.ped);}
@@ -365,6 +374,10 @@ static void commitPendingRecoveryPlacements(){
         // Lying under a car, the line meets its floor from below and there was never any ground: the body stayed down for good (07/11).
         if(!clear&&ground.normal.z<-.45f)clear=reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
             (from,from.z-1.3f-standing,ground,support,true,false,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.45f;
+        // An impact victim must not acquire an animated owner on the vehicle
+        // that is carrying it. Keep solving the bonnet/roof contact until it
+        // reaches a stationary support. This also applies to NPC drivers' hits.
+        if (clear && a.kind == Reaction::Impact && vehicleRef(support) >= 0) clear = false;
         V ivRoot{};int why=clear?0:1;if(clear){target.z=ground.point.z+clearance;ivRoot=target+V{0,0,1.f-clearance};
             const int room=nm_agent_recovery_room(a.agent,collision->world,&ivRoot.x,(2ull<<32)|uint32_t(ref));clear=room==1;if(room<0)ok(room);if(!clear)why=2;}
         if(clear)for(auto&[otherRef,other]:agents)if(otherRef!=ref&&!other->preview&&!other->mounted&&
@@ -419,7 +432,7 @@ static bool acceptRecoveryPlayerContact(Active&a,void*peer,float impulse,float d
     const float points[]={peerRoot.x,peerRoot.y,peerRoot.z,look.x,look.y,look.z,root.x,root.y,root.z};
     const unsigned slot=at<unsigned char>(a.ped,0x718);const int weapon=slot<13?at<int>(a.ped,0x5A0+slot*0x1C):-1;
     const unsigned flags=1u|((weapon>=22&&weapon<=38)?8u:0u)|(a.recoveryAnimatedOwner?16u:0u)|(at<unsigned char>(a.ped,0x484)!=1?4u:0u);
-    const int selected=nm_agent_prepare_recovery_contact(a.agent,points,at<float>(a.ped,0x540)*2.f,impulse,dt,clip,phase,flags);
+    const int selected=nm_agent_prepare_recovery_contact(a.agent,points,ivHealth(a.ped),impulse,dt,clip,phase,flags);
     if(selected<0){ok(selected);return false;}if(!selected)return false;
     if(!resumePhysicalContact(a,"recovery_original_contact_response"))return false;
     const int started=nm_agent_start_recovery_contact(a.agent,collision->world);if(started<=0){ok(started);return false;}

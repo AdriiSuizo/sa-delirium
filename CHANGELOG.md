@@ -1,5 +1,43 @@
 # Historial
 
+## 0.4.0
+
+- Delirium GTA IV simula ruedas, transmisión y suspensión al 130 %. Recupera
+  los perfiles por modelo y suaviza las correcciones pequeñas de dirección.
+- Clásico retocado conserva el manejo de SA y añade balanceo visual. Los
+  faros, sus haces y las piezas transparentes acompañan a la carrocería.
+- Cambiar entre Clásico y Delirium IV en partida conserva el tráfico.
+  L1 apunta y R1 dispara desde el vehículo en los tres modos.
+- El movimiento de CJ cambia desde el menú durante la partida.
+- La geometría temporal de vehículos se recicla para evitar que se pare
+  el motor de físicas en sesiones largas. Se reduce el trabajo al activar
+  un cuerpo físico.
+- En gravedad reducida, CJ y el vehículo que conduce quedan al 50 %.
+  Los peatones y el resto de vehículos quedan al 1 %.
+
+- Instalación completa o Solo Delirium desde un único asistente. Incluye
+  progreso por etapas e informes de error que se pueden copiar.
+- Cobertura de CJ y policías, cambio de hombro y mejoras de combate y daño.
+- La suspensión responde al peso en el punto de contacto. La deformación
+  localizada se puede activar por separado.
+
+## 0.4.0 · previa privada 10
+
+- Mantén pulsados L3 y R3 para poner al 10 % la gravedad de los NPC y los
+  vehículos ajenos. CJ y el vehículo que conduce conservan la gravedad normal.
+
+## 0.4.0 · previa privada 9
+
+- Conducción Delirium. Cada modelo conserva su transmisión de referencia y el
+  reparto de tracción del chasis de San Andreas. Se corrige el par cuando ambos
+  usan un número distinto de ruedas motrices y se refuerza el arranque.
+- El stick responde antes al girar a velocidad de carretera. El efecto de un
+  toque de freno de mano decae también durante los pasos de suspensión nativa.
+- La suspensión de Delirium sigue activa durante los fotogramas lentos dentro
+  del paso máximo del temporizador de San Andreas.
+- Una esquina exterior del mapa puede hundir localmente el panel que recibe
+  el golpe. La deformación conserva su ajuste independiente en el menú.
+
 ## 0.3.14 · GTA IV USA para Xbox 360
 
 - El instalador admite la compilación USA de GTA IV para Xbox 360 con Media ID `6AC07221`, además de la compilación Europa/Asia ya compatible.

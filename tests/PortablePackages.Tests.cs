@@ -45,7 +45,9 @@ static class PortablePackageTests {
             member_pins_only=contentPin,max_bytes=1024*1024,url="https://example.invalid/never-contacted"};
         if(encrypted)package.password=wrongPassword?"incorrect-public-password":"libertycity";
         if(corrupt)recipe.sha256=Engine.Hash(Encoding.UTF8.GetBytes("a different immutable input"));
-        var manifest=new Manifest {schema=1,packages=new[]{package},files=new[]{recipe},profile=new ProfileIndex {schema=1,profile="synthetic package boundary test",stock_steam_executable_sha256=stock}};
+        var exeRecipe = new Recipe { path="gta_sa.exe", kind="steam", source="gta-sa.exe",
+            sha256=stock, bytes=new FileInfo(exe).Length };
+        var manifest=new Manifest {schema=1,packages=new[]{package},files=new[]{recipe,exeRecipe},profile=new ProfileIndex {schema=1,profile="synthetic package boundary test",stock_steam_executable_sha256=stock}};
         var identity=package.sha256??Engine.Hash(Encoding.UTF8.GetBytes(Json.Serializer().Serialize(package)+Json.Serializer().Serialize(manifest.files.Where(f=>f.package==package.id).OrderBy(f=>f.path).ToArray())));
         var cached=Path.Combine(cache,"downloads",identity);Directory.CreateDirectory(cached);File.Copy(zip,Path.Combine(cached,"source.zip"));
         var tools=Path.Combine(folder,"tools");Directory.CreateDirectory(tools);
@@ -75,18 +77,93 @@ static class PortablePackageTests {
     }
     static void EditionCases(string root,List<string> results) {
         var stock=Bytes("stock-steam",4096);var launcher=Engine.Hash(Bytes("own-launcher",2048));var future=Bytes("future-steam",4096);
-        var manifest=new Manifest {schema=1,packages=new Package[0],files=new Recipe[0],profile=new ProfileIndex {schema=1,profile="edition identification",stock_steam_executable_sha256=Engine.Hash(stock)}};
+        var exe = new Recipe { path="gta_sa.exe", kind="steam", source="gta-sa.exe", sha256=Engine.Hash(stock), bytes=stock.Length };
+        var manifest=new Manifest {schema=1,packages=new Package[0],files=new[]{exe},profile=new ProfileIndex {schema=1,profile="edition identification",stock_steam_executable_sha256=Engine.Hash(stock)}};
         Edition(root,"stock",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),stock),"unknown",true);
         Edition(root,"unknown-build",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),future),"unknown",false);
         Edition(root,"launcher-already-installed",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),Bytes("own-launcher",2048)),"installed",false);
         Edition(root,"pending-journal",manifest,launcher,d=>{File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),stock);File.WriteAllText(Path.Combine(d,Engine.ReceiptName),"{}");},"installed",false);
         Edition(root,"definitive-edition",manifest,launcher,d=>{Directory.CreateDirectory(Path.Combine(d,"Gameface","Binaries","Win64"));File.WriteAllText(Path.Combine(d,"Gameface","Binaries","Win64","SanAndreas.exe"),"de");},"definitive",false);
         Edition(root,"no-executable",manifest,launcher,d=>{},"missing",false);
-        // The stock bytes renamed to gta_sa.exe are not a Steam folder.
-        Edition(root,"classic-name-only",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta_sa.exe"),stock),"unknown",false);
+        var missingExe = Editions.Identify(Path.Combine(root,"editions","no-executable","gta_sa.exe"),manifest,launcher);
+        Assert(missingExe.kind=="missing" && missingExe.message.Contains("Ese ejecutable"),"Missing file selection has specific guidance");
+        var missingInFolder = Editions.Identify(Path.Combine(root,"editions","no-executable"),manifest,launcher);
+        Assert(missingInFolder.kind=="missing" && missingInFolder.message.Contains("carpeta principal"),"Missing EXE in a directory explains which folder to select");
+        Edition(root,"classic-name-only",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta_sa.exe"),stock),"unknown",true);
         manifest.profile.accepted_steam_executable_sha256=new[]{Engine.Hash(future)};
+        Edition(root,"listed-without-recipe",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),future),"unknown",false);
+        exe.alternatives = new[] { new RecipeSource { source_sha256=Engine.Hash(future), source_bytes=future.Length } };
         Edition(root,"listed-future-build",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),future),"unknown",true);
         results.Add("edition-identification");
+    }
+    static void ExecutableCompatibility(string root, List<string> results) {
+        var game = Path.Combine(root, "variant");
+        var cache = Path.Combine(root, "variant-cache");
+        var tools = Path.Combine(cache, "tools");
+        Directory.CreateDirectory(game);
+        Directory.CreateDirectory(tools);
+        CopyBootstrapFixture(tools);
+        var canonical = new byte[4096];
+        canonical[0] = (byte)'M';
+        canonical[1] = (byte)'Z';
+        canonical[0x3c] = 0x80;
+        canonical[0x80] = (byte)'P';
+        canonical[0x81] = (byte)'E';
+        canonical[0x84] = 0x4c;
+        canonical[0x85] = 1;
+        canonical[0x98] = 0x0b;
+        canonical[0x99] = 1;
+        var originalDll = Bytes("owner-vorbis", 1024);
+        var manifest = new Manifest { schema=1, packages=new Package[0],
+            profile=new ProfileIndex { schema=1, profile="verified header fixture", stock_steam_executable_sha256=Engine.Hash(canonical) },
+            files=new[] {
+                new Recipe { path="gta_sa.exe", kind="steam", source="gta-sa.exe", sha256=Engine.Hash(canonical), bytes=canonical.Length },
+                new Recipe { path="vorbisFileHooked.dll", kind="steam", source="vorbisFile.dll",
+                    sha256=Engine.Hash(originalDll), bytes=originalDll.Length }
+            }
+        };
+        var executable = Path.Combine(game, "My GTA.exe");
+        var originalAlias = Path.Combine(game, "vorbisHooked.dll");
+        File.WriteAllBytes(Path.Combine(game, "vorbisFile.dll"), Bytes("proxy", originalDll.Length));
+        File.WriteAllBytes(originalAlias, originalDll);
+        File.WriteAllBytes(executable, canonical);
+        Func<string, bool> steamLibrary = delegate { return true; };
+        Assert(Editions.Identify(executable, manifest, null, steamLibrary).compatibility=="renamed", "Exact executable renamed");
+        var variant = (byte[])canonical.Clone();
+        variant[0x96] ^= 0x20;
+        File.WriteAllBytes(executable, variant);
+        var report = Editions.Identify(executable, manifest, null, steamLibrary);
+        Assert(report.accepted && report.compatibility=="large-address-aware" && report.mode=="standalone", "Header-only variant accepted outside Steam replacement");
+        var scan = Composer.ScanOriginals(manifest, report, delegate { return false; }, delegate {});
+        Assert(scan.Missing.Count==0 && scan.Files["vorbisFileHooked.dll"].source=="vorbisHooked.dll", "Original verified behind a proxy");
+        var iso = Path.Combine(cache, "synthetic.iso");
+        File.WriteAllText(iso, "fixture");
+        string prepared = null;
+        Exception failure = null;
+        try { new Composer(manifest, tools, cache).Prepare(executable, iso, out prepared); }
+        catch (Exception error) { failure = error; }
+        Assert(ImportBoundary(failure), "Normalized copy reaches the fake ISO import: " + failure);
+        Assert(Engine.Hash(Path.Combine(prepared, "gta_sa.exe"))==Engine.Hash(canonical), "Prepared executable exactly matches the manifest");
+        Assert(Engine.Hash(executable)==Engine.Hash(variant), "User executable was not edited");
+        Assert(!Directory.GetFiles(prepared, ".setup-executable-*.tmp").Any(), "Temporary normalized input was removed");
+        var otherAlias = Path.Combine(game, "vorbisFileHooked.dll");
+        File.Move(originalAlias, otherAlias);
+        scan = Composer.ScanOriginals(manifest, report, delegate { return false; }, delegate {});
+        Assert(scan.Missing.Count==0 && scan.Files["vorbisFileHooked.dll"].source=="vorbisFileHooked.dll", "Second verified Vorbis alias");
+        File.WriteAllBytes(otherAlias, Bytes("wrong-original", originalDll.Length));
+        scan = Composer.ScanOriginals(manifest, report, delegate { return false; }, delegate {});
+        Assert(scan.Missing.SequenceEqual(new[] { "vorbisFile.dll" }), "Wrong same-size DLL is refused");
+        var rejectedIso = Path.Combine(cache, "rejected.iso");
+        File.WriteAllText(rejectedIso, "fixture");
+        failure = null;
+        try { new Composer(manifest, tools, cache).Prepare(executable, rejectedIso, out prepared); }
+        catch (IOException error) { failure = error; }
+        Assert(failure != null && failure.Message.Contains("vorbisHooked.dll") &&
+            (string)failure.Data["SetupOriginals"]=="vorbisFile.dll", "Vorbis mismatch is diagnosed before the ISO check");
+        variant[512] ^= 1;
+        File.WriteAllBytes(executable, variant);
+        Assert(!Editions.Identify(executable, manifest, null, steamLibrary).accepted, "Header flag cannot hide modified code");
+        results.Add("verified-executable-alias-laa-and-vorbis");
     }
     static void MakeDelta(string tool,string source,string target,string patch) {
         using(var process=Process.Start(new ProcessStartInfo(tool,"make \""+source+"\" \""+target+"\" \""+patch+"\""){UseShellExecute=false,CreateNoWindow=true})){
@@ -257,6 +334,36 @@ static class PortablePackageTests {
             results.Add(name);
         }
     }
+    static void SoloCases(string root,List<string> results) {
+        var folder=Path.Combine(root,"solo");
+        var game=Path.Combine(folder,"game");
+        var prepared=Path.Combine(folder,"prepared");
+        Directory.CreateDirectory(Path.Combine(game,"modloader"));
+        var existing=Path.Combine(game,"modloader","keep.ini");
+        File.WriteAllText(existing,"existing mod");
+        var files=new[]{"scripts/DeliriumSA.asi","DeliriumSA.ini","DeliriumSA-local-v3/fixture.bin"}
+            .Select(path=>{
+                var local=Path.Combine(prepared,path);
+                Directory.CreateDirectory(Path.GetDirectoryName(local));
+                File.WriteAllText(local,path);
+                return new ProfileFile {path=path,bytes=new FileInfo(local).Length,sha256=Engine.Hash(local)};
+            }).ToArray();
+        var index=new ProfileIndex {schema=1,profile="solo fixture",files=files,total_bytes=files.Sum(f=>f.bytes)};
+        var receipt=Solo.Install(index,prepared,game,delegate{},delegate{return false;});
+        Assert(receipt.Mode=="solo" && receipt.State=="installed","Solo install committed");
+        var ini=Path.Combine(game,"DeliriumSA.ini");
+        File.WriteAllText(ini,"player changed settings");
+        Assert(File.ReadAllText(existing)=="existing mod","Solo preserved an existing mod");
+        var restored=Solo.Restore(game);
+        Assert(restored.State=="restored" && !File.Exists(ini),"Solo restored managed files");
+        Assert(File.ReadAllText(Path.Combine(game,restored.BackupDirectory,"DeliriumSA.ini"))=="player changed settings",
+            "Solo preserved the player's settings in the backup");
+        File.WriteAllText(ini,"another mod's file");
+        bool blocked=false;
+        try{Solo.Install(index,prepared,game,delegate{},delegate{return false;});}catch(IOException){blocked=true;}
+        Assert(blocked && File.ReadAllText(ini)=="another mod's file","Solo never overwrites an existing path");
+        results.Add("solo-additive-install-restore");
+    }
     static void SavesCarry(string root,List<string> results) {
         var folder=Path.Combine(root,"saves-carry");var backups=Path.Combine(folder,"SA-Delirium-backups");
         foreach(var item in new[]{Tuple.Create("20261101-100000-aaaaaaaa","old"),Tuple.Create("20261105-100000-bbbbbbbb","new")}) {
@@ -302,7 +409,9 @@ static class PortablePackageTests {
             Case(root,"public-password-encrypted-original",false,false,false,false,false,false,true,false);results.Add("public-password-encrypted-original");
             Case(root,"wrong-public-password",false,false,false,false,false,false,true,true);results.Add("wrong-public-password");
             EditionCases(root,results);
+            ExecutableCompatibility(root,results);
             StandaloneCases(root,results);
+            SoloCases(root,results);
             SavesCarry(root,results);
             FullPreparation(root,results);
             if(args.Length>1) {

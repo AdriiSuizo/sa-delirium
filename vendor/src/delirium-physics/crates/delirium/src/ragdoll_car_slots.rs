@@ -45,7 +45,7 @@ impl Index {
     #[test] fn duplicate_ids_first_match_and_reordered_compaction() {
         let part=ObPart{shape:gjk::Shape::Capsule(0.1,0.2),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:Vec3::splat(-0.3),hi:Vec3::splat(0.3),mesh:None,filter:Default::default()};
         let a=Box::leak(vec![part,part,part].into_boxed_slice());let b=Box::leak(vec![part].into_boxed_slice());
-        let obs=[Obstacle{id:12,parts:a,..Default::default()},Obstacle{id:29,parts:b,..Default::default()},Obstacle{id:12,parts:b,..Default::default()}];
+        let obs=[Obstacle{id:12,parts:crate::ragdoll::ObstacleParts::Static(a),..Default::default()},Obstacle{id:29,parts:crate::ragdoll::ObstacleParts::Static(b),..Default::default()},Obstacle{id:12,parts:crate::ragdoll::ObstacleParts::Static(b),..Default::default()}];
         let held=vec![(1,12,0,vec![]),(0,29,0,vec![]),(1,12,0,vec![]),(1,12,2,vec![])];
         let mut index=Index::new(2,&obs,&held);
         assert_eq!(index.get(1,0,0),Some(0));assert_eq!(index.get(1,2,0),Some(0));

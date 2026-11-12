@@ -33,6 +33,7 @@ static void __fastcall bonePosition(void*ped,void*,V&out,unsigned bone,bool upda
 }
 static void(__thiscall* originalCameraProcess)(void*)=nullptr;
 static void __fastcall cameraProcess(void*camera,void*){
+    player_cover::cameraBegin();
     // Restore the unmodified input before native smoothing; avoid accumulating
     // our offset every frame. Native camera and wall obstruction remain owners.
     if(zoomCam)at<float>(zoomCam,0xB4)-=appliedZoom;

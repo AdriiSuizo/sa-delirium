@@ -328,7 +328,10 @@ impl Runtime {
             // a FromOnFoot one-shot is not the fighting movement blend.
             let standalone=a.player&&!a.melee.fighting&&!driven;
             let stance_frame=if standalone{crate::stance::Frame{pose:a.native.iter().map(|&p|world.inverse().mul(p)).collect(),velocity:Vec2::ZERO,key:String::new(),phase:a.phase,flags:0}}
-                else{crate::stance::step(&self.bank,&a.rig,Vec2::new(ratios.0,ratios.1),a.phase,dt)?};
+                else{
+                    let forward_gain=if a.player&&!driven&&a.melee.mv.is_none(){1.25}else{1.0};
+                    crate::stance::step(&self.bank,&a.rig,Vec2::new(ratios.0,ratios.1),a.phase,dt,forward_gain)?
+                };
             a.phase=stance_frame.phase;let stance=stance_frame.key;let flags=stance_frame.flags;let base=stance_frame.pose;
             let mut local=base.clone();let mut velocity=stance_frame.velocity;let mut rate=1.;let mut applied_flags=flags;
             let current=a.melee.mv.as_ref().map(|m|m.result);

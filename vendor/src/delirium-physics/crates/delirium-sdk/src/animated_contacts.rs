@@ -87,7 +87,7 @@ pub unsafe extern "C" fn nm_pose_collider_sweep(body:*const NmPoseCollider,world
   let(b,mut p)=fitted(None);p[0].translation.z=0.2;let a=Ragdoll::new(&b,&p,Vec3::ZERO);let mut world=Collision::default();world.add_floor(0.,0.,0.,10.,0);
   let(walk,_)=a.sweep_pose_translation(&b,&p,&world,&[],Vec3::X);assert!(walk.x>0.99,"floor trapped walker {walk:?}");
   let components=Box::leak(vec![delirium::ragdoll::ObPart{shape:delirium::gjk::Shape::Box(Vec3::new(0.1,2.,2.),0.),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:Vec3::new(-0.1,-2.,-2.),hi:Vec3::new(0.1,2.,2.),mesh:None,filter:Default::default()}].into_boxed_slice());
-  let ob=Obstacle{at:Vec3::X,rot:Quat::IDENTITY,parts:components,..Default::default()};
+  let ob=Obstacle{at:Vec3::X,rot:Quat::IDENTITY,parts:ObstacleParts::Static(components),..Default::default()};
   let(by,n)=a.sweep_pose_translation(&b,&p,&world,&[ob],Vec3::X*2.);assert!(n>0&&by.x>0.6&&by.x<0.71,"vehicle {by:?} {n}");
  }
  #[test]fn separating_existing_overlap_is_not_frozen(){

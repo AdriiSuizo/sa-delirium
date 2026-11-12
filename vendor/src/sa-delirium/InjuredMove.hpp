@@ -11,8 +11,8 @@
 // moves away for rand*20+10 s on move_injured_lower or move_injured_upper (coin, 0x824CC4F0), then
 // dies (0x824CAAEC). InjuredOnGround 278 picks who and when (injured.rs, OriginalInjuredState.hpp):
 // half go (rand<0.5), under 50 they bleed out instead, and the rest lie healing 3 HP/s to 95 from
-// at most 75, after an NMPose of 1 to 4 s. SA's 100 health reads as IV's 200, so IV 50..100 is SA
-// 25..50. Shots and melee alike. Clips: the owner's disc (bootstrap import).
+// at most 75, after an NMPose of 1 to 4 s. NPC native storage uses half of IV's value.
+// Shots and melee alike. Clips: the owner's disc (bootstrap import).
 struct InjuredMove {
     void* ped=nullptr;int model=-1;NmLocomotion* mover=nullptr;std::unique_ptr<Rig> rig;std::vector<float> pose;
     std::string set;float phase=0,duration=1,speed=0;unsigned until=0,frame=UINT32_MAX,updates=0,drawn=0,drawnFrame=UINT32_MAX;bool moving=false,posed=false;
@@ -23,13 +23,13 @@ static float randomUnit(){return reinterpret_cast<float(__cdecl*)(float,float)>(
 static bool injuredMoving(int ref){return injuredMoves.contains(ref);}
 static bool injuredHoldsGround(Active&a,unsigned now){
     if(!a.injuredDecided){
-        a.injuredDecided=true;const float health=at<float>(a.ped,0x540);
+        a.injuredDecided=true;const float health=ivHealth(a.ped);
         // Tests only: every ped goes, at once.
         static const bool test=GetEnvironmentVariableA("GTASA_INJURED_TEST",nullptr,0)!=0;
-        if(a.ped!=player()&&(test||(health>=25&&health<50&&randomUnit()<.5f))){
-            const float seconds=(95.f-original_injured_state::initialHealth(health*2.f))/3.f+1.f+randomUnit()*3.f;
+        if(a.ped!=player()&&(test||(health>=50.f&&health<combat_health::injured&&randomUnit()<.5f))){
+            const float seconds=(95.f-original_injured_state::initialHealth(health))/3.f+1.f+randomUnit()*3.f;
             a.injuredChosen=true;a.injuredRiseAt=now+unsigned((test?.5f:seconds)*1000.f);
-            event("injured_on_ground",a.ref,a.model,"seconds="+std::to_string(seconds)+" health="+std::to_string(health));
+            event("injured_on_ground",a.ref,a.model,"seconds="+std::to_string(seconds)+" health_iv="+std::to_string(health));
         }
     }
     return a.injuredChosen&&now<a.injuredRiseAt;
@@ -107,28 +107,4 @@ static void injuredRender(){
         }
         ++it;
     }
-}
-// IV's own force per weapon, from the owner's weaponinfo.xml. SA's pistol stays the reference
-// (its old push), so the approved feel of the common case does not move. No file: old formula.
-static float ivWeaponForce(int weapon){
-    static const std::map<int,float> forces=[]{
-        std::map<int,float> out;std::ifstream file(folder/"weaponinfo.xml");if(!file)return out;
-        std::stringstream text;text<<file.rdbuf();const std::string xml=text.str();
-        auto force=[&](const char* name)->float{
-            const auto at=xml.find("<weapon type=\""+std::string(name)+"\">");if(at==std::string::npos)return 0;
-            const auto end=xml.find("</weapon>",at),key=xml.find("<physics force=\"",at);
-            return key<end?std::strtof(xml.c_str()+key+16,nullptr):0.f;
-        };
-        const std::pair<int,const char*> table[]={{22,"PISTOL"},{23,"PISTOL"},{24,"DEAGLE"},{25,"SHOTGUN"},{26,"SHOTGUN"},{27,"BARETTA"},{28,"MICRO_UZI"},
-            {29,"MP5"},{30,"AK47"},{31,"M4"},{32,"MICRO_UZI"},{33,"M40a1"},{34,"SNIPERRIFLE"},{38,"MINIGUN"}};
-        for(const auto&[id,name]:table)if(const float f=force(name);f>0)out[id]=f;
-        event("weapon_table",-1,-1,"weapons="+std::to_string(out.size()));
-        return out;
-    }();
-    const auto found=forces.find(weapon);return found==forces.end()?0.f:found->second;
-}
-static float bulletMomentum(int weapon,float amount){
-    constexpr float pistolPush=6.25f,pistolForce=50.f;
-    const float force=ivWeaponForce(weapon);
-    return force>0?std::min(force*pistolPush/pistolForce,35.f):std::clamp(amount*.25f,3.f,35.f);
 }

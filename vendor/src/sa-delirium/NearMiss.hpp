@@ -11,27 +11,14 @@ struct Line {V from,to;};
 inline std::vector<Line> lines;
 inline void(__cdecl* originalGunShot)(const V*,const V*)=nullptr;
 inline void __cdecl gunShot(const V* from,const V* to){
-    if(from&&to&&lines.size()<32)lines.push_back({*from,*to});
+    if(from&&to){
+        firearm::observeShotLine(*from,*to,reinterpret_cast<uintptr_t>(_ReturnAddress()));
+        if(lines.size()<32)lines.push_back({*from,*to});
+    }
     originalGunShot(from,to);
 }
 constexpr float whizz=1.5f,hitItself=.2f,clearOfShooter=.5f;
 constexpr unsigned burstMs=500;
-}
-// Every pellet after the first in one discharge: its push lands on the part it hit, on top of the
-// single shot reaction. IV pushes the whole shotgun blast as one impulse, so each share stays small.
-struct PelletHit {int part=0;V impulse{};unsigned at=0;};
-static std::map<int,std::vector<PelletHit>> pelletHits;
-static void applyPelletHits(const std::vector<Active*>& live,unsigned now){
-    for(auto*a:live){
-        const auto found=pelletHits.find(a->ref);if(found==pelletHits.end()||!a->agent)continue;
-        for(const auto&hit:found->second){
-            if(hit.part<0||size_t(hit.part)>=a->current.size())continue;
-            const V point=a->current[hit.part].p;ok(nm_agent_apply_impulse(a->agent,hit.part,&point.x,&hit.impulse.x));
-        }
-        event("shotgun_pellets_applied",a->ref,a->model,"pellets="+std::to_string(found->second.size()));
-        pelletHits.erase(found);
-    }
-    std::erase_if(pelletHits,[&](const auto&row){return row.second.empty()||now-row.second.back().at>300;});
 }
 static void reactToNearMisses(const std::vector<Active*>& live,unsigned now){
     const auto lines=std::move(nearmiss::lines);nearmiss::lines.clear();

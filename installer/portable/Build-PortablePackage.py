@@ -80,6 +80,31 @@ def patch_names(recipes):
     return names
 
 
+# Each audited input has a delta to the executable used by the existing profile.
+VERIFIED_CLASSIC_EXECUTABLES = {
+    '611db14a6d0eb35911f7671c6c97ad3fbc8ff720ec7c4fad956ce86547baa10c':
+        'PC 1.0 US · SA DirectX Optimiser',
+}
+
+
+def classic_executable_delta(recipes, source, target):
+    if not source.is_file() or source.is_symlink():
+        raise ValueError('Use --classic-executable with an audited local executable')
+    digest = sha(source)
+    if digest not in VERIFIED_CLASSIC_EXECUTABLES:
+        raise ValueError(f'Classic executable has no verified compatibility recipe: {digest}')
+    recipe = next(f for f in recipes if f['path'] == 'gta_sa.exe' and f['kind'] == 'steam_delta')
+    if sha(target) != recipe['sha256'] or target.stat().st_size != recipe['bytes']:
+        raise ValueError('The target differs from the verified profile executable')
+    alternatives = recipe.setdefault('alternatives', [])
+    if digest == recipe['source_sha256'] or any(a['source_sha256'] == digest for a in alternatives):
+        raise ValueError('Executable variant is already covered by the package')
+    patch = hashlib.sha256(('classic-executable|' + digest).encode()).hexdigest()[:24] + '.pa30'
+    alternatives.append(dict(name=VERIFIED_CLASSIC_EXECUTABLES[digest], source='gta_sa.exe',
+                             source_sha256=digest, source_bytes=source.stat().st_size, patch=patch))
+    return patch, source, target
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--project', type=Path, required=True)
@@ -97,6 +122,8 @@ def main():
     ap.add_argument('--steam-edition',action='append',default=[],metavar='NAME=PATH',
                     help='Accept another owned Steam gta-sa.exe build (for example German R2 or a future Steam update). '
                          'Only its executable delta is added; every other Steam file must still match the stock reference.')
+    ap.add_argument('--classic-executable', type=Path, action='append', default=[],
+                    help='Add a delta from an already audited local PC executable, selected by its SHA-256.')
     args = ap.parse_args()
     project = args.project.resolve()
     repo = Path(__file__).resolve().parents[2]
@@ -340,6 +367,8 @@ def main():
         assert classic.is_dir() and not classic.is_symlink(), 'Use --classic-source with the PC 1.0 US file folder'
         added = classic_alternatives(recipes, classic, project/'game', patches)
         assert added, 'No PC 1.0 US alternative was found in --classic-source'
+    for executable in args.classic_executable:
+        patches.append(classic_executable_delta(recipes, executable.absolute(), project/'game/gta_sa.exe'))
     add_payload('scripts/sa_delirium_bootstrap.dll', sdk/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime; bundled third-party Rust notices required')
     add_payload('scripts/sa_delirium_bootstrap_avx2.dll', sdk_avx2/'sa_delirium_bootstrap.dll', ['delirium'], 'Own clean ISO/SDK runtime, same source for AVX2 CPUs; bundled third-party Rust notices required')
     add_payload('Documentation/Original/FxsFuncs-1.1/Leiame.txt',fxs_readme,[],'Original FxsFuncs supplied readme and compilation permission')

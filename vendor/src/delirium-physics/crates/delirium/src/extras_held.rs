@@ -1556,7 +1556,7 @@ impl CrushReaction {
 impl Extra for CrushReaction {
     fn tick(&mut self, c: &mut Ctx, _dt: f32) {
         let head = pos(c, (*NECK())[1] + 1);
-        if let Some(o) = self.ob {
+        if let Some(ref o) = self.ob {
             let local = o.rot.inverse() * (pos(c, CHEST()) - o.centre);
             self.obstacle = o.centre + o.rot * local.clamp(-o.half, o.half);
         }
@@ -1606,7 +1606,7 @@ impl Extra for CrushReaction {
     }
 
     fn objects(&mut self, obs: &[crate::ragdoll::Obstacle]) {
-        self.ob = crate::ragdoll::Obstacle::find(obs, self.id).copied();
+        self.ob = crate::ragdoll::Obstacle::find(obs, self.id).cloned();
     }
 }
 

@@ -8,7 +8,7 @@ using SASetup;
 namespace SAPortable {
     // What matters is the game, not the store: a folder is accepted when its
     // executable is one of the verified originals of the manifest, and later
-    // every other file is matched one by one (Composer.ChooseOriginal).
+    // every other file is matched one by one (Composer.ScanOriginals).
     // This table only gives the user a name for what was found.
     public sealed class EditionReport {
         public string folder, edition, kind, executable, md5, sha256, message;
@@ -17,6 +17,9 @@ namespace SAPortable {
         public string mode;
         public long bytes;
         public bool accepted;
+        public string compatibility;
+        internal RecipeSource Recipe;
+        internal bool NormalizeLargeAddressAware;
     }
     public static class Editions {
         sealed class Known { public string Name, Kind; public Known(string name, string kind) { Name = name; Kind = kind; } }
@@ -65,10 +68,37 @@ namespace SAPortable {
             all.Remove(manifest.profile.stock_steam_executable_sha256);
             manifest.profile.accepted_steam_executable_sha256 = all.Count == 0 ? null : all.OrderBy(h => h, StringComparer.Ordinal).ToArray();
         }
-        static RecipeSource SourceFor(Manifest manifest, string name, string sha256) {
-            var recipe = ExecutableRecipe(manifest);
-            if (recipe == null) return null;
-            return Originals.Candidates(recipe).FirstOrDefault(c => c.source.Equals(name, StringComparison.OrdinalIgnoreCase) && c.source_sha256 == sha256);
+        static RecipeSource SourceFor(List<RecipeSource> recipes, string name, string sha256, long bytes) {
+            return recipes.Where(c => c.source_sha256 == sha256 && c.source_bytes == bytes)
+                .OrderByDescending(c => c.source.Equals(name, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        }
+        // COFF IMAGE_FILE_LARGE_ADDRESS_AWARE (0x0020) is the only byte change
+        // permitted. The entire reconstructed executable must match a pinned
+        // input before it can be used by a delta or copied to the mod profile.
+        static bool ToggleLargeAddressAware(byte[] image) {
+            if (image.Length < 64 || image[0] != 'M' || image[1] != 'Z') return false;
+            int pe = BitConverter.ToInt32(image, 0x3c);
+            if (pe < 64 || pe > image.Length - 26 || BitConverter.ToUInt32(image, pe) != 0x4550 ||
+                BitConverter.ToUInt16(image, pe + 4) != 0x014c || BitConverter.ToUInt16(image, pe + 24) != 0x010b)
+                return false;
+            image[pe + 22] ^= 0x20;
+            return true;
+        }
+        internal static string ExecutableInput(EditionReport edition, string prepared) {
+            var path = Paths.Inside(edition.folder, edition.executable);
+            if (!edition.NormalizeLargeAddressAware) return path;
+            using (var input = File.OpenRead(path)) {
+                if (input.Length != edition.Recipe.source_bytes) throw new IOException("El ejecutable cambió durante la preparación.");
+                byte[] image;
+                using (var reader = new BinaryReader(input)) image = reader.ReadBytes(checked((int)input.Length));
+                if (Engine.Hash(image) != edition.sha256 || !ToggleLargeAddressAware(image) ||
+                    Engine.Hash(image) != edition.Recipe.source_sha256)
+                    throw new IOException("El ejecutable cambió durante la preparación.");
+                var normalized = Paths.Inside(prepared, ".setup-executable-" + Guid.NewGuid().ToString("N") + ".tmp");
+                using (var output = new FileStream(normalized, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    output.Write(image, 0, image.Length);
+                return normalized;
+            }
         }
         static bool SteamLibrary(string folder) {
             try { return Discovery.SteamGames().Contains(folder, StringComparer.OrdinalIgnoreCase); }
@@ -79,8 +109,19 @@ namespace SAPortable {
         }
         public static EditionReport Identify(string folder, Manifest manifest, string launcherSha256, Func<string, bool> steamLibrary) {
             var report = new EditionReport { folder = folder, edition = "desconocida", kind = "unknown" };
+            string selected = null;
+            if (!String.IsNullOrWhiteSpace(folder) && !Directory.Exists(folder) &&
+                Path.GetExtension(folder).Equals(".exe", StringComparison.OrdinalIgnoreCase)) {
+                if (!File.Exists(folder)) {
+                    report.kind = "missing";
+                    report.message = "Ese ejecutable no existe o no se puede abrir. Pulsa Elegir y selecciona el EXE con el que abres GTA San Andreas clásico.";
+                    return report;
+                }
+                selected = Path.GetFileName(folder);
+                folder = Path.GetDirectoryName(Path.GetFullPath(folder));
+            }
             if (String.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) {
-                report.kind = "missing"; report.message = "La carpeta seleccionada no existe."; return report;
+                report.kind = "missing"; report.message = "Elige una carpeta del juego o un ejecutable que exista."; return report;
             }
             folder = Paths.Full(folder); report.folder = folder;
             if (File.Exists(Path.Combine(folder, "Gameface", "Binaries", "Win64", "SanAndreas.exe"))) {
@@ -93,16 +134,19 @@ namespace SAPortable {
                 report.message = "SA Delirium ya está instalado en esta carpeta, o una instalación anterior quedó a medias. Usa Restaurar antes de volver a instalar.";
                 return report;
             }
-            var names = new[] { "gta-sa.exe", "gta_sa.exe" }.Where(n => File.Exists(Path.Combine(folder, n))).ToArray();
+            var names = selected != null ? new[] { selected } :
+                new[] { "gta-sa.exe", "gta_sa.exe" }.Where(n => File.Exists(Path.Combine(folder, n))).ToArray();
             if (names.Length == 0) {
                 report.kind = "missing";
-                report.message = "No hay gta-sa.exe ni gta_sa.exe en esta carpeta. Elige la carpeta donde está instalado San Andreas.";
+                report.message = "No hay gta-sa.exe ni gta_sa.exe en esta carpeta. Pulsa Elegir y selecciona el EXE en la carpeta principal del juego, donde están data y models. Si el EXE tiene otro nombre, selecciónalo directamente.";
                 return report;
             }
-            // A folder may hold both names; the accepted one wins, Steam first.
-            RecipeSource source = null;
+            // Try all exact hashes before considering a reversible PE-header variant.
+            var recipe = ExecutableRecipe(manifest);
+            var recipes = recipe == null ? new List<RecipeSource>() : Originals.Candidates(recipe);
+            var candidates = new List<EditionReport>();
             foreach (var name in names) {
-                var path = Path.Combine(folder, name); Paths.NoLinks(path);
+                var path = Paths.Inside(folder, name);
                 var sha = Engine.Hash(path);
                 if (!String.IsNullOrEmpty(launcherSha256) && sha == launcherSha256) {
                     report.executable = name; report.sha256 = sha; report.bytes = new FileInfo(path).Length;
@@ -110,19 +154,38 @@ namespace SAPortable {
                     report.message = name + " ya es el lanzador de SA Delirium. Usa Restaurar antes de volver a instalar.";
                     return report;
                 }
-                var candidate = SourceFor(manifest, name, sha);
-                bool steamTarget = name == "gta-sa.exe" && AcceptedExecutables(manifest).Contains(sha);
-                if (report.executable == null || candidate != null || steamTarget) {
-                    report.executable = name; report.sha256 = sha; report.bytes = new FileInfo(path).Length; report.md5 = Md5(path);
-                    report.accepted = candidate != null || steamTarget; source = candidate;
-                    if (report.accepted) break;
+                var bytes = new FileInfo(path).Length;
+                var candidate = new EditionReport { folder = folder, edition = report.edition, kind = report.kind,
+                    executable = name, sha256 = sha, bytes = bytes, Recipe = SourceFor(recipes, name, sha, bytes) };
+                candidates.Add(candidate);
+                if (candidate.Recipe != null) break;
+            }
+            report = candidates.FirstOrDefault(c => c.Recipe != null);
+            if (report == null) {
+                foreach (var candidate in candidates.Where(c => recipes.Any(r => r.source_bytes == c.bytes))) {
+                    // The candidate size is pinned by the manifest before reading it.
+                    var image = File.ReadAllBytes(Paths.Inside(folder, candidate.executable));
+                    if (Engine.Hash(image) != candidate.sha256 || !ToggleLargeAddressAware(image)) continue;
+                    candidate.Recipe = SourceFor(recipes, candidate.executable, Engine.Hash(image), image.LongLength);
+                    if (candidate.Recipe == null) continue;
+                    candidate.NormalizeLargeAddressAware = true;
+                    report = candidate;
+                    break;
                 }
             }
+            report = report ?? candidates[0];
+            report.md5 = Md5(Paths.Inside(folder, report.executable));
+            var source = report.Recipe;
+            report.accepted = source != null;
             Known known;
             if (ByMd5.TryGetValue(report.md5, out known)) { report.edition = known.Name; report.kind = known.Kind; }
             if (source != null && !String.IsNullOrEmpty(source.name)) report.edition = source.name;
             if (report.accepted) {
-                bool steam = report.executable == "gta-sa.exe" && AcceptedExecutables(manifest).Contains(report.sha256) && steamLibrary(folder);
+                if (report.kind == "unknown" && String.IsNullOrEmpty(source.name)) report.edition = "GTA San Andreas clásico · ejecutable verificado";
+                report.compatibility = report.NormalizeLargeAddressAware ? "large-address-aware" :
+                    source.source.Equals(report.executable, StringComparison.OrdinalIgnoreCase) ? "exact" : "renamed";
+                bool steam = !report.NormalizeLargeAddressAware && report.executable.Equals("gta-sa.exe", StringComparison.OrdinalIgnoreCase) &&
+                    AcceptedExecutables(manifest).Contains(report.sha256) && steamLibrary(folder);
                 report.mode = steam ? "steam" : "standalone";
                 report.message = steam
                     ? "Detectado: " + report.edition + " en Steam. Compatible: Jugar en Steam abrirá el mod."
@@ -144,7 +207,7 @@ namespace SAPortable {
                     report.message = "Detectado: GTA SA " + report.edition + ". Esta versión cambia el ejecutable y parte de los datos, y no está admitida. Funciona con PC 1.0 US o con la copia de Steam.";
                     break;
                 default:
-                    report.message = "Ejecutable no reconocido (" + report.executable + ", " + report.bytes + " bytes, SHA-256 " + report.sha256 + "). Puede ser una actualización de Steam, la versión del Rockstar Games Launcher o una copia modificada. No se ha tocado nada. Comunica este código para añadir soporte.";
+                    report.message = "El asistente no ha podido verificar el EXE seleccionado. Pulsa Elegir y selecciona el EXE con el que abres GTA San Andreas clásico. Si ya es ese, copia el diagnóstico para compartir su SHA-256.";
                     break;
             }
             return report;

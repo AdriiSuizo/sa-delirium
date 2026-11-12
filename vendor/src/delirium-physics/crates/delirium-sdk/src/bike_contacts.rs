@@ -18,7 +18,7 @@ pub unsafe extern "C" fn nm_agent_vehicle_overlap(a:*const NmAgent,shape:i32,fra
     if (q.length_squared()-1.).abs()>0.01{return fail(NM_E_ARG,"invalid vehicle overlap rotation")}
     let rot=Mat3::from_quat(q);
     let cache=VEHICLE_SHAPES.lock().unwrap_or_else(|e|e.into_inner());
-    let Some((_,primitives))=cache.get(shape as usize) else{return fail(NM_E_ARG,"unknown overlap vehicle shape")};
+    let Some(primitives)=cache.get(shape) else{return fail(NM_E_ARG,"unknown overlap vehicle shape")};
     let margin=delirium_data::kv!(48);
     let mut overlaps=0;
     for (k,(p,t)) in a.build.parts.iter().zip(a.agent.doll.capsules()).enumerate(){

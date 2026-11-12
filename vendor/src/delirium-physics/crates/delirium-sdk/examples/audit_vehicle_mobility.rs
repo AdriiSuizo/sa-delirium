@@ -19,8 +19,8 @@ fn substep_feedback(source:&Build,dt:f32)->Value{
     let steps=(dt*delirium_data::kv!(80)*delirium::ragdoll::SUBSTEPS as f32).round().clamp(1.,delirium_data::kv!(61)) as usize;
     let half=Vec3::new(0.8,1.8,0.65);let at=Vec3::Z*15.;let b=build(source,80.,None);
     let mut d=Ragdoll::new(&b,&[Transform::from_translation(at+Vec3::X*0.98)],Vec3::ZERO);
-    let parts=Box::leak(vec![ObPart{shape:delirium::gjk::Shape::Box(half,0.),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:-half,hi:half,mesh:None,filter:Default::default()}].into_boxed_slice());
-    let ob=[Obstacle{id:47,at,centre:at,com:at,half,vel:Vec3::X*4.5,parts,..Default::default()}];
+    let parts=vec![ObPart{shape:delirium::gjk::Shape::Box(half,0.),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:-half,hi:half,mesh:None,filter:Default::default()}];
+    let ob=[Obstacle{id:47,at,centre:at,com:at,half,vel:Vec3::X*4.5,parts:parts.into(),..Default::default()}];
     let drive=Drive{lift:1.,..Default::default()};let world=Collision::default();let mut sum=Vec3::ZERO;let mut records=vec![];
     // This reproduces Agent::step_group's repeated Ragdoll calls without
     // draining, and keeps its immutable obstacle snapshot across substeps.
@@ -38,8 +38,8 @@ fn run(source:&Build,car_mass:f32,ped_mass:f32,count:usize,eccentric:bool,finite
     let car_build=build(source,car_mass,Some(half));let ped_build=build(source,ped_mass,None);
     let positions:Vec<_>=(0..count).map(|i|car_at+Vec3::new(half.x+0.18,if count==1{if eccentric{0.9}else{0.}}else{(i as f32-(count-1) as f32/2.)*0.5},if eccentric{0.4}else{0.})).collect();
     let mut dolls:Vec<_>=positions.iter().map(|&p|Ragdoll::new(&ped_build,&[Transform::from_translation(p)],Vec3::ZERO)).collect();
-    let geometry=Box::leak(vec![ObPart{shape:delirium::gjk::Shape::Box(half,0.),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:-half,hi:half,mesh:None,filter:Default::default()}].into_boxed_slice());
-    let obstacle=Obstacle{id:47,at:car_at,centre:car_at,com:car_at,half,vel:speed,parts:geometry,..Default::default()};
+    let geometry=vec![ObPart{shape:delirium::gjk::Shape::Box(half,0.),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:-half,hi:half,mesh:None,filter:Default::default()}];
+    let obstacle=Obstacle{id:47,at:car_at,centre:car_at,com:car_at,half,vel:speed,parts:geometry.into(),..Default::default()};
     let obstacles=[obstacle];let world=Collision::default();let drive=Drive{lift:1.,..Default::default()};let mut group=Group::default();
     let (mut car_v,mut car_w)=(speed,Vec3::ZERO);
     let mut impulse=Vec3::ZERO;let mut torque=Vec3::ZERO;let contacts;

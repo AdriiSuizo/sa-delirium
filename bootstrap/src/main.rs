@@ -12,6 +12,28 @@ fn main() {
         report(result.map(|()| "ISO de GTA IV para Xbox 360 comprobada"));
         return;
     }
+    if root.as_deref() == Some(std::path::Path::new("--import-melee")) {
+        let result = match (args.next(), args.next(), args.next(), args.next()) {
+            (Some(game), Some(iso), Some(decoder), None) =>
+                sa_delirium_bootstrap::import_melee_audio(
+                    PathBuf::from(game).as_path(), PathBuf::from(iso).as_path(), PathBuf::from(decoder).as_path(),
+                ),
+            _ => Err("Uso: sa-delirium-bootstrap --import-melee <carpeta> <ISO> <vgmstream-cli>".to_string()),
+        };
+        report(result.map(|()| "Sonidos de combate preparados"));
+        return;
+    }
+    if root.as_deref() == Some(std::path::Path::new("--prepare-addon")) {
+        let result = match (args.next(), args.next(), args.next(), args.next()) {
+            (Some(stage), Some(game), Some(iso), None) =>
+                sa_delirium_bootstrap::prepare_addon(
+                    PathBuf::from(stage).as_path(), PathBuf::from(game).as_path(), PathBuf::from(iso).as_path(),
+                ),
+            _ => Err("Uso: sa-delirium-bootstrap --prepare-addon <carpeta temporal> <GTA SA> <ISO>".to_string()),
+        };
+        report(result);
+        return;
+    }
     let iso = match (args.next(), args.next(), args.next()) {
         (None, None, None) => None,
         (Some(flag), Some(path), None) if flag == "--iso" => Some(PathBuf::from(path)),

@@ -125,7 +125,12 @@ fn brace_wrist(c: &mut Ctx, l: Limb, n: Vec3, side: f32) {
     let pp = b2.mul_add(Vec3::splat(-co), pa.mul_add(Vec3::splat(s), Vec3::ZERO));
     let phi = (npc as f64).atan2(sdot(n, pp, b"zyx") as f64) as f32;
     w.desired = [-(phi * s), phi * co, tw];
-    c.ch.eff[l.e[delirium_data::kv!(0 int)]].desired = w.desired;
+    let wrist=l.e[delirium_data::kv!(0 int)];
+    if c.b.doll.road_watch>=0 {
+        let limits=c.ch.limits(wrist);
+        for axis in 0..3 { w.desired[axis]=w.desired[axis].clamp(limits[axis*2],limits[axis*2+1]); }
+    }
+    c.ch.eff[wrist].desired = w.desired;
 }
 
 fn world(obstacles: &[Obstacle], pos: Vec3, inst: i32) -> Vec3 {
@@ -292,6 +297,10 @@ impl Brace {
         let now = world(obstacles, p.pos, p.instance_index);
         use crate::nmdbm::{sdot, slen};
         self.tvel = (now - self.target) * (1.0 / dt);
+        let road=if c.b.doll.road_watch>=0 && c.b.doll.road_watch==p.instance_index {
+            Obstacle::find(obstacles,p.instance_index)
+        } else { None };
+        if let Some(vehicle)=road { self.tvel=vehicle.vel_at(now); }
         let len = slen(self.tvel, b"yxz");
         if len > delirium_data::kv!(27) {
             self.tvel *= delirium_data::kv!(27) / len;
@@ -360,7 +369,7 @@ impl Brace {
                     self.legs = p.leg_stiffness;
                 }
             }
-            self.braced_tick(c, k, dt);
+            self.braced_tick(c, k, road, dt);
         } else {
             (self.delay, self.pick) = (0.0, true);
             self.draw_sides(c.ch);
@@ -437,7 +446,7 @@ impl Brace {
         self.lean /= dt.fma(delirium_data::kv!(235), 1.0);
     }
 
-    fn braced_tick(&mut self, c: &mut Ctx, k: &mut Kids, dt: f32) {
+    fn braced_tick(&mut self, c: &mut Ctx, k: &mut Kids, road: Option<&Obstacle>, dt: f32) {
         let up = c.up;
         k.twist.pos = self.target;
         k.twist.vel = self.tvel;
@@ -453,10 +462,10 @@ impl Brace {
         } else {
             k.twist.deactivate();
         }
-        self.reach_arms(c, k.twist.twisting, dt);
+        self.reach_arms(c, k.twist.twisting, road, dt);
     }
 
-    fn reach_arms(&mut self, c: &mut Ctx, twisting: bool, dt: f32) {
+    fn reach_arms(&mut self, c: &mut Ctx, twisting: bool, road: Option<&Obstacle>, dt: f32) {
         let up = c.up;
         let s2 = c.b.part(SPINE2());
         let r = self.target + self.short - s2.m.d;
@@ -487,7 +496,19 @@ impl Brace {
             let at = c.b.joint_pos(l.e[1]);
             let d = base + side * off - at;
             let pad = if touching(c, l.p[delirium_data::kv!(0 int)]) { 0.0 } else { delirium_data::kv!(64) };
-            let t = at + crate::rigid::nrm(d) * (crate::nmdbm::slen(d, b"yxz") + pad).min(most);
+            let mut t = at + crate::rigid::nrm(d) * (crate::nmdbm::slen(d, b"yxz") + pad).min(most);
+            let hand=c.b.part(l.p[0]);
+            if let (Some(vehicle),Some((point,normal,id)))=(road,contact(c,i)) {
+                if id==vehicle.id && normal.length_squared()>0.5 {
+                    let hand_velocity=hand.v+hand.w.cross(point-hand.m.d);
+                    let closing=(vehicle.vel_at(point)-hand_velocity).dot(normal);
+                    // Let a loaded arm give along the real normal. The
+                    // contact solver remains the sole source of external force.
+                    let cushion=(closing*dt).clamp(0.0,0.06);
+                    let d=point+normal*cushion-at;
+                    t=t.lerp(at+d.clamp_length_max(most),0.5);
+                }
+            }
             self.reach[i] = t;
             let vel = c.b.part(l.p[0]).v;
             let hand_side = if i == 0 { 1.0 } else { -1.0 };
@@ -497,8 +518,8 @@ impl Brace {
             let hand = c.b.part(l.p[delirium_data::kv!(0 int)]).m.d;
             if !touching(c, l.p[delirium_data::kv!(0 int)]) && !touching(c, l.p[2]) {
                 if crate::nmdbm::slen(hand - self.target, b"yzx") < 0.5 {
-                    self.normal[0] = crate::rigid::nrm(hand - self.target);
-                    brace_wrist(c, l, self.normal[0], hand_side);
+                    self.normal[i] = crate::rigid::nrm(hand - self.target);
+                    brace_wrist(c, l, self.normal[i], hand_side);
                 }
             } else if let Some((pt, n, inst)) = contact(c, i) {
                 self.normal[i] = n;

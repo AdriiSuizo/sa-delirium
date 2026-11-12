@@ -12,7 +12,7 @@ pub fn locked_input(stick:Vec2,front:Vec2,heading:f32)->Vec2{
     let wish=wish.clamp_length_max(1.);
     Vec2::new(wish.dot(Vec2::new(heading.cos(),heading.sin())),wish.dot(Vec2::new(-heading.sin(),heading.cos())))*2.
 }
-pub fn step(bank:&Bank,rig:&Rig,ratios:Vec2,phase:f32,dt:f32)->Result<Frame,String>{
+pub fn step(bank:&Bank,rig:&Rig,ratios:Vec2,phase:f32,dt:f32,forward_gain:f32)->Result<Frame,String>{
     let rows=if ratios==Vec2::ZERO{vec![(0x0f,1.,1.)]}else{strafe::strafe_clips(ratios.x,ratios.y,3.,false,false,1.)};
     let mut clips=vec![];
     for(id,weight,rate)in rows{
@@ -22,10 +22,12 @@ pub fn step(bank:&Bank,rig:&Rig,ratios:Vec2,phase:f32,dt:f32)->Result<Frame,Stri
         clips.push((key,a,weight,rate));
     }
     let mut clocks:Vec<_>=clips.iter().map(|(_,a,w,_)|animblend::Player{phase,weight:*w,active:true,loops:true,synced:true,playing:true,..animblend::Player::new(a.duration)}).collect();
-    animblend::sync_phases(&mut clocks,dt);let phase=clocks[0].phase;
+    let longitudinal=ratios.y.abs()/(ratios.x.abs()+ratios.y.abs()).max(0.01);
+    animblend::sync_phases(&mut clocks,dt*(1.0+(forward_gain-1.0)*longitudinal));let phase=clocks[0].phase;
     let samples:Vec<_>=clips.iter().map(|(key,_,w,_)|(key.as_str(),phase,*w)).collect();
     let pose=bank.retarget_mix(rig,&samples).ok_or("stance blend unavailable")?;
-    let velocity=clips.iter().map(|(_,a,w,rate)|(mover(a,1.)-mover(a,0.)).truncate()*(*w**rate/a.duration)).sum();
+    let mut velocity:Vec2=clips.iter().map(|(_,a,w,rate)|(mover(a,1.)-mover(a,0.)).truncate()*(*w**rate/a.duration)).sum();
+    velocity.y*=forward_gain;
     let key=clips.iter().max_by(|a,b|a.2.total_cmp(&b.2)).unwrap().0.clone();
     let flags=movement_flags(&key).ok_or("stance flags unavailable")?;
     Ok(Frame{pose,velocity,key,phase,flags})
@@ -48,15 +50,22 @@ pub fn step(bank:&Bank,rig:&Rig,ratios:Vec2,phase:f32,dt:f32)->Result<Frame,Stri
         assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap())));
         let bank=Bank::load(std::path::Path::new(&std::env::var("NM_TEST_COMBAT").unwrap())).unwrap();
         let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
-        let a=step(&bank,&rig,Vec2::new(0.699,0.701),0.35,1./120.).unwrap();
-        let b=step(&bank,&rig,Vec2::new(0.701,0.699),0.35,1./120.).unwrap();
+        let a=step(&bank,&rig,Vec2::new(0.699,0.701),0.35,1./120.,1.).unwrap();
+        let b=step(&bank,&rig,Vec2::new(0.701,0.699),0.35,1./120.,1.).unwrap();
         assert!(a.velocity.x>0.&&a.velocity.y>0.);
         assert!(a.velocity.distance(b.velocity)<0.02);
         for(p,q)in a.pose.iter().zip(b.pose){assert!(p.p.distance(q.p)<0.01);assert!(p.q.dot(q.q).abs()>0.999);}
-        let walk=step(&bank,&rig,Vec2::Y,0.35,1./120.).unwrap();
-        let run=step(&bank,&rig,Vec2::Y*2.,0.35,1./120.).unwrap();
+        let walk=step(&bank,&rig,Vec2::Y,0.35,1./120.,1.).unwrap();
+        let run=step(&bank,&rig,Vec2::Y*2.,0.35,1./120.,1.).unwrap();
         assert!(run.velocity.y>walk.velocity.y);assert!(run.key.ends_with("/run"));
         // The original idle mover has sub-micrometre quantization drift.
-        assert!(step(&bank,&rig,Vec2::ZERO,0.,1./120.).unwrap().velocity.length()<1e-5);
+        assert!(step(&bank,&rig,Vec2::ZERO,0.,1./120.,1.).unwrap().velocity.length()<1e-5);
+        for direction in [Vec2::Y,-Vec2::Y]{
+            let normal=step(&bank,&rig,direction,0.35,1./120.,1.).unwrap();
+            let quick=step(&bank,&rig,direction,0.35,1./120.,1.25).unwrap();
+            assert!((quick.velocity.y-normal.velocity.y*1.25).abs()<1e-5);
+            assert!((quick.velocity.x-normal.velocity.x).abs()<1e-5);
+            assert!(quick.phase>normal.phase);
+        }
     }
 }

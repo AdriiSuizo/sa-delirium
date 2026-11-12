@@ -23,9 +23,19 @@ impl PedBump {
         if self.health<=0.{return} // corpse lifetime belongs to native death
         if let Some(roll)=&mut self.roll{roll.control(a,b,w,&mut RAND.lock().unwrap_or_else(|e|e.into_inner()),dt);}
         if std::mem::take(&mut self.touched)&&task==nm::Task::Balance{self.elapsed=f32::MIN_POSITIVE;}
-        let failed=a.feedback.iter().any(|f|f.slot==8&&nm::task_fails(task,f.name));
-        if failed&&!self.failed{nm::task_failed(a,w,task);}
-        self.failed|=failed;
+        let failure=a.feedback.iter().find(|f|f.slot==8&&nm::task_fails(task,f.name)).map(|f|f.name);
+        if let Some(name)=failure.filter(|_|!self.failed) {
+            nm::task_failed(a,w,task);
+            if task==nm::Task::Flinch {
+                // Original NMFlinch failure callback releases its upper-body
+                // guard. Let the actual fall/terrain drive the arms.
+                let messages=delirium::meleetask::flinch_fails(&mut self.failed,name);
+                let mut state=std::mem::take(&mut a.msgs);
+                delirium::shottask::apply(a,b,w,&mut state,&messages);
+                a.msgs=state;
+            }
+            self.failed=true;
+        }
         let times=self.times.unwrap_or_else(||task.times());
         let next=if nm::task_ends(task,&a.feedback,self.elapsed>self.times.map_or_else(||task.min_time(),|t|t[0]),nm::balance_bar(self.player,self.agility,self.health),false){Some(nm::Next::Blend)}
             else{nm::task_finish_as(task,self.elapsed,times,a.doll.com().1.length(),a.doll.root().z,self.failed,0,self.health,self.player)};

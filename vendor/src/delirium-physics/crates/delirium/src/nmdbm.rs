@@ -120,6 +120,7 @@ pub struct Snap {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Params {
+    pub host_support: bool,
     pub up: Vec3,
     pub gup: Vec3,
     pub target: [Vec3; 2],
@@ -769,7 +770,12 @@ pub fn balance_solve(p: &Params, f: &Feet, pv: &Pelvis, s: &mut Snap) {
         let mut c = LegIk { target: target[i], lead: 0.0, yaw: pv.yaw[i], side: if i == 0 { 1.0 } else { -1.0 }, bend: -1.0,
                             w: 1.0, reach: 0.0, lift: 0.0, swing: !planted, free: false };
         if !planted {
-            let ahead = target[i] - (lfoot_v - p.gvel[0]).mul_add(Vec3::splat(delirium_data::kv!(64)), leg.foot.m.d);
+            let (foot_velocity, surface_velocity) = if p.host_support {
+                (leg.foot.v, p.gvel[i])
+            } else {
+                (lfoot_v, p.gvel[0])
+            };
+            let ahead = target[i] - (foot_velocity - surface_velocity).mul_add(Vec3::splat(delirium_data::kv!(64)), leg.foot.m.d);
             (c.lead, c.reach, c.lift) = (p.p168, delirium_data::kv!(60), sdot(up, ahead, b"yxz").fma(delirium_data::kv!(104), delirium_data::kv!(73)).clamp(delirium_data::kv!(9), delirium_data::kv!(110)));
         }
         let limb = leg.limb;
@@ -1169,13 +1175,13 @@ impl Dbm {
         }
     }
 
-    fn lean_force(&self, mass: f32) -> Vec3 {
+    fn lean_force(&self, mass: f32, gravity: f32) -> Vec3 {
         if !self.down || !self.as_force {
             return Vec3::ZERO;
         }
         let z = Vec3::Z;
         let u = vnorm(z + shz(self.lean_vec, z, b"yzx"));
-        let g = -z * crate::ragdoll::GRAVITY() * mass;
+        let g = -z * gravity * mass;
         horizontal(g - u * u.vd(g), z)
     }
 
@@ -1220,15 +1226,51 @@ impl Dbm {
         for i in 0..2 {
             let start = sat(self.f.pos[i], up, sdot(up, b.joint_pos((*KNEE())[i]), b"zyx"), b"zyx");
             let old = self.p.target[i];
-            let hit = world.segment(start, start - up);
+            let hit = world.segment(start, start - up)
+                .filter(|&(_, normal)| !self.p.host_support || normal.dot(up)>0.55);
+            let support=b.doll.foot_support[i];
+            let planted=self.f.stepping!=i as u32+1;
+            let physical=self.p.host_support && planted && support.load>0.0 &&
+                horizontal(start-support.point,up).length_squared()<0.14_f32.powi(2) &&
+                support.normal.dot(up)>0.55;
+            let hit=if physical { Some((support.point,support.normal)) } else { hit };
             self.p.contact[i] = hit.is_some();
             (self.p.target[i], self.p.normal[i]) = match hit {
                 Some((at, n)) => (at + up * delirium_data::kv!(122), n),
                 None => (start - up * (self.p.leg_length * self.p.pelvis_height), up),
             };
             let y = crate::estimate::vrefp(self.p.dt);
-            self.p.gvel[i] = (self.p.target[i] - old) * (-y).mul_add(self.p.dt, 1.0).mul_add(y, y);
+            self.p.gvel[i] = if self.p.host_support {
+                if physical { support.velocity } else { Vec3::ZERO }
+            } else {
+                (self.p.target[i] - old) * (-y).mul_add(self.p.dt, 1.0).mul_add(y, y)
+            };
         }
+    }
+
+    fn check_step(&mut self, b: &Body, world: &Collision, s: &Snap, previous: Feet) -> bool {
+        if self.f.stepping==0 { return true; }
+        let i=self.f.stepping as usize-1;
+        let up=self.p.up;
+        let side=s.m.a*if i==0 {-1.0} else {1.0};
+        let stance=self.f.pos[1-i];
+        let knee=b.joint_pos((*KNEE())[i]);
+        let want=self.f.pos[i];
+        // A shorter candidate keeps the existing step and avoids crossing the
+        // loaded foot, stepping into a gap, or reaching down beyond the leg.
+        for at in [want,previous.pos[i].lerp(want,0.5)] {
+            if horizontal(at-stance,up).dot(side)<0.0 { continue; }
+            let start=sat(at,up,up.dot(knee),b"zyx");
+            let reach=self.p.leg_length.max(0.01);
+            if world.segment(start,start-up*reach).is_some_and(|(_,n)| n.dot(up)>0.55) ||
+                b.doll.foot_support.iter().any(|foot| foot.load>0.0 && foot.normal.dot(up)>0.55 &&
+                    horizontal(at-foot.point,up).length_squared()<0.10_f32.powi(2) &&
+                    (0.0..=reach).contains(&up.dot(start-foot.point))) {
+                self.f.pos[i]=at;
+                return true;
+            }
+        }
+        false
     }
 
     pub fn tick(&mut self, b: &Body, world: &Collision, c: Config, dt: f32) -> Option<Snap> {
@@ -1238,6 +1280,15 @@ impl Dbm {
         self.p.step_height = c.step_height;
         self.tilt(b);
         let mut s = b.snap(self.p.up);
+        self.p.host_support=b.doll.support_feet.iter().any(Option::is_some);
+        if self.p.host_support {
+            let feet=&b.doll.foot_support;
+            let total=feet[0].load+feet[1].load;
+            if total>0.0 {
+                let carried=(feet[0].velocity*feet[0].load+feet[1].velocity*feet[1].load)/total;
+                s.hvel-=horizontal(carried,self.p.up);
+            }
+        }
         self.last = (s.m.b, s.angvel);
         if !self.holding(&s, b.foot(0), b.foot(1)) {
             return None;
@@ -1248,14 +1299,16 @@ impl Dbm {
         self.p.leg_length = c.legs.0 + self.leg_offset;
         self.pv.acc = self.acc;
         self.lean_vec = self.lean_vector(s.com);
-        self.push = self.lean_force(b.doll.mass());
+        self.push = self.lean_force(b.doll.mass(), b.doll.gravity());
         self.probe(b, world);
         if let Ok(path) = std::env::var("NM_DBMDUMP") {
             use std::io::Write;
             let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path).unwrap();
             writeln!(f, "{:?}|{:?}|{:?}|{:?}", self.p, s, self.f, self.pv).unwrap();
         }
+        let previous=self.f;
         foot_placement(&self.p, &s, &mut self.f);
+        if self.p.host_support&&!self.check_step(b,world,&s,previous) { return None; }
         pelvis_control(&self.p, &s, &mut self.pv);
         balance_solve(&self.p, &self.f, &self.pv, &mut s);
         self.phase3(&mut s);
@@ -1339,7 +1392,7 @@ pub fn oppose_gravity(b: &Body, attached: Option<(usize, Vec3, f32)>) -> Vec<Vec
     let place = b.doll.rigid.as_ref().map_or(Vec3::ZERO, |r| r.0[0].d + r.1 - b.doll.centre(0));
     let com = b.doll.com().0 + place;
     let feet: Vec<M34> = down.iter().map(|&f| b.part(f).m).collect();
-    let mut g = -up * crate::ragdoll::GRAVITY();
+    let mut g = -up * b.doll.gravity();
     if let (Some(l), Some(r)) = (feet.first(), feet.last()) {
         let sp = support_at(com, l, r, delirium_data::kv!(64), delirium_data::kv!(9), up).1;
         let d = (sp - com).normalize_or_zero();

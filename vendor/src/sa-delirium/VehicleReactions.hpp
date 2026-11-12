@@ -21,10 +21,11 @@ static void startReaction(Active& a,const Request& request){
     a.meleeTaskOriginal=false;
     ok(nm_agent_vehicle_exit_cancel(a.agent));a.exitPhase=-1;a.exitReady=false;
     ok(nm_agent_road_cancel(a.agent,collision->world));
-    a.roadReaction=0;a.roadRelaxLogged=false;
+    a.roadReaction=0;a.roadRelaxLogged=false;a.roadBraceLocal.reset();
     a.stableFor=0;
     const bool feedShot=request.kind==Reaction::Shot&&a.shotRunning;a.shotRunning=false;
     a.kind=request.kind;a.vehicle=request.vehicle;a.preview=request.kind==Reaction::Brace;
+    ok(nm_agent_host_foot_support(a.agent,a.kind==Reaction::Melee||a.kind==Reaction::Bump||a.kind==Reaction::Impact));
     if(request.vehicle>=0&&inVehicle(player())&&vehicleRef(at<void*>(player(),0x58C))==request.vehicle)a.runOverByPlayer=true;
     a.physicalAnimation=request.physicalAnimation;a.animationDriveStatus=-1;
     a.roadDamage=request.roadDamage;a.resumeDeliveredRoadDamage=false;
@@ -56,7 +57,7 @@ static void startReaction(Active& a,const Request& request){
         if(grounded){stopBehaviour(a,"bodyBalance");ok(nm_agent_task_catch_fall(a.agent,"*"));}
         // GTA IV's dispatcher passes the DEFAULT NMBalance set (peds.rs
         // 2955..2961), not NMBalance MELEE, whose arm/neck stiffness is zero.
-        else {a.meleeTaskOriginal=true;ok(nm_agent_melee_task(a.agent,collision->world,&threat.x,at<float>(a.ped,0x540)*2.f,3,
+        else {a.meleeTaskOriginal=true;ok(nm_agent_melee_task(a.agent,collision->world,&threat.x,ivHealth(a.ped),3,
             (request.melee==MeleeResponse::Flinch?1u:0u)|(a.ped==player()?2u:0u)));}
         event(grounded?"melee_ground_reaction":"melee_balance_reaction",a.ref,a.model,grounded?"fallen_body_keeps_inertia":request.melee==MeleeResponse::Balance?"standing_contact_balance":request.melee==MeleeResponse::Shove?"two_hand_push_balance":"full_body_nm_flinch");
     }else if(request.kind==Reaction::Bump){
@@ -65,7 +66,7 @@ static void startReaction(Active& a,const Request& request){
         if(other)if(auto*h=hierarchy(other))for(int n=0;h->nodes&&h->matrices&&n<h->num;n++)if(h->nodes[n].id==saBone::head&&finite(h->matrices[n].pos)){look=h->matrices[n].pos;break;}
         const V own=position(a.ped);const float points[]={peer.x,peer.y,peer.z,look.x,look.y,look.z,own.x,own.y,own.z};
         const unsigned flags=(other==player()?1u:0u)|(a.ped==player()?2u:0u);
-        const int answer=nm_agent_ped_bump(a.agent,collision->world,points,at<float>(a.ped,0x540)*2.f,request.bumpImpulse,request.bumpDt,flags);
+        const int answer=nm_agent_ped_bump(a.agent,collision->world,points,ivHealth(a.ped),request.bumpImpulse,request.bumpDt,flags);
         ok(answer);event("standing_bump_started",a.ref,a.model,"other="+std::to_string(request.attackerRef)+" original_bump_balance="+std::to_string(answer)+" added_impulse=0");
     }else if(request.kind==Reaction::Mounted){
         V threat=hit-request.direction*2.f;
@@ -75,20 +76,21 @@ static void startReaction(Active& a,const Request& request){
         // So does one still falling from the last bullet: a new task restarted the fall at every round of an Uzi (07/11).
         const bool falling=gameTime()-a.lastShotAt<1500&&nm_agent_is_balancing(a.agent)!=1;
         if(falling||nm_agent_has_fallen(a.agent)==1||a.current[10].p.z-a.current[0].p.z<.25f){a.shotRunning=feedShot;a.lastShotAt=gameTime();event("grounded_shot_impulse",a.ref,a.model,"part="+std::to_string(request.part)+" falling="+std::to_string(falling));}
-        // A round on the heels of the last goes on pushing: restarting the hit held the body stiff and upright until the burst ended (07/11).
-        else if(feedShot&&at<float>(a.ped,0x540)>0&&gameTime()-a.lastShotAt<800){
-            V along=request.impulse;along.z=0;along=normalized(along);ok(nm_agent_shot_push(a.agent,&along.x,.4f,.5f));
-            a.shotRunning=true;a.lastShotAt=gameTime();event("shot_burst_push",a.ref,a.model,"weapon="+std::to_string(request.weapon)+" part="+std::to_string(request.part));
+        else if(request.ballistic&&feedShot&&at<float>(a.ped,0x540)>0&&gameTime()-a.lastShotAt<800){
+            // Continue the existing shot/fall instead of stiffening it at each round.
+            a.shotRunning=true;a.lastShotAt=gameTime();
+            event("shot_burst_push",a.ref,a.model,"weapon="+std::to_string(request.weapon)+" part="+std::to_string(request.part)+" localized_force=1");
         }else{
-            // IV's chooser 0x8226B618: a running NMShot takes the next bullet (shot with no start), or every bullet of a burst
-            // would stop all behaviours and start over. Its alive range is 100..200, so SA's 100..0 maps onto it: on SA's own
-            // scale the second bullet read as a wounded ped and took the relax branch, the body folding as in plain SA.
+            // IV's chooser 0x8226B618 takes the same health as the other reaction tasks.
+            // A still-living NPC below 100 takes the injured branch rather than the standing hit.
             const float health=at<float>(a.ped,0x540);const unsigned slot=at<unsigned char>(a.ped,0x718);const int held=slot<13?at<int>(a.ped,0x5A0+slot*0x1C):-1;
             const unsigned flags=(feedShot?1u:0u)|(held>=22&&held<=38?2u:0u)|(held>=25&&held<=27||held>=30&&held!=32?4u:0u)|(length(a.renderVelocity[0])>1.f?8u:0u)|(health<=0?16u:0u);
             V head{};bool look=false;
             if(void*shooter=pedFromRef(request.attackerRef))if(auto*h=hierarchy(shooter))
                 for(int n=0;h->nodes&&h->matrices&&n<h->num;n++)if(h->nodes[n].id==saBone::head&&finite(h->matrices[n].pos)){head=h->matrices[n].pos;look=true;break;}
-            ok(nm_agent_task_shot_hit(a.agent,collision->world,shotSet(request.weapon),request.part,&hit.x,&request.impulse.x,health>0?100.f+std::min(health,100.f):40.f,flags,look?&head.x:nullptr));
+            // The SDK limits the behaviour hint to 200; the separate physical force retains the full weapon value.
+            const V hint=length(request.impulse)>199.f?normalized(request.impulse)*199.f:request.impulse;
+            ok(nm_agent_task_shot_hit(a.agent,collision->world,shotSet(request.weapon),request.part,&hit.x,&hint.x,ivHealth(a.ped),flags,look?&head.x:nullptr));
             a.shotRunning=true;a.lastShotAt=gameTime();
             event(feedShot?"shot_fed":"shot_started",a.ref,a.model,"weapon="+std::to_string(request.weapon)+" set="+shotSet(request.weapon)+" health="+std::to_string(health)+" flags="+std::to_string(flags));
         }
@@ -108,7 +110,7 @@ static void startReaction(Active& a,const Request& request){
             V direction=touched?mul(frame,T{{},hit}).p-root:rotate(frame.q,{0,1,0});direction.z=0;direction=normalized(direction);
             const unsigned slot=at<unsigned char>(a.ped,0x718);const int weapon=slot<13?at<int>(a.ped,0x5A0+slot*0x1C):-1;
             ok(nm_agent_vehicle_entry_start(a.agent,collision->world,v->index,touched?&hit.x:nullptr,touched?&normal.x:nullptr,&direction.x,
-                at<float>(a.ped,0x540)*2.f,3.f,(a.ped==player()?1u:0u)|(weapon>=22&&weapon<=34?2u:0u)));
+                ivHealth(a.ped),3.f,(a.ped==player()?1u:0u)|(weapon>=22&&weapon<=34?2u:0u)));
             if(touched)grabStarts++;
             event("vehicle_entry_task_started",a.ref,a.model,"vehicle_ref="+std::to_string(v->ref)+" probe_hit="+std::to_string(touched)+" original_controller=1 velocity_preserved=1 component="+std::to_string(a.entryComponent));
         }
@@ -117,11 +119,12 @@ static void startReaction(Active& a,const Request& request){
         const unsigned slot=at<unsigned char>(a.ped,0x718);
         const int weapon=slot<13?at<int>(a.ped,0x5A0+slot*0x1C):-1;
         const unsigned flags=(a.ped==player()?1u:0u)|(weapon>=22&&weapon<=34?2u:0u);
-        const int phase=nm_agent_vehicle_exit_start(a.agent,collision->world,&inherited.x,at<float>(a.ped,0x540)*2.f,3.f,flags);
+        const int phase=nm_agent_vehicle_exit_start(a.agent,collision->world,&inherited.x,ivHealth(a.ped),3.f,flags);
         if(phase<0)ok(phase);
         event("vehicle_exit_task_started",a.ref,a.model,"task="+std::string(phase==1?"balance":"jump_roll")+" speed_mps="+std::to_string(length(inherited))+" velocity_seed_only=1 original_task_parameters=1");
     }else if(request.kind==Reaction::Brace){
         ok(nm_agent_road_preview(a.agent,collision->world,at<float>(a.ped,0x540)<55.f?1:0));
+        if(request.contactKnown)a.roadBraceLocal=request.contact;
         a.brace=true;braceStarts++;
         event("vehicle_brace_started",a.ref,a.model,"vehicle_ref="+std::to_string(a.vehicle)+" original_task_parameters=1");
     }else if(request.kind==Reaction::BikeFall&&!a.mounted&&at<float>(a.ped,0x540)>0){
@@ -129,14 +132,18 @@ static void startReaction(Active& a,const Request& request){
         // jump roll from road vehicle with the bike's velocity, never balance,
         // 2..30 s; its finish (Flinch's) hands the body back.
         const V inherited=request.pose?request.pose->velocity*50.f:at<V>(a.ped,0x44)*50.f;
-        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&inherited.x,at<float>(a.ped,0x540)*2.f,a.ped==player()?1u:0u)))
+        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&inherited.x,ivHealth(a.ped),a.ped==player()?1u:0u)))
             event("bike_throw_task_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(inherited))+" original_times=2_30 added_launch=0");
     }else if(request.kind==Reaction::Drunk){
         // romandrink 0x4CD5: SWITCH_PED_TO_RAGDOLL kind 1 (script control, no reaction of its own), then bodyBalance.
         if(ok(nm_agent_drunk_balance(a.agent,collision->world,1)))event("drunk_ragdoll_started",a.ref,a.model,"original_balance=0x4CD5 stick_control=1");
+    }else if(request.kind==Reaction::HighFall){
+        const V velocity=request.velocity*50.f;
+        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,ivHealth(a.ped),3u)))
+            event("player_high_fall_started",a.ref,a.model,"task=iv_high_fall downward_mps="+std::to_string(-velocity.z));
     }else if(request.kind==Reaction::Dive){
         const V velocity=request.velocity*50.f;
-        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,at<float>(a.ped,0x540)*2.f,3u))){
+        if(ok(nm_agent_bike_throw_start(a.agent,collision->world,&velocity.x,ivHealth(a.ped),3u))){
             startDivePitch(a,request.direction);
             event("player_dive_started",a.ref,a.model,"task=jump_roll speed_mps="+std::to_string(length(velocity))+" couple_ns="+std::to_string(diveCoupleNs));
         }
@@ -170,7 +177,7 @@ static void startReaction(Active& a,const Request& request){
             a.meleePushes.clear(); // one original force record, not additive hit timers
         }
         if(length(impulse)>0)a.meleePushes.push_back({request.part,mul(inverse(a.current[request.part]),T{{},hit}).p,impulse*(1.f/seconds),seconds,request.time,{},seconds});
-    }else ok(nm_agent_apply_impulse(a.agent,request.part,&hit.x,&impulse.x));
+    }else if(!request.ballistic)ok(nm_agent_apply_impulse(a.agent,request.part,&hit.x,&impulse.x));
     if(request.kind==Reaction::Melee)event("melee_scheduled_impulse",a.ref,a.model,"hit_ms="+std::to_string(request.time)+" part="+std::to_string(request.part)+" measured="+std::to_string(request.contactKnown)+" impulse="+std::to_string(length(impulse))+" ix="+std::to_string(impulse.x)+" iy="+std::to_string(impulse.y)+" iz="+std::to_string(impulse.z)+" inverse_effective_mass="+std::to_string(inverseMass)+" original_blow="+std::to_string(request.originalMeleeBlow));
     if(length(request.deltaVelocity)>0)for(int i=0;i<21;i++){
         V linear{},angular{};nm_agent_get_part_velocity(a.agent,i,&linear.x,&angular.x);linear=linear+request.deltaVelocity;
@@ -179,7 +186,7 @@ static void startReaction(Active& a,const Request& request){
 }
 static bool updatePedBumpTask(Active&a){
     if(a.kind!=Reaction::Bump&&!(a.kind==Reaction::Melee&&a.meleeTaskOriginal))return true;
-    ok(nm_agent_contact_health(a.agent,at<float>(a.ped,0x540)*2.f));
+    ok(nm_agent_contact_health(a.agent,ivHealth(a.ped)));
     float status[4]{};const int ready=nm_agent_ped_bump_status(a.agent,status);
     if(ready<0){ok(ready);return false;}
     if(ready&&!a.bumpReady){a.bumpReady=true;event(a.kind==Reaction::Melee?"melee_original_task_finished":"standing_bump_task_finished",a.ref,a.model,"original_finish=1 seconds="+std::to_string(status[1])+" failed="+std::to_string(status[3]));}
@@ -199,6 +206,7 @@ static void updateMeleeThreat(Active&a){
     if(a.kind==Reaction::Bump||a.meleeTaskOriginal){
         float status[4]{};if(nm_agent_ped_bump_status(a.agent,status)<0)return;
         phase=int(status[0]);if(phase!=1&&!(a.kind==Reaction::Melee&&phase==3))return;
+        if(phase==3&&status[3]!=0)return; // the flinch released its arms on balance failure
     }
     auto*p=pedFromRef(a.meleeAttacker);if(!p||!matrix(p)||length(position(p)-position(a.ped))>5.f)return;
     auto*h=hierarchy(p);if(!h||!h->nodes||!h->matrices)return;
@@ -229,17 +237,24 @@ static V vehicleLookPoint(const CollisionWorld::Vehicle& v){
         for(int n=0;h->nodes&&h->matrices&&n<h->num;n++)if(h->nodes[n].id==saBone::head&&finite(h->matrices[n].pos))return h->matrices[n].pos;
     return v.frame.p;
 }
-static V vehicleBracePoint(const Active& a,const CollisionWorld::Vehicle& v){
-    // NMBrace probes this car alone from the ped root +0.4 toward its centre.
-    // Nearest-point selection can jump between roof/bonnet/bumper surfaces and
-    // is not the reference task's line-of-sight target. Let SA query its COL.
+static bool probeVehicleSurface(const CollisionWorld::Vehicle& v,V from,V to,ColPoint&hit,float&fraction){
     struct Line {V from;float fromSize;V to;float toSize;};
     static_assert(sizeof(Line)==0x20);
     auto*m=matrix(v.entity);
     auto*c=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(v.entity);
-    Line line{a.current[0].p+V{0,0,.4f},0,v.frame.p,0};ColPoint hit{};float fraction=1.f;
-    if(m&&c&&c->data&&reinterpret_cast<bool(__cdecl*)(const Line&,const M&,ColModel&,ColPoint&,float&,bool,bool)>(0x417950)
-        (line,*m,*c,hit,fraction,false,false)&&finite(hit.point))return hit.point;
+    const Line line{from,0,to,0};
+    fraction=1.f;
+    return m&&c&&c->data&&reinterpret_cast<bool(__cdecl*)(const Line&,const M&,ColModel&,ColPoint&,float&,bool,bool)>(0x417950)
+        (line,*m,*c,hit,fraction,false,false)&&finite(hit.point)&&finite(hit.normal);
+}
+static V vehicleBracePoint(const Active& a,const CollisionWorld::Vehicle& v){
+    // A confirmed contact follows that exact patch of the car while reachable.
+    if(a.roadBraceLocal){
+        const V point=mul(v.frame,T{{},*a.roadBraceLocal}).p;
+        if(point.z>=a.current[0].p.z-.12f&&length(point-a.current[10].p)<.90f)return point;
+    }
+    ColPoint hit{};float fraction;
+    if(probeVehicleSurface(v,a.current[0].p+V{0,0,.4f},v.frame.p,hit,fraction))return hit.point;
     return v.frame.p-V{0,0,.3f}; // original task fallback when the car probe misses
 }
 static void updateVehicleReaction(Active& a){
@@ -257,7 +272,7 @@ static void updateVehicleReaction(Active& a){
                 " component="+std::to_string(a.entryComponent)+" old_index="+std::to_string(a.entryIndex)+" new_index="+std::to_string(index));
             a.entryIndex=index;
         }
-        ok(nm_agent_vehicle_entry_follow(a.agent,part?part->index:-1,v?dot(v->velocity,v->velocity):0.f,!part,at<float>(a.ped,0x540)*2.f));
+        ok(nm_agent_vehicle_entry_follow(a.agent,part?part->index:-1,v?dot(v->velocity,v->velocity):0.f,!part,ivHealth(a.ped)));
         return;
     }
     if(a.kind==Reaction::Impact){
@@ -297,7 +312,7 @@ static void updateVehicleReaction(Active& a){
     // Bracing against a body panel must not acquire an invented handle.
 }
 static bool updateVehicleExitTask(Active& a){
-    if(a.kind!=Reaction::VehicleExit&&a.kind!=Reaction::BikeFall&&a.kind!=Reaction::Dive)return true;
+    if(a.kind!=Reaction::VehicleExit&&a.kind!=Reaction::BikeFall&&a.kind!=Reaction::Dive&&a.kind!=Reaction::HighFall)return true;
     float state[4]{};const int phase=nm_agent_vehicle_exit_status(a.agent,state);
     if(a.kind==Reaction::BikeFall&&phase==0)return true; // mounted or dead: no thrown-off task
     if(phase<0){ok(phase);return false;}
@@ -321,16 +336,25 @@ static void selectSolvedRoadReaction(Active& a,float dt){
     // CVehicle::m_pDriver at 0x460; native ownership and native health remain SA's.
     const unsigned flags=(at<void*>(v->entity,0x460)==player()?1u:0u)|(a.ped==player()?2u:0u);
     float report[4]{};
+    float geometry[9]{};
     // IV decides dying from its own impact damage (the SDK's bump::damage on the solved impulse), so it needs the health
     // before the hit; SA's native damage was already delivered and stays authoritative for the actual health.
     float healthBefore=at<float>(a.ped,0x540);
     if(const auto h=roadHealthBefore.find(a.ref);h!=roadHealthBefore.end()&&gameTime()-h->second.first<2500)healthBefore=std::max(healthBefore,h->second.second);
-    const int choice=nm_agent_road_contact(a.agent,collision->world,v->index,healthBefore*2.f,flags,dt,report);
+    const int choice=nm_agent_road_contact_detail(a.agent,collision->world,v->index,combat_health::healthy(healthBefore,a.ped==player()),flags,dt,report,geometry);
     if(choice<0){ok(choice);return;}if(!choice){updateVehicleReaction(a);return;}
+    const V point{geometry[0],geometry[1],geometry[2]};
+    const size_t slot=size_t(geometry[8]);
+    const int component=slot<collision->vehicles.size()&&collision->vehicles[slot].ref==v->ref?
+        collision->vehicles[slot].component:-1;
+    if(choice==1&&finite(point)&&geometry[7]>0.f)a.roadBraceLocal=mul(inverse(v->frame),T{{},point}).p;
     a.roadReaction=choice;a.roadFalling=choice>=2;a.brace=choice==1;a.grabbing=false;a.grabConfirmed=false;roadHealthBefore.erase(a.ref);
     event("road_solved_reaction",a.ref,a.model,"task="+std::string(choice==1?"brace":choice==2?"roll_relax":"relax")+
         " vehicle_ref="+std::to_string(v->ref)+" solved_ns="+std::to_string(report[0])+" part="+std::to_string(int(report[1]))+
         " roll_ms="+std::to_string(int(report[2]))+" minimum_ms="+std::to_string(int(report[3]))+" health_sa="+std::to_string(at<float>(a.ped,0x540))+" health_before_sa="+std::to_string(healthBefore)+
+        " component="+std::to_string(component)+" closing_mps="+std::to_string(geometry[6])+" strongest_ns="+std::to_string(geometry[7])+
+        " point="+std::to_string(point.x)+","+std::to_string(point.y)+","+std::to_string(point.z)+
+        " normal="+std::to_string(geometry[3])+","+std::to_string(geometry[4])+","+std::to_string(geometry[5])+
         " native_damage_preserved=1 added_impulse=0");
     // The world still has the exact obstacle map that generated this contact.
     updateVehicleReaction(a);
@@ -386,8 +410,24 @@ static void scanApproachingCars(){
             // A ped facing away keeps SA's normal avoidance until an actual
             // hit. Reaching behind the torso destabilizes the bracing pose.
             if(dot(normalized(matrix(p)->up),normalized(v.frame.p-position(p)))<.25f)continue;
-            pending[ref]={{},normalized(v.frame.p-position(p)),now,10,false,Reaction::Brace,v.ref};
-            cooldown[ref]=now;event("approaching_vehicle",ref,at<short>(p,0x22));break;
+            // Short relative sweep against the COL hull. Cars only enter this
+            // path after the cheap shortlist above. A prediction cannot create
+            // damage, wake a physical body or acquire a grip.
+            const V motion=v.velocity-at<V>(p,0x44)*50.f;
+            const float horizon=std::min(.35f,2.f/std::max(length(motion),.3f));
+            ColPoint hit{};float fraction=1.f;
+            bool reaches=false;
+            for(float height:{.14f,-.20f}){
+                const V from=position(p)+V{0,0,height};
+                if(probeVehicleSurface(v,from,from-motion*horizon,hit,fraction)&&
+                    dot(motion,hit.normal)>.20f){reaches=true;break;}
+            }
+            if(!reaches)continue;
+            auto&r=pending[ref];
+            r={{},normalized(v.frame.p-position(p)),now,10,false,Reaction::Brace,v.ref};
+            r.contactKnown=true;r.contact=mul(inverse(v.frame),T{{},hit.point}).p;
+            cooldown[ref]=now;event("approaching_vehicle",ref,at<short>(p,0x22),
+                "vehicle_ref="+std::to_string(v.ref)+" predicted_ms="+std::to_string(1000.f*horizon*fraction)+" physical=0");break;
         }
         if(int(agents.size()+pending.size())>=maxActive)break;
     }

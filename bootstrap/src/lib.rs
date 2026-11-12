@@ -8,6 +8,9 @@ use iso_data::xex;
 #[path = "../compatibility/canonical_body.rs"]
 mod canonical_body;
 mod combat_resources;
+mod iv_deformation;
+mod melee_audio;
+pub use melee_audio::import_melee_audio;
 mod sa_gym_resources;
 mod xenia_xex_key;
 mod visual_assets;
@@ -34,7 +37,14 @@ const BODY: &str = "fred-build.txt";
 // Alpha.4's bind-body cache remains recoverable. The adapted runtime needs
 // the canonical idle body; never silently accept the older body's 21 parts.
 const CACHE: &str = "DeliriumSA-local-v3";
+const COVER_DICTIONARIES: &[&str] = &[
+    "cover_l_low_centre.xad", "cover_r_low_centre.xad",
+    "cover_l_high_centre.xad", "cover_r_high_centre.xad",
+    "cover_l_low_corner.xad", "cover_r_low_corner.xad",
+    "cover_l_high_corner.xad", "cover_r_high_corner.xad", "cover_dive.xad",
+];
 const WEAPON_INFO: &str = "weaponinfo.xml";
+const VEHICLE_HANDLING: &str = "iv-vehicle-handling.dat";
 const PARTS: i32 = 21;
 const MISSING_ISO: &str = "Selecciona tu ISO de GTA IV para Xbox 360 en el instalador para preparar Delirium";
 
@@ -240,6 +250,9 @@ fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
         combat_resources::import(&disc,&key,&staging.join("combat"))?;
         sa_gym_resources::import(root,&staging.join("combat"))?;
         combat_resources::seal(&staging.join("combat"))?;
+        if let Err(error) = write_vehicle_handling(&staging, &disc, &key) {
+            eprintln!("vehicle handling: {error}");
+        }
         activate(&staging)?;
         fs::rename(&staging, cache)
             .map_err(|error| format!("No se pudo finalizar la caché: {error}"))
@@ -247,6 +260,16 @@ fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
     if result.is_err() {
         let _ = fs::remove_dir_all(staging);
     }
+    result
+}
+
+fn write_vehicle_handling(cache: &Path, disc: &Disc, key: &ArchiveKey) -> Result<(), String> {
+    let bytes = archive_file(disc, key, "common.rpf", "data/handling.dat")?;
+    let destination = cache.join(VEHICLE_HANDLING);
+    let temporary = destination.with_extension(format!("tmp-{}", std::process::id()));
+    fs::write(&temporary, bytes).map_err(|error| error.to_string())?;
+    let result = fs::rename(&temporary, destination).map_err(|error| error.to_string());
+    if result.is_err() { let _=fs::remove_file(temporary); }
     result
 }
 
@@ -270,6 +293,17 @@ fn import_weapon_info(cache: &Path, iso: &Path) -> Result<(), String> {
         let entry = entries.iter().find(|e| e.name.eq_ignore_ascii_case(name)).ok_or_else(|| format!("Falta {name}"))?;
         fs::write(dir.join(name), disc.read_at(ANIM, entry.offset, entry.size() as usize)?).map_err(|error| error.to_string())?;
     }
+    let dir = cache.join("cover");
+    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    for name in COVER_DICTIONARIES {
+        let entry = entries.iter().find(|e| e.name.eq_ignore_ascii_case(name)).ok_or_else(|| format!("Falta {name}"))?;
+        let path = dir.join(name);
+        if !path.is_file() {
+            let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
+            fs::write(&temporary, disc.read_at(ANIM, entry.offset, entry.size() as usize)?).map_err(|error| error.to_string())?;
+            fs::rename(&temporary, path).map_err(|error| error.to_string())?;
+        }
+    }
     Ok(())
 }
 
@@ -277,22 +311,40 @@ pub fn prepare(root: &Path) -> Result<&'static str, String> {
     prepare_with_iso(root, None)
 }
 
+pub fn prepare_addon(root: &Path, sa_data: &Path, iso: &Path) -> Result<&'static str, String> {
+    let cache = root.join(CACHE);
+    import(sa_data, &cache, iso)?;
+    if let Err(error) = import_weapon_info(&cache, iso) { eprintln!("weaponinfo: {error}"); }
+    Ok("imported_iso")
+}
+
 /// Installer entry point: read the owner's ISO in place. Never copy a multi-GB
 /// image into the game directory or require the author's development folder.
 /// An existing complete cache can be reopened after the image is disconnected.
 pub fn prepare_with_iso(root: &Path, supplied_iso: Option<&Path>) -> Result<&'static str, String> {
     publish_ready(false)?;
-    if !root.join("gta-sa.exe").is_file() && !root.join("gta_sa.exe").is_file() {
+    let cache = root.join(CACHE);
+    if !cache.is_dir() && !root.join("gta-sa.exe").is_file() && !root.join("gta_sa.exe").is_file() {
         return Err("La carpeta no contiene el ejecutable de GTA San Andreas".into());
     }
-    let cache = root.join(CACHE);
     match cache.try_exists() {
         Ok(true) => {
             activate(&cache)?;
-            if !cache.join(WEAPON_INFO).is_file() || !cache.join("injured").is_dir() {
+            let needs_weapons=!cache.join(WEAPON_INFO).is_file()||!cache.join("injured").is_dir()
+                ||COVER_DICTIONARIES.iter().any(|name| !cache.join("cover").join(name).is_file());
+            let needs_handling=!cache.join(VEHICLE_HANDLING).is_file();
+            if needs_weapons||needs_handling {
                 let located = supplied_iso.map(Path::to_path_buf).or_else(|| iso_path(root).ok());
                 if let Some(iso) = located {
-                    if let Err(error) = import_weapon_info(&cache, &iso) { eprintln!("weaponinfo: {error}"); }
+                    if needs_weapons {
+                        if let Err(error) = import_weapon_info(&cache, &iso) { eprintln!("weaponinfo: {error}"); }
+                    }
+                    if needs_handling {
+                        if let Err(error) = supported_disc(&iso)
+                            .and_then(|(disc,_,key)|write_vehicle_handling(&cache,&disc,&key)) {
+                            eprintln!("vehicle handling: {error}");
+                        }
+                    }
                 }
             }
             publish_ready(true)?;
@@ -418,14 +470,22 @@ mod tests {
             assert_eq!(sdk::nm_agent_is_catching_fall(agent),1);
             let mut trajectory = DefaultHasher::new();
             let mut pose = [0.0f32; PARTS as usize * 7];
+            let mut landing_events=0;
             for _ in 0..120 {
                 assert!(sdk::nm_agent_step(agent, world, 1.0 / 120.0) >= 0);
                 assert!(sdk::nm_agent_get_part_transforms(agent, pose.as_mut_ptr(), PARTS) >= 0);
+                let mut impact=[0.0;2];
+                if sdk::nm_agent_take_ground_impact(agent,impact.as_mut_ptr())==1 {
+                    assert!(impact[0].is_finite()&&impact[0]>0.0&&impact[1]>=2.0);
+                    assert_eq!(sdk::nm_agent_take_ground_impact(agent,impact.as_mut_ptr()),0);
+                    landing_events+=1;
+                }
                 for value in pose {
                     assert!(value.is_finite());
                     trajectory.write_u32(value.to_bits());
                 }
             }
+            assert!(landing_events>0,"fall did not produce any ground impact evidence");
             println!("fall_trajectory={:016x}", trajectory.finish());
             let mut after = [0.0f32; 3];
             assert!(
@@ -441,6 +501,49 @@ mod tests {
             sdk::nm_agent_destroy(agent);
             sdk::nm_world_destroy(world);
             sdk::nm_build_destroy(build);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a cache generated locally from a supported owned disc"]
+    fn reduced_gravity_preserves_the_player_ragdoll() {
+        let root = PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        assert_eq!(prepare(&root).unwrap(), "cache_ready");
+        let body = sdk_file(&root.join(CACHE).join(BODY)).unwrap();
+        unsafe {
+            let build = sdk::nm_build_load(body.as_ptr());
+            assert!(!build.is_null());
+            let world = sdk::nm_world_create();
+            assert!(!world.is_null());
+            let fall_speed = |reduced, player| {
+                delirium::ragdoll::set_moon_gravity(reduced);
+                let agent = sdk::nm_agent_create(build, [0.0, 0.0, 20.0].as_ptr(), 0.0, 0.5);
+                assert!(!agent.is_null());
+                sdk::nm_agent_set_lunar_player(agent, i32::from(player));
+                for _ in 0..12 {
+                    assert!(sdk::nm_agent_step(agent, world, 1.0 / 120.0) >= 0);
+                }
+                let mut velocity = [0.0; 3];
+                let mut position = [0.0; 3];
+                assert!(sdk::nm_agent_get_com(agent, position.as_mut_ptr(), velocity.as_mut_ptr()) >= 0);
+                sdk::nm_agent_destroy(agent);
+                -velocity[2]
+            };
+            // Pose correction can contribute a small vertical velocity even
+            // in an empty world. Subtract that baseline from both falls.
+            delirium::ragdoll::set_gravity_enabled(false);
+            let baseline = fall_speed(false, false);
+            delirium::ragdoll::set_gravity_enabled(true);
+            let normal = fall_speed(false, false);
+            let npc = fall_speed(true, false);
+            let cj = fall_speed(true, true);
+            delirium::ragdoll::set_moon_gravity(false);
+            sdk::nm_world_destroy(world);
+            sdk::nm_build_destroy(build);
+            assert!(normal > baseline);
+            println!("ragdoll_fall_speed baseline={baseline} normal={normal} npc={npc} cj={cj}");
+            assert!(((npc - baseline) / (normal - baseline) - 0.1).abs() < 0.01);
+            assert!((cj - normal).abs() < 0.00001);
         }
     }
 
@@ -480,3 +583,6 @@ mod tests {
         }
     }
 }
+mod vehicle_lab;
+mod vehicle_counterparts;
+mod vehicle_profiles;

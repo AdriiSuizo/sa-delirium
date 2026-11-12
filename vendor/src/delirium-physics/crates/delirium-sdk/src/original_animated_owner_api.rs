@@ -12,7 +12,7 @@ pub unsafe extern "C" fn nm_animated_owner_pair_contacts(root:*const f32,heading
     if !at.is_finite()||!vel.is_finite(){return fail(NM_E_ARG,"nonfinite original owner contact")}
     let Some((pose,motion))=recovery_contacts::read_states(unsafe{std::slice::from_raw_parts(states,parts as usize*13)},parts as usize)
         else{return fail(NM_E_ARG,"invalid original owner peer pose")};
-    let obstacle=Obstacle{filter:delirium::ragdoll::CollisionFilter{kind:0x20,include:0x79FE},at,rot:Quat::from_rotation_z(heading),centre:at,com:at,vel,parts:original::parts(),..Default::default()};
+    let obstacle=Obstacle{filter:delirium::ragdoll::CollisionFilter{kind:0x20,include:0x79FE},at,rot:Quat::from_rotation_z(heading),centre:at,com:at,vel,parts:ObstacleParts::Static(original::parts()),..Default::default()};
     let contacts=a.agent.doll.query_obstacle_pose_contacts(&a.build,&pose,&obstacle);
     if contacts.len()>capacity as usize{return fail(NM_E_ARG,"original owner contact output too small")}
     for (n,c) in contacts.iter().enumerate(){
@@ -31,7 +31,7 @@ pub unsafe extern "C" fn nm_world_append_animated_owner(w:*mut NmWorld,owner:u64
     if w.1.iter().any(|o|o.owner==Some(owner)){return fail(NM_E_ARG,"duplicate animated owner bound")}
     let index=w.1.len();
     w.1.push(Obstacle{id:index as i32,owner:Some(owner),filter:delirium::ragdoll::CollisionFilter{kind:0x20,include:0x79FE},at,rot:Quat::from_rotation_z(heading),centre:at,com:at,
-        half:Vec3::new(0.25,0.25,1.3),vel,spin:Vec3::ZERO,parts:original::parts(),last:None});
+        half:Vec3::new(0.25,0.25,1.3),vel,spin:Vec3::ZERO,parts:ObstacleParts::Static(original::parts()),last:None});
     index as i32
 }
 #[unsafe(no_mangle)]

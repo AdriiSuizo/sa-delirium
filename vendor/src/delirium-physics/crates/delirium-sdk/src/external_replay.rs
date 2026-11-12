@@ -33,7 +33,7 @@ impl ObstacleData {
  fn capture(o:&Obstacle)->Self{Self{id:o.id,owner:o.owner,filter:[o.filter.kind,o.filter.include],at:o.at.to_array(),rot:o.rot.to_array(),centre:o.centre.to_array(),half:o.half.to_array(),vel:o.vel.to_array(),spin:o.spin.to_array(),com:o.com.to_array(),last:o.last.map(|(p,q)|(p.to_array(),q.to_array())),parts:o.parts.iter().map(|p|PartData{shape:ShapeData::capture(p.shape),m:p.m.to_cols_array(),at:p.at.to_array(),lo:p.lo.to_array(),hi:p.hi.to_array(),filter:[p.filter.kind,p.filter.include],mesh:p.mesh.map(MeshData::capture)}).collect()}}
  fn restore(&self)->Result<Obstacle,String>{
   let parts=self.parts.iter().map(|p|Ok(ObPart{shape:p.shape.restore()?,m:Mat3::from_cols_array(&p.m),at:p.at.into(),lo:p.lo.into(),hi:p.hi.into(),filter:CollisionFilter{kind:p.filter[0],include:p.filter[1]},mesh:p.mesh.as_ref().map(|m|&*Box::leak(Box::new(m.restore())))})).collect::<Result<Vec<_>,String>>()?;
-  Ok(Obstacle{id:self.id,owner:self.owner,filter:CollisionFilter{kind:self.filter[0],include:self.filter[1]},at:self.at.into(),rot:Quat::from_array(self.rot),centre:self.centre.into(),half:self.half.into(),vel:self.vel.into(),spin:self.spin.into(),com:self.com.into(),parts:Box::leak(parts.into_boxed_slice()),last:self.last.map(|(p,q)|(p.into(),Quat::from_array(q)))})
+  Ok(Obstacle{id:self.id,owner:self.owner,filter:CollisionFilter{kind:self.filter[0],include:self.filter[1]},at:self.at.into(),rot:Quat::from_array(self.rot),centre:self.centre.into(),half:self.half.into(),vel:self.vel.into(),spin:self.spin.into(),com:self.com.into(),parts:parts.into(),last:self.last.map(|(p,q)|(p.into(),Quat::from_array(q)))})
  }
 }
 #[derive(Serialize,Deserialize)]

@@ -52,7 +52,7 @@ namespace SAPortable {
             return !String.IsNullOrWhiteSpace(destination) && File.Exists(Path.Combine(destination, Engine.ReceiptName));
         }
         static void Save(Receipt receipt) { Json.Write(Path.Combine(receipt.Target, Engine.ReceiptName), receipt); }
-        static void CopyChecked(string source, string destination, string expected, long size, Func<bool> cancelled, Action<long> advance) {
+        internal static void CopyChecked(string source, string destination, string expected, long size, Func<bool> cancelled, Action<long> advance) {
             Paths.NoLinks(source); Directory.CreateDirectory(Path.GetDirectoryName(destination));
             using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -68,18 +68,27 @@ namespace SAPortable {
                     throw new IOException("El contenido preparado no coincide: " + source);
             }
         }
-        public static Receipt Install(ProfileIndex index, string prepared, string game, string destination, string[] shortcutFolders,
-                                      Action<long, long, string> progress, Func<bool> cancelled) {
-            Engine.NoRunningGame();
-            prepared = Paths.Full(prepared); game = Paths.Full(game); destination = Paths.Full(destination);
-            Paths.NoLinks(prepared); Paths.NoLinks(game);
+        public static string CheckDestination(string game, string destination, int savePathLimit) {
+            game = Paths.Full(game);
+            destination = Paths.Full(destination);
+            Paths.NoLinks(destination);
+            if (File.Exists(destination)) throw new IOException("El destino debe ser una carpeta.");
             if (destination.Equals(game, StringComparison.OrdinalIgnoreCase) || Paths.Under(destination, game) || Paths.Under(game, destination))
                 throw new IOException("La carpeta del mod debe estar fuera de la carpeta del juego.");
             if (Installed(destination)) throw new IOException("Ya hay una instalación de SA Delirium en " + destination + ". Usa Restaurar primero.");
             var profile = Path.Combine(destination, Engine.ProfileDirectory);
             if (Directory.Exists(profile)) throw new IOException("La carpeta de destino ya contiene una copia del juego: " + profile);
-            if (index.native_save_path_limit_bytes > 0 && Encoding.Default.GetByteCount(Path.Combine(profile, "userfiles", "GTASAsf8.b")) >= index.native_save_path_limit_bytes)
+            if (savePathLimit > 0 && Encoding.Default.GetByteCount(Path.Combine(profile, "userfiles", "GTASAsf8.b")) >= savePathLimit)
                 throw new IOException("La ruta de destino es demasiado larga para cargar partidas en SA 1.0. Elige una carpeta con una ruta más corta.");
+            return destination;
+        }
+        public static Receipt Install(ProfileIndex index, string prepared, string game, string destination, string[] shortcutFolders,
+                                      Action<long, long, string> progress, Func<bool> cancelled) {
+            Engine.NoRunningGame();
+            prepared = Paths.Full(prepared); game = Paths.Full(game);
+            Paths.NoLinks(prepared); Paths.NoLinks(game);
+            destination = CheckDestination(game, destination, index.native_save_path_limit_bytes);
+            var profile = Path.Combine(destination, Engine.ProfileDirectory);
             Directory.CreateDirectory(destination); Paths.NoLinks(destination);
             var drive = new DriveInfo(Path.GetPathRoot(destination));
             if (drive.AvailableFreeSpace < checked(index.total_bytes + 1024L * 1024 * 1024))

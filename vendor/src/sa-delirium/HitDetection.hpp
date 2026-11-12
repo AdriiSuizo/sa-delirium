@@ -39,6 +39,7 @@ struct NativeHitScope {
 };
 static bool(__cdecl* originalLineOfSight)(const V&,const V&,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,bool,bool)=nullptr;
 static bool __cdecl lineOfSight(const V&a,const V&b,ColPoint&hit,void*&entity,bool buildings,bool vehicles,bool peds,bool objects,bool dummies,bool see,bool camera,bool shoot){
+    firearm::observeShotLine(a,b,reinterpret_cast<uintptr_t>(_ReturnAddress()));
     if(peds){NativeHitScope scope;return originalLineOfSight(a,b,hit,entity,buildings,vehicles,peds,objects,dummies,see,camera,shoot);}
     return originalLineOfSight(a,b,hit,entity,buildings,vehicles,peds,objects,dummies,see,camera,shoot);
 }

@@ -127,7 +127,7 @@ pub(super) fn update(held:&mut Vec<Held>,(a,ha,fa,sa):(gjk::Shape,Vec3,(Vec3,Mat
                 let gjk::Shape::Tri(t,_)=shape else{unreachable!()};
                 ObPart{shape,m:Mat3::IDENTITY,at:Vec3::ZERO,lo:t.into_iter().fold(Vec3::INFINITY,Vec3::min),hi:t.into_iter().fold(Vec3::NEG_INFINITY,Vec3::max),mesh:None,filter:Default::default()}
             }).collect::<Vec<_>>();
-            let obstacle=Obstacle{id:43,at:Vec3::Z*15.,centre:Vec3::Z*15.,parts:Box::leak(parts.into_boxed_slice()),..Default::default()};
+            let obstacle=Obstacle{id:43,at:Vec3::Z*15.,centre:Vec3::Z*15.,parts:parts.into(),..Default::default()};
             let mut doll=Ragdoll::new(&build,&[Transform::from_translation(Vec3::Z*15.195)],-Vec3::Z);
             for _ in 0..60{doll.step(&build,&Collision::default(),1./120.,Drive{lift:1.,..Default::default()},std::slice::from_ref(&obstacle),&[]);}
             assert!(doll.bodies[0].x.z+doll.o.z>15.18,"mesh support failed: {:?}",doll.bodies[0].x+doll.o);

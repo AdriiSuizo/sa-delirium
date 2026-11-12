@@ -52,6 +52,9 @@ NM_API int32_t nm_load_task_params(const char* path);
 NM_API int32_t nm_part_name(int32_t i, char* buf, int32_t len);
 /* Rows of 10 floats: type 0 triangle (9 coordinates), 1 box (centre, half), 2 sphere (centre, radius). Coordinates are relative to the obstacle frame. */
 NM_API int32_t nm_vehicle_shape_register(const float* rows, int32_t count);
+/* Acquire/release a transient COL revision. Bound scenes retain their geometry. */
+NM_API int32_t nm_vehicle_shape_acquire(const float* rows, int32_t count);
+NM_API void nm_vehicle_shape_release(int32_t shape);
 NM_API int32_t nm_world_set_vehicle_shape(NmWorld* w, int32_t index, int32_t shape, const float* spin);
 /* Previous pose seen by the particular agent being stepped. Host array order is not an identity; the host must match its generation-bearing vehicle ref. */
 NM_API int32_t nm_world_set_vehicle_previous(NmWorld* w, int32_t index, const float* pos, const float* rot);
@@ -180,7 +183,15 @@ NM_API int32_t nm_agent_road_arm(NmAgent* a, const NmWorld* w);
 /* Call immediately after a solver step, before replacing obstacle identities. Returns 0 unchanged, 1 brace, 2 roll-up, 3 relax; negatives are SDK errors. report: solved Ns, component, roll milliseconds, minimum task milliseconds. health_iv is the ped's health (IV scale) BEFORE this hit; the SDK derives IV's impact damage from the solved impulse to decide dying. */
 /* IV per-impact damage input since the last call: impulse, component, other id (-1 world), inverse mass. */
 NM_API int32_t nm_agent_take_impact(NmAgent* a, float* out);
+/* Consumes upward world contacts for audio: normal impulse / body mass and closing speed (m/s). */
+NM_API int32_t nm_agent_take_ground_impact(NmAgent* a, float* out);
 NM_API int32_t nm_agent_road_contact(NmAgent* a, const NmWorld* w, int32_t vehicle, float health_iv, uint32_t flags, float dt, float* report);
+/* Watch a vehicle slot and its finite owner for the next substep. -1 disables recording. */
+NM_API int32_t nm_agent_road_watch(NmAgent* a, int32_t vehicle, uint64_t owner);
+/* Use solved, load-weighted foot support for SA's physical balance. */
+NM_API int32_t nm_agent_host_foot_support(NmAgent* a, int32_t enable);
+/* Same selection, with nine additional floats on contact: point XYZ, normal XYZ, closing m/s, strongest Ns, obstacle slot. */
+NM_API int32_t nm_agent_road_contact_detail(NmAgent* a, const NmWorld* w, int32_t vehicle, float health_iv, uint32_t flags, float dt, float* report, float* geometry);
 NM_API int32_t nm_agent_road_recovery_ready(const NmAgent* a);
 /* All coordinates are world-space. The original task performs the local conversion. */
 NM_API int32_t nm_agent_road_brace_control(NmAgent* a, const NmWorld* w, int32_t vehicle, const float* hit, const float* place, const float* look);
@@ -282,6 +293,8 @@ NM_API int32_t nm_locomotion_clip(const NmLocomotion* p, char* out, int32_t len)
 NM_API int32_t nm_agent_shot_push(NmAgent* a, const float* dir, float amount, float seconds);
 /* One bank clip on this rig: pose rows; info = duration, mover speed m/s. 0 = clip not in the bank. */
 NM_API int32_t nm_locomotion_clip_pose(const NmCombat* c, const NmLocomotion* p, const char* key, float phase, float* pose, int32_t count, float* info);
+/* Mask original mover x/y (0x600) or yaw (0x3000) when the host supplies it. */
+NM_API int32_t nm_locomotion_clip_pose_masked(const NmCombat* c, const NmLocomotion* p, const char* key, float phase, float* pose, int32_t count, float* info, uint32_t flags);
 /* Rows: root xyz, yaw, velocity xyz (m/s), mass. Output: displacement xyz, velocity xyz, strongest peer index (-1 absent), impulse Ns, normal xyz. The host must replace native ped/ped rows for this same validated set only. */
 NM_API int32_t nm_ped_contacts(const float* input, int32_t count, float dt, float* output);
 /* Original fragment filter geometry: the player's animated composite against the victim's last drawn fragment capsules, translated to the current root. Outer body contact alone only separates peds; it cannot start a ragdoll. Capsule rows are endpoint xyz, endpoint xyz, radius (seven floats). */

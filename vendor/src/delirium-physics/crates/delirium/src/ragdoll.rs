@@ -16,8 +16,28 @@ macro_rules! env_on {
 #[path="ragdoll_mesh_manifold.rs"] mod mesh_manifold;
 
 #[allow(non_snake_case)]
+static GRAVITY_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+static MOON_GRAVITY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub const LOW_GRAVITY_SCALE: f32 = 0.01;
+
+pub fn set_moon_gravity(enabled: bool) {
+    MOON_GRAVITY.store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn set_gravity_enabled(enabled: bool) {
+    GRAVITY_ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn gravity_enabled() -> bool {
+    GRAVITY_ENABLED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 #[inline]
-pub fn GRAVITY() -> f32 { delirium_data::kv!(31) }
+pub fn GRAVITY() -> f32 {
+    if !gravity_enabled() { return 0.0; }
+    delirium_data::kv!(31)
+}
 #[allow(non_snake_case)]
 #[inline]
 fn MARGIN() -> f32 { delirium_data::kv!(124) }
@@ -442,7 +462,31 @@ pub struct Rigid {
     pub soft: [crate::nmrs::SoftLimit; 3],
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug)]
+pub enum ObstacleParts {
+    Static(&'static [ObPart]),
+    Shared(Arc<[ObPart]>),
+}
+
+impl Default for ObstacleParts {
+    fn default() -> Self { Self::Static(&[]) }
+}
+
+impl std::ops::Deref for ObstacleParts {
+    type Target = [ObPart];
+    fn deref(&self) -> &[ObPart] {
+        match self {
+            Self::Static(parts) => parts,
+            Self::Shared(parts) => parts,
+        }
+    }
+}
+
+impl From<Vec<ObPart>> for ObstacleParts {
+    fn from(parts: Vec<ObPart>) -> Self { Self::Shared(parts.into()) }
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct Obstacle {
     pub id: i32,
     pub owner: Option<u64>,
@@ -454,8 +498,25 @@ pub struct Obstacle {
     pub vel: Vec3,
     pub spin: Vec3,
     pub com: Vec3,
-    pub parts: &'static [ObPart],
+    pub parts: ObstacleParts,
     pub last: Option<(Vec3, Quat)>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct FootSupport {
+    pub(crate) load: f32,
+    pub(crate) point: Vec3,
+    pub(crate) normal: Vec3,
+    pub(crate) velocity: Vec3,
+}
+
+#[derive(Clone, Debug)]
+struct FootSupportRow {
+    block: usize,
+    side: usize,
+    point: Vec3,
+    normal: Vec3,
+    velocity: Vec3,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -753,6 +814,7 @@ struct Block {
     external: Option<ExternalContact>,
     /// World or obstacle contact on this part: recorded for impact damage.
     part: Option<usize>,
+    ground_closing: f32,
 }
 
 #[derive(Clone,Copy,PartialEq)]
@@ -839,7 +901,7 @@ impl Block {
 
     fn with(j: [Vec<f64>; 3], mj: [Vec<f64>; 3], k: DMat3, target: DVec3, mu: f64, held: Option<(usize, usize)>, warm: Vec3) -> Block {
         let nonzero=Self::nonzero_indices(&j);
-        Block { j:Arc::new(j), mj:Arc::new(mj), nonzero, unbound:None, kinv: ldl_inverse(k), mass_matrix:k, axis: k.row(0) / k.x_axis.x, target, lambda: warm.as_dvec3(), mu, held, scale: DVec3::ONE, warm_divisor:DVec3::ONE, ob: None, at: Spot::OWN, pin: false, grip: None, external:None, part: None }
+        Block { j:Arc::new(j), mj:Arc::new(mj), nonzero, unbound:None, kinv: ldl_inverse(k), mass_matrix:k, axis: k.row(0) / k.x_axis.x, target, lambda: warm.as_dvec3(), mu, held, scale: DVec3::ONE, warm_divisor:DVec3::ONE, ob: None, at: Spot::OWN, pin: false, grip: None, external:None, part: None, ground_closing:0.0 }
     }
 
     /// Original standalone NM stores an unscaled solve impulse, then applies
@@ -1301,6 +1363,7 @@ pub const SUBSTEPS: usize = 2;
 fn GHOST() -> f32 { delirium_data::kv!(57) }
 
 pub struct Ragdoll {
+    pub lunar_player: bool,
     pub nm: usize,
     bodies: Vec<Body>,
     order: Vec<usize>,
@@ -1328,10 +1391,19 @@ pub struct Ragdoll {
     pub contact_off: u32,
     pub hit: Vec<Option<(Vec3, Vec3, i32)>>,
     pub contact: crate::bump::ContactRecord<i32>,
+    /// Road selector obstacle slot for the current step. -1 disables the
+    /// receipt, -2 retains the SDK's unfiltered legacy selector.
+    pub road_watch: i32,
+    pub road_watch_owner: Option<u64>,
+    pub(crate) support_feet: [Option<usize>; 2],
+    pub(crate) foot_support: [FootSupport; 2],
+    foot_support_rows: Vec<FootSupportRow>,
     /// Every world and obstacle contact, ground included, for IV's per-impact
     /// damage (82465360). Separate from `contact`, whose road decisions stay as
     /// they were; nothing consumes it unless the host asks (nm_agent_take_impact).
     pub hurt: crate::bump::ContactRecord<i32>,
+    /// Upward world contacts from the latest solved step: normal impulse and closing speed.
+    pub ground_impact: [f32;2],
     pub ob_hits: Vec<(i32, Vec3, Vec3)>,
     /// Diagnostics only: the deepest signed gap of every contact this step's
     /// solve collected (state left by the previous step), per category.
@@ -1424,6 +1496,15 @@ fn short(q: Quat) -> Quat {
 }
 
 impl Ragdoll {
+    pub fn gravity(&self) -> f32 {
+        let scale = if MOON_GRAVITY.load(std::sync::atomic::Ordering::Relaxed) {
+            if self.lunar_player { 0.5 } else { LOW_GRAVITY_SCALE }
+        } else {
+            1.0
+        };
+        GRAVITY() * scale
+    }
+
     pub fn new(build: &Build, frames: &[Transform], v: Vec3) -> Ragdoll {
         let o = frames.first().map_or(Vec3::ZERO, |f| f.translation);
         let nm = crate::nmrs::MASSES[build.nm].get().filter(|m| m.len() == build.parts.len());
@@ -1448,9 +1529,10 @@ impl Ragdoll {
             at += 1;
             order.extend((0..n).filter(|&c| build.parts[c].parent == Some(k)));
         }
-        Ragdoll { nm: build.nm, pins: vec![None; n], cons: vec![(None, None); n], grips: vec![], grip_target_velocities: vec![], grip_target_owners:vec![], snapped: vec![], grip_load: [0.;4], grip_solved_target: None, gone: 0, grip_rows: vec![], touch: vec![0; n], contact_off: 0, hit: vec![None; n], contact: crate::bump::ContactRecord::new(), hurt: crate::bump::ContactRecord::new(), ob_hits: vec![], gap_audit: Default::default(), held: vec![vec![]; n], stage_vel: vec![], stage_lt: vec![], roll_push: None, stage_lim: vec![], stiff: vec![], bodies, order, mode: 1, still: [SLEEP_STOP() - 2, SLEEP_SLEEP() - 2],
+        Ragdoll { lunar_player: false, nm: build.nm, pins: vec![None; n], cons: vec![(None, None); n], grips: vec![], grip_target_velocities: vec![], grip_target_owners:vec![], snapped: vec![], grip_load: [0.;4], grip_solved_target: None, gone: 0, grip_rows: vec![], touch: vec![0; n], contact_off: 0, hit: vec![None; n], contact: crate::bump::ContactRecord::new(), road_watch: -1, hurt: crate::bump::ContactRecord::new(), ground_impact:[0.0;2], ob_hits: vec![], gap_audit: Default::default(), held: vec![vec![]; n], stage_vel: vec![], stage_lt: vec![], roll_push: None, stage_lim: vec![], stiff: vec![], bodies, order, mode: 1, still: [SLEEP_STOP() - 2, SLEEP_SLEEP() - 2],
                   sleep_tol: [SLEEP_V2(), SLEEP_W2(), SLEEP_MEAN2()], asleep: false, age: 0.0, fresh: false, pending: vec![], pairs: vec![], seen: vec![], contact_history: None, coll: vec![], held_pairs: vec![], held_car: vec![], prep_twist: vec![], rigid: None, inertia: None, inst: None, out: vec![(Vec3::ZERO, Vec3::ZERO); n], joint_torque: vec![Vec3::ZERO; n], armature: vec![0.0; n], o, bound_off: Vec3::ZERO,
-                  rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default(), no_collision:None, no_collision_met:false, no_collision_seen:0, no_collision_parts:0, no_collision_hold:0 }
+                  rejuv: 0, mwc: (1, 0), normal_support_owners:Default::default(), no_collision:None, no_collision_met:false, no_collision_seen:0, no_collision_parts:0, no_collision_hold:0,
+                  road_watch_owner:None,support_feet:[None;2],foot_support:[FootSupport::default();2],foot_support_rows:vec![] }
     }
 
     pub fn set_body(&mut self, k: usize, x: Vec3, q: Quat, v: Vec3, w: Vec3) {
@@ -2037,6 +2119,7 @@ impl Ragdoll {
     #[allow(clippy::too_many_arguments)]
     fn contacts(&mut self, build: &Build, world: &Collision, artic: &Artic, h: f32, pose: &[Option<(Vec3, Quat)>], obstacles: &[Obstacle],
                 others: &[Capsule], free: &[f64]) -> (Vec<Row>, Vec<Block>, Vec<Block>) {
+        self.foot_support_rows.clear();
         let mut audit=contact_cost::Cost::new(obstacles.iter().map(|o|o.parts.len()).sum());
         let (mut rows, mut blocks, mut push_blocks) = (vec![], vec![], vec![]);
         let fv = |j: &[f64]| j.iter().zip(free).map(|(a, b)| a * b).sum::<f64>();
@@ -2465,13 +2548,31 @@ impl Ragdoll {
             let gap = gap + ALLOW();
             let ts = frame(n);
             let j = ts.map(|t| lrow(k, d(at), d(t), DVec3::ZERO));
-            let to = DVec3::new((-gap.max(0.0) / h + v.dot(n)) as f64 - fv(&j[0]) / (1.0 + e as f64), v.dot(ts[1]) as f64 - fv(&j[1]), v.dot(ts[2]) as f64 - fv(&j[2]));
+            let free_normal = fv(&j[0]);
+            let to = DVec3::new((-gap.max(0.0) / h + v.dot(n)) as f64 - free_normal / (1.0 + e as f64), v.dot(ts[1]) as f64 - fv(&j[1]), v.dot(ts[2]) as f64 - fv(&j[2]));
             let warm = held.map_or(gwarm.get(i).copied().unwrap_or(Vec3::ZERO), |r| self.rec(r).imp);
             let source=source_for(i);
             let ob = source.map(|&(_, id, at, n,_)| (id, k, at, n));
             let external=source.and_then(|x|x.4);
+            // Only close, upward environment contacts on the two feet can
+            // support balance. Other people and broad-phase margins do not.
+            if n.z > 0.55 && gap <= ALLOW() + 0.01 &&
+                (source.is_some() || held.is_some()) && !external.is_some_and(|e|e.id>>32==2) {
+                if let Some(side)=self.support_feet.iter().position(|&foot|foot==Some(k)) {
+                    self.foot_support_rows.push(FootSupportRow {
+                        block:blocks.len(),side,point:at+o,normal:n,velocity:v,
+                    });
+                }
+            }
             let block=if cache_responses{Block::cached(artic,k,j,to,mu as f64,held,warm,&mut response_cache)}else{Block::new(artic,j,to,mu as f64,held,warm,false)};
-            blocks.push(Block { scale: elastic(e as f64), ob, external, part: Some(k), ..block });
+            let watched_road=ob.is_some_and(|o|self.watches_road(o.0,external.map(|e|e.id)));
+            let ground_closing=if source.is_none()&&n.z>0.55 || watched_road {
+                let b=&self.bodies[k];
+                let point_velocity=b.v+b.w.cross(at-b.x);
+                let surface_velocity=if watched_road {v} else {Vec3::ZERO};
+                ((surface_velocity-point_velocity).dot(n)-free_normal as f32).max(0.)
+            }else{0.};
+            blocks.push(Block { scale: elastic(e as f64), ob, external, part: Some(k), ground_closing, ..block });
             push_blocks.push(Self::push_block(blocks.last().unwrap(), gap, h, held.map_or(Vec3::ZERO, |r| self.rec(r).pimp)));
         }
         audit.add(4,block_tick);
@@ -2800,7 +2901,8 @@ impl Ragdoll {
         let subs = 1;
         let h = dt / subs as f32;
         let spin = if drive.rigid.is_empty() { MAX_SPIN } else { MAX_SPIN_NM() };
-        let fall = Vec3::Z * -GRAVITY() * (1.0 - drive.lift) + drive.accel + roll_accel;
+        let gravity = self.gravity();
+        let fall = Vec3::Z * -gravity * (1.0 - drive.lift) + drive.accel + roll_accel;
         let (start, o0) = (self.bodies.iter().map(|b| (b.x, b.q)).collect::<Vec<_>>(), self.o);
         let along = 1.0 / subs as f32;
         let mut pose: Vec<Option<(Vec3, Quat)>> = self.pins.iter().zip(&start).map(|(p, &(x, q))| {
@@ -2816,7 +2918,7 @@ impl Ragdoll {
         self.muscles(&artic, &joints, &drive, h, &mut lt, &mut jt);
         self.soft_limits(&artic, &joints, &drive, &mut lt, &mut jt);
         for (k, b) in self.bodies.iter().enumerate() {
-            let f = (fall + Vec3::Z * GRAVITY()) * b.m + drive.force.get(k).filter(|_| self.gone >> k & 1 == 0).copied().unwrap_or(Vec3::ZERO);
+            let f = (fall + Vec3::Z * gravity) * b.m + drive.force.get(k).filter(|_| self.gone >> k & 1 == 0).copied().unwrap_or(Vec3::ZERO);
             self.out[k] = (f, drive.torque.get(k).filter(|_| self.gone >> k & 1 == 0).copied().unwrap_or(Vec3::ZERO) + jt[k]);
         }
         self.joint_torque = jt.clone();
@@ -2875,27 +2977,60 @@ impl Ragdoll {
         Some(Stage { joints, pose, start, o0, artic, lt, x0, qd0, rows, blocks, push, push_blocks, h, spin, free_vel, damp: 0.0, free })
     }
 
+    fn watches_road(&self, id: i32, owner: Option<u64>) -> bool {
+        self.road_watch == -2 || self.road_watch >= 0 &&
+            (self.road_watch == id || owner.is_some() && owner == self.road_watch_owner)
+    }
+
     fn middle(&mut self, st: &mut Stage) -> bool {
         let mass = self.mass();
+        self.foot_support = [FootSupport::default(); 2];
+        for row in &self.foot_support_rows {
+            let block=&st.blocks[row.block];
+            let load=(block.lambda.x/block.warm_divisor.x) as f32*row.normal.z;
+            if !load.is_finite() || load<=0.0 { continue; }
+            let support=&mut self.foot_support[row.side];
+            support.load+=load;
+            support.point+=row.point*load;
+            support.normal+=row.normal*load;
+            support.velocity+=row.velocity*load;
+        }
+        for support in &mut self.foot_support {
+            if support.load>0.0 {
+                support.point/=support.load;
+                support.normal=support.normal.normalize_or_zero();
+                support.velocity/=support.load;
+            }
+        }
         self.ob_hits.clear();
+        self.ground_impact=[0.0;2];
         for b in &st.blocks {
             let Some((id, k, at, n)) = b.ob else { continue };
             let ts = frame(n);
             let l = (b.lambda/b.warm_divisor).as_vec3();
-            let impulse = ts[0] * l.x + ts[1] * l.y + ts[2] * l.z;
             let a = (b.lambda * b.scale).as_vec3();
             // Per-character contact evidence remains available for original
             // road/bump decisions. Finite mobility is committed ONCE through
             // Group's aggregate result: hosts must not reapply these impulses
             // when the obstacle has a staged finite owner.
             self.ob_hits.push((id, -(ts[0] * a.x + ts[1] * a.y + ts[2] * a.z), at));
-            let c = crate::bump::Contact { other: Some(id), other_ragdoll: true, impulse, normal: [n.x, n.y, n.z, 0.0], point: [at.x, at.y, at.z, 0.0],
-                                           component: k as i32, extra: [0; 2] };
-            self.contact.add(crate::bump::Gate { ragdoll: true, flagged: false, damages: false }, &c, mass, 0);
+            if self.watches_road(id,b.external.map(|e|e.id)) && l.x > 0.0 {
+                let impulse = ts[0] * l.x + ts[1] * l.y + ts[2] * l.z;
+                let c = crate::bump::Contact {
+                    other: Some(if self.road_watch>=0 {self.road_watch} else {id}), other_ragdoll: true, impulse,
+                    normal: [n.x, n.y, n.z, 0.0], point: [at.x, at.y, at.z, 0.0],
+                    component: k as i32, extra: [b.ground_closing.to_bits(), id as u32],
+                };
+                self.contact.add(crate::bump::Gate { ragdoll: true, flagged: false, damages: false }, &c, mass, 0);
+            }
         }
         for b in &st.blocks {
             let Some(k) = b.part else { continue };
             let l = (b.lambda/b.warm_divisor).as_vec3();
+            if b.ob.is_none()&&b.ground_closing>=2.0&&l.x>0.0{
+                self.ground_impact[0]+=l.x;
+                self.ground_impact[1]=self.ground_impact[1].max(b.ground_closing);
+            }
             let c = crate::bump::Contact { other: b.ob.map(|o| o.0), other_ragdoll: true, impulse: Vec3::new(l.length(), 0.0, 0.0),
                                            normal: [0.0; 4], point: [0.0; 4], component: k as i32, extra: [0; 2] };
             self.hurt.add(crate::bump::Gate { ragdoll: true, flagged: false, damages: false }, &c, mass, 0);
@@ -3080,7 +3215,7 @@ impl Group {
         use crate::external_mobility::*;
         self.external_replay_steps.iter().filter_map(|&(owner,dt,delta,turn,requested,contacts)|{
             let predictor=*self.external_predictors.get(&owner.id)?;
-            let geometry:Vec<_>=self.external_world_geometry().copied().filter(|o|o.owner==Some(owner.id)).collect();
+            let geometry:Vec<_>=self.external_world_geometry().cloned().filter(|o|o.owner==Some(owner.id)).collect();
             if geometry.iter().any(|o|o.filter.animated_ped()){return None;}
             let mut g=Group::default();g.stage_external(owner.epoch,&[owner]).ok()?;
             g.stage_external_predictors(owner.epoch,&[predictor]).ok()?;g.stage_external_geometry(&geometry).ok()?;
@@ -3101,7 +3236,7 @@ impl Group {
     pub fn external_contacts(&self)->&[crate::external_mobility::ExternalContact]{&self.external_contacts}
     pub fn stage_external_geometry(&mut self,obstacles:&[Obstacle])->Result<(),crate::external_mobility::ExternalError>{
         for o in obstacles {if let Some(id)=o.owner{if !self.external.owners.contains_key(&id){return Err(crate::external_mobility::ExternalError::MissingSnapshot(id));}}}
-        self.external_geometry=obstacles.iter().filter(|o|o.owner.is_some()).copied().collect();Ok(())
+        self.external_geometry=obstacles.iter().filter(|o|o.owner.is_some()).cloned().collect();Ok(())
     }
     /// An explicit environment collision envelope for native finite owners.
     /// Its provenance differs from articulated peer/render geometry. Omitting
@@ -3672,7 +3807,7 @@ impl Ragdoll {
                         use crate::external_mobility::{ExternalPlacementReplay,ExternalWorldRowReplay,ExternalDrive};
                         group.external_failed_replays.push(ExternalPlacementReplay{owner:group.external.owners[&id],predictor,
                             drive:group.external_drives.get(&id).copied().unwrap_or(ExternalDrive{id,..Default::default()}),
-                            geometry:group.external_world_geometry().copied().filter(|o|o.owner==Some(id)).collect(),dt:h,delta:total_position,turn:total_orientation,requested,contacts,placement,diagnostic:world_stats.get(&id).copied().unwrap_or_default().admission_only(diagnostic),queries,
+                            geometry:group.external_world_geometry().cloned().filter(|o|o.owner==Some(id)).collect(),dt:h,delta:total_position,turn:total_orientation,requested,contacts,placement,diagnostic:world_stats.get(&id).copied().unwrap_or_default().admission_only(diagnostic),queries,
                             world_rows:position_contacts.iter().filter(|c|c.owner==id).map(|c|ExternalWorldRowReplay{point:c.point,normal:c.normal,angular:Some(c.angular),gap:c.gap,native_gap:c.native_gap}).collect(),environment_override:group.external_environment_geometry.iter().any(|o|o.owner==Some(id))});
                     }
                     group.external_placements.push(placement);
@@ -3963,8 +4098,12 @@ mod moving_obstacle_regression {
         static INIT: std::sync::Once = std::sync::Once::new();
         INIT.call_once(|| {
             let root = std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").expect("NM_TEST_ASSETS"));
-            let bytes = std::fs::read(root.join("fred.xrt")).unwrap();
-            assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&bytes)));
+            if let Ok(program) = std::fs::read(root.join("iv-program.bin")) {
+                assert!(delirium_data::kv::unlock_program(&program));
+            } else {
+                let bytes = std::fs::read(root.join("fred.xrt")).unwrap();
+                assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&bytes)));
+            }
         });
     }
     fn isolated_grip_body(velocity: Vec3) -> (Build, Ragdoll) {
@@ -4090,6 +4229,46 @@ mod moving_obstacle_regression {
         assert!(moving_child_meets(a, sa, now, last, c, half));
     }
     #[test]
+    fn road_receipt_excludes_a_stronger_unrelated_contact() {
+        let build=finite_probe_build(65.0);
+        let root=Vec3::Z*4.0;
+        let mut doll=Ragdoll::new(&build,&[Transform::from_translation(root)],Vec3::ZERO);
+        let box_at=|id,offset| Obstacle {
+            id,at:root+offset,centre:root+offset,com:root+offset,
+            half:Vec3::splat(0.5),..Default::default()
+        };
+        let owner=(1<<32)|42;
+        let obstacles=[
+            Obstacle{owner:Some(owner),..box_at(7,Vec3::X*-0.68)},
+            Obstacle{owner:Some(owner),..box_at(8,Vec3::Y*-0.68)},
+            Obstacle{vel:Vec3::Y*2.0,..box_at(9,Vec3::Z*-0.68)},
+        ];
+        doll.road_watch=7;
+        doll.road_watch_owner=Some(owner);
+        doll.support_feet=[Some(0),None];
+        let mut stage=doll.begin(&build,&Collision::default(),1./120.,
+            &Drive{lift:1.0,..Default::default()},&obstacles,&[]).unwrap();
+        let mut count=[0;3];
+        for row in &mut stage.blocks {
+            if let Some((id,_,_,_))=row.ob {
+                let obstacle=(id-7) as usize;
+                count[obstacle]+=1;
+                row.lambda=DVec3::X*[60.0,90.0,180.0][obstacle];
+            }
+        }
+        assert_eq!(count,[1,1,1]);
+        assert!(doll.middle(&mut stage));
+        assert_eq!(doll.contact.other,Some(7));
+        assert!((doll.contact.sum-150.0).abs()<0.01);
+        assert_eq!(doll.contact.extra[1],8);
+        assert!(doll.contact.normal[1]>0.95);
+        assert!(doll.foot_support[0].load>179.0);
+        assert!(doll.foot_support[0].normal.z>0.95);
+        assert!((doll.foot_support[0].velocity.y-2.0).abs()<0.01);
+        assert_eq!(doll.foot_support[1].load,0.0);
+    }
+
+    #[test]
     fn position_split_preserves_com_velocity_when_root_origin_is_rebased() {
         // A positional penetration repair has no physical impulse. Exercise
         // the real begin/middle/end stages with spin: translating the solver
@@ -4188,7 +4367,7 @@ mod moving_obstacle_regression {
             }else{(gjk::Shape::Capsule(p.half,p.round),Mat3::from_rotation_x(std::f32::consts::FRAC_PI_2),Vec3::new(p.round,p.half+p.round,p.round))};
             ObPart{shape,m,at:Vec3::Z*p.z,lo:-half,hi:half,mesh:None,filter:CollisionFilter{kind:p.types,include:p.include}}
         }).collect();
-        Obstacle{id:id as i32,owner:Some(id),filter:CollisionFilter{kind:0x20,include:0x79FE},at,centre:at,com:at,half:Vec3::new(0.25,0.25,1.3),vel:velocity,parts:Box::leak(parts.into_boxed_slice()),..Default::default()}
+        Obstacle{id:id as i32,owner:Some(id),filter:CollisionFilter{kind:0x20,include:0x79FE},at,centre:at,com:at,half:Vec3::new(0.25,0.25,1.3),vel:velocity,parts:parts.into(),..Default::default()}
     }
     pub(super) fn original_ped_owner(id:u64,epoch:u64,at:Vec3,velocity:Vec3)->crate::external_mobility::ExternalOwner {
         crate::external_mobility::ExternalOwner{id,epoch,com:at,velocity,spin:Vec3::ZERO,linear_inverse:Mat3::IDENTITY/25.,angular_inverse:Mat3::ZERO}
@@ -4276,7 +4455,7 @@ mod dense_vehicle_slot_tests{
    let parts=&all[..children];
    let mut doll=Ragdoll::new(&build,&[Transform::from_translation(Vec3::new(0.,0.,15.))],Vec3::ZERO);
    let obs:Vec<_>=(0..count).map(|k|{let a=k as f32*0.52;let at=Vec3::new(a.cos()*radius,a.sin()*radius,15.);
-    Obstacle{id:k as i32+10,at,centre:at,com:at,rot:Quat::IDENTITY,last:Some((at,Quat::IDENTITY)),half:Vec3::new(2.4,1.,0.8),parts,vel:Vec3::ZERO,..Default::default()}}).collect();
+    Obstacle{id:k as i32+10,at,centre:at,com:at,rot:Quat::IDENTITY,last:Some((at,Quat::IDENTITY)),half:Vec3::new(2.4,1.,0.8),parts:ObstacleParts::Static(parts),vel:Vec3::ZERO,..Default::default()}}).collect();
    let t=std::time::Instant::now();
    for _ in 0..300{
     doll.set_body(0,Vec3::new(0.,0.,15.),Quat::IDENTITY,Vec3::ZERO,Vec3::ZERO);
@@ -4311,7 +4490,7 @@ mod dense_vehicle_slot_tests{
     doll.set_body(0,at,Quat::IDENTITY,Vec3::Y*0.2,Vec3::ZERO);
     let ids=if frame<32{[17,29]}else{[29,17]};
     let obs:Vec<_>=ids.into_iter().map(|id|Obstacle{id,at:Vec3::Z*15.,centre:Vec3::Z*15.,com:Vec3::Z*15.,
-     rot:turn,last:Some((Vec3::Z*15.,old)),half:Vec3::splat(0.7),parts,vel:Vec3::ZERO,..Default::default()}).collect();
+     rot:turn,last:Some((Vec3::Z*15.,old)),half:Vec3::splat(0.7),parts:ObstacleParts::Static(parts),vel:Vec3::ZERO,..Default::default()}).collect();
     let obs=if frame==31{&[][..]}else{&obs[..]};
     doll.step(&build,&Collision::default(),1./120.,Drive{lift:1.,..Default::default()},obs,&[]);
     if frame==31{compacted=doll.held_car.is_empty();}

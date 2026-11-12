@@ -38,6 +38,9 @@ public static class InstallerTests {
     public static int Main(string[] args) {
         Paths.EnableLongPaths();
         root = Path.GetFullPath(args[0]); Directory.CreateDirectory(root);
+        var driveRoot = Path.GetPathRoot(root);
+        Assert(Paths.Full(driveRoot) == driveRoot, "Drive root is absolute after normalization");
+        Assert(Paths.Under(root, driveRoot) && !Paths.Under(driveRoot, driveRoot), "Containment uses the actual drive root");
         var f = new Fixture("roundtrip");
         var sourceHash = Engine.Hash(Path.Combine(f.Source, "gta_sa.exe"));
         var saveHash = Engine.Hash(Path.Combine(f.Source, "userfiles/GTASAsf2.b"));

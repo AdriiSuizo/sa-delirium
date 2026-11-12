@@ -17,6 +17,6 @@ $out=Join-Path $candidateRoot 'SA-Delirium-LocalVerification.exe'
     /r:System.Web.Extensions.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll `
     ('/win32manifest:'+(Join-Path $repo 'installer/setup.manifest')) `
     ('/resource:'+$manifest+',portable-manifest.json') ('/resource:'+$launcher+',SteamLauncher.exe') `
-    ('/out:'+$out) (Join-Path $repo 'installer/SetupCore.cs') (Join-Path $PSScriptRoot 'PortableCore.cs') (Join-Path $PSScriptRoot 'Editions.cs') (Join-Path $PSScriptRoot 'Standalone.cs') (Join-Path $PSScriptRoot 'PortableSetup.cs')
+    ('/out:'+$out) (Join-Path $repo 'installer/SetupCore.cs') (Join-Path $PSScriptRoot 'PortableCore.cs') (Join-Path $PSScriptRoot 'Editions.cs') (Join-Path $PSScriptRoot 'Standalone.cs') (Join-Path $PSScriptRoot 'Solo.cs') (Join-Path $PSScriptRoot 'PortableSetup.cs')
 if($LASTEXITCODE -ne 0){throw 'Private candidate compile failed'}
 Get-FileHash -LiteralPath $out | Select-Object Path,Hash | ConvertTo-Json

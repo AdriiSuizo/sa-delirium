@@ -53,17 +53,64 @@ struct CollisionWorld {
     // or periodic refresh decodes only entities that entered or changed and
     // removes those that left: rebuilding the whole merged mesh cost 8-14 ms
     // in one frame every 2 s and every 12 m CJ moved (group run-over, 05/11).
-    struct EntityChunk {const ColModel*col=nullptr;const ColData*data=nullptr;M frame{};short model=-1;unsigned char type=0;std::vector<float> verts;std::vector<uint8_t> materials;};
+    static constexpr unsigned char objectType=4,dummyType=5;
+    struct EntityChunk {const ColModel*col=nullptr;const ColData*data=nullptr;M frame{};short model=-1;unsigned char type=0;int propRef=-1;bool visibleDummy=false;std::vector<float> verts;std::vector<uint8_t> materials;};
     std::unordered_map<void*,EntityChunk> entityChunks;
+    std::unordered_set<void*> propChunks;
     unsigned changedEntities=0;
     // Entities decoded per rebuild while nothing physical needs the mesh (0 = all). Driving into a new block entered up to
     // 148 entities in one frame (12 ms, 06/11); the nearest go first and the rest follow on the next frames.
     int rebuildBudget=0;bool partial=false;
     static uint64_t chunkKey(void*e){return uint64_t(reinterpret_cast<uintptr_t>(e));}
+    static bool isProp(unsigned char type){return type==objectType||type==dummyType;}
+    static bool stationaryProp(void*e,unsigned char type){
+        // CObject::SetIsStatic clears bIsStatic when the native object wakes.
+        return type!=objectType||(at<unsigned char>(e,0x1C)&4);
+    }
+    static int propReference(void*e,unsigned char type){
+        // CPools' object slots use sizeof(CCutsceneObject); dummy slots use
+        // sizeof(CDummy). Check the occupancy/generation byte before reading e.
+        const bool object=type==objectType;
+        const auto*pool=*reinterpret_cast<Pool**>(object?0xB7449C:0xB744A0);
+        const size_t stride=object?0x19C:0x38;
+        if(!pool||!pool->objects||!pool->flags||pool->size<=0)return -1;
+        const auto address=reinterpret_cast<uintptr_t>(e);
+        const auto base=reinterpret_cast<uintptr_t>(pool->objects);
+        if(address<base)return -1;
+        const auto offset=address-base;
+        const auto index=offset/stride;
+        if(offset%stride||index>=size_t(pool->size)||(pool->flags[index]&0x80))return -1;
+        return int(index<<8)|pool->flags[index];
+    }
+    void retireChangedProps(){
+        bool removed=false;
+        for(auto it=propChunks.begin();it!=propChunks.end();){
+            void*e=*it;
+            const auto&chunk=entityChunks.at(e);
+            if(propReference(e,chunk.type)==chunk.propRef&&
+               (at<unsigned char>(e,0x1C)&1)&&stationaryProp(e,chunk.type)&&
+               !(at<unsigned char>(e,0x1D)&8)&&
+               (!chunk.visibleDummy||(at<unsigned char>(e,0x1C)&0x80))&&
+               (at<unsigned char>(e,0x36)&7)==chunk.type&&
+               at<short>(e,0x22)==chunk.model&&
+               (at<unsigned char>(e,0x2F)==currentArea||at<unsigned char>(e,0x2F)==13)&&
+               NativeWorldCoverage::sameFrame(NativeWorldCoverage::frame(e),chunk.frame)){
+                const auto*col=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(e);
+                if(col&&col==chunk.col&&col->data==chunk.data){++it;continue;}
+            }
+            nm_world_remove_chunk(world,chunkKey(e));
+            nativeCoverage.erase(e);
+            entityChunks.erase(e);
+            it=propChunks.erase(it);
+            removed=true;
+        }
+        if(removed)triangles=nm_world_triangle_count(world);
+    }
     void rebuild(V origin,void*required=nullptr){
         FrameCostProfile cost("world_rebuild",0,0,-1,-1,0.);
         if(world&&currentArea!=area()){nm_world_destroy(world);world=nullptr;}
-        if(!world){entityChunks.clear();nativeCoverage.rows.clear();world=nm_world_create();}
+        if(world)retireChangedProps();
+        if(!world){entityChunks.clear();propChunks.clear();nativeCoverage.rows.clear();world=nm_world_create();}
         nativeCoverage.begin(origin,area());
         if(!world){nativeCoverage.complete=false;return;}
         std::array<void*,1025> found{};short count=0;entities=0;simpleTransforms=0;skippedNoCollision=0;changedEntities=0;
@@ -75,7 +122,7 @@ struct CollisionWorld {
         if(required&&std::find(found.begin(),found.begin()+count,required)==found.begin()+count)found[count++]=required;
         std::unordered_set<void*> seen;seen.reserve(size_t(count)*2);
         std::vector<uint32_t> indices;
-        struct Todo {float distance;void*e;ColModel*col;M m;};std::vector<Todo> todo;
+        struct Todo {float distance;void*e;ColModel*col;M m;int propRef;};std::vector<Todo> todo;
         const bool budgeted=rebuildBudget>0&&world&&currentArea==area()&&!entityChunks.empty();partial=false;
         for(int n=0;n<count;n++){
             auto* e=found[n];if(!e||(at<unsigned char>(e,0x2F)!=area()&&at<unsigned char>(e,0x2F)!=13))continue;
@@ -83,6 +130,9 @@ struct CollisionWorld {
             // such entities (pickups, e.g. dropped money 1212, keep a COL
             // sphere but have it off); baking them made solid balls inside cars.
             if(!(at<unsigned char>(e,0x1C)&1)){skippedNoCollision++;continue;}
+            const unsigned char type=at<unsigned char>(e,0x36)&7;
+            const int propRef=isProp(type)?propReference(e,type):-1;
+            if(isProp(type)&&(propRef<0||!stationaryProp(e,type)||(at<unsigned char>(e,0x1D)&8)))continue;
             auto* col=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(e);auto* m=matrix(e);
             if(!col||!col->data)continue;
             // CPlaceable may retain only position/heading. Those buildings
@@ -95,11 +145,11 @@ struct CollisionWorld {
                 lo={std::min(lo.x,c.x),std::min(lo.y,c.y),std::min(lo.z,c.z)};hi={std::max(hi.x,c.x),std::max(hi.y,c.y),std::max(hi.z,c.z)};}
             if(e!=required&&(origin.x+45<lo.x||origin.x-45>hi.x||origin.y+45<lo.y||origin.y-45>hi.y||origin.z+20<lo.z||origin.z-30>hi.z))continue;
             auto* d=col->data;entities++;seen.insert(e);
-            const short model=at<short>(e,0x22);const unsigned char type=at<unsigned char>(e,0x36)&7;
+            const short model=at<short>(e,0x22);
             if(auto it=entityChunks.find(e);it!=entityChunks.end()&&it->second.col==col&&it->second.data==d&&it->second.model==model&&
-               it->second.type==type&&NativeWorldCoverage::sameFrame(it->second.frame,*m))continue;
+               it->second.type==type&&it->second.propRef==propRef&&NativeWorldCoverage::sameFrame(it->second.frame,*m))continue;
             const V nearest{std::clamp(origin.x,lo.x,hi.x),std::clamp(origin.y,lo.y,hi.y),std::clamp(origin.z,lo.z,hi.z)};
-            todo.push_back({e==required?-1.f:length(nearest-origin),e,col,*m});
+            todo.push_back({e==required?-1.f:length(nearest-origin),e,col,*m,propRef});
         }
         if(budgeted&&int(todo.size())>rebuildBudget){
             std::sort(todo.begin(),todo.end(),[](const Todo&a,const Todo&b){return a.distance<b.distance;});
@@ -108,7 +158,10 @@ struct CollisionWorld {
         for(auto&t:todo){
             void*e=t.e;auto*col=t.col;const M*m=&t.m;auto*d=col->data;
             const short model=at<short>(e,0x22);const unsigned char type=at<unsigned char>(e,0x36)&7;
-            EntityChunk chunk{col,d,*m,model,type};
+            // Population hides the dummy when it replaces it with a CObject.
+            // A dummy already hidden when discovered can still be collidable.
+            const bool visibleDummy=type==dummyType&&(at<unsigned char>(e,0x1C)&0x80);
+            EntityChunk chunk{col,d,*m,model,type,t.propRef,visibleDummy};
             auto triangle=[&](V a,V b,V c,unsigned char mat){
                 if(length(cross(b-a,c-a))<1.e-5f)return;
                 chunk.verts.insert(chunk.verts.end(),{a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z});chunk.materials.push_back(mat);
@@ -146,12 +199,14 @@ struct CollisionWorld {
             if(triangleCount==0)nm_world_remove_chunk(world,chunkKey(e));
             else if(nm_world_set_chunk_two_sided(world,chunkKey(e),chunk.verts.data(),triangleCount*3,indices.data(),triangleCount,chunk.materials.data())<0)nativeCoverage.complete=false;
             nativeCoverage.record(e,col,*m);
+            if(t.propRef>=0)propChunks.insert(e);
+            else propChunks.erase(e);
             entityChunks[e]=std::move(chunk);changedEntities++;
         }
         cost.lap(0);
         for(auto it=entityChunks.begin();it!=entityChunks.end();){
             if(seen.contains(it->first)){++it;continue;}
-            nm_world_remove_chunk(world,chunkKey(it->first));nativeCoverage.erase(it->first);it=entityChunks.erase(it);changedEntities++;
+            nm_world_remove_chunk(world,chunkKey(it->first));nativeCoverage.erase(it->first);propChunks.erase(it->first);it=entityChunks.erase(it);changedEntities++;
         }
         // Coverage rows exist only for entities still in the window.
         for(auto it=nativeCoverage.rows.begin();it!=nativeCoverage.rows.end();)if(entityChunks.contains(it->first))++it;else it=nativeCoverage.rows.erase(it);
@@ -183,6 +238,7 @@ struct CollisionWorld {
         for(auto it=doorMotion.begin();it!=doorMotion.end();)if(!vehicleFromRef(it->first.first))it=doorMotion.erase(it);else ++it;
         for(auto it=doorVehicles.begin();it!=doorVehicles.end();)if(!vehicleFromRef(it->first)||gameTime()-it->second>3000)it=doorVehicles.erase(it);else ++it;
         if(!world||currentArea!=area()||partial||length(origin-center)>12||gameTime()-builtAt>2000)rebuild(origin);
+        else retireChangedProps();
         std::array<void*,256> found{};short count=0;vehicles.clear();
         reinterpret_cast<void(__cdecl*)(const V&,float,bool,short*,short,void**,bool,bool,bool,bool,bool)>(0x564A20)(origin,45.f,true,&count,256,found.data(),false,true,false,false,false);
         for(int i=0;i<count&&i<256;i++){

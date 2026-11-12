@@ -32,6 +32,13 @@
 // its direction for +0x180; SA's CTaskSimpleCarSetPedOut (the task IV runs inside CarJumpOut) removes the ped; the ragdoll goes
 // through the existing Reaction::VehicleExit pipeline (jump roll 3..6 s, no-collision with the car, player rules) with IV's launch.
 static bool windscreenEjection=true;
+static bool windscreenTwoWheeler(void* vehicle){
+    if(at<float>(vehicle,0xD8)<=0.f)return false;
+    void*hit=at<void*>(vehicle,0xDC);
+    if(vehicleRef(hit)<0)return false;
+    const int type=at<int>(hit,0x594);
+    return type==9||type==10; // VEHICLE_TYPE_BIKE / VEHICLE_TYPE_BMX
+}
 // Adaptation asked by the user: SA stops the car a frame on a lamp post before it gives way, and on a bike, which read as a
 // head-on crash. +0xDC CPhysical damage entity; object info +0x160: uproot limit +0x14, col damage effect +0x1C.
 static bool windscreenYields(void*v){
@@ -40,8 +47,8 @@ static bool windscreenYields(void*v){
     if(type==4){const auto*info=at<const char*>(hit,0x160);return info&&(*reinterpret_cast<const float*>(info+0x14)>0.f||info[0x1C]!=0);}
     return type==2&&at<float>(hit,0x90)<700.f;
 }
-constexpr float windscreenPlayerDv=18.f,windscreenPedDv=12.f,windscreenChance=.75f,windscreenForwardDot=-.707f,windscreenAlong=.25f,windscreenUp=3.f;
-struct WindscreenRun {V last{};unsigned lastFrame=0,decided[2]{0,0};};
+constexpr float windscreenPlayerDv=18.f,windscreenPedDv=12.f,windscreenChance=.75f,windscreenForwardDot=-.707f,windscreenIvImpulse=.25f,windscreenExtraHorizontal=.11f,windscreenUp=3.f;
+struct WindscreenRun {V last{};unsigned lastFrame=0,decided[2]{0,0},twoWheelerAt=0;};
 static std::map<int,WindscreenRun> windscreenRuns; // per vehicle ref
 struct WindscreenMark {V launch{};unsigned time=0;};
 static std::map<int,WindscreenMark> windscreenMarks; // per ejected ped ref, until its NM task is verified
@@ -172,6 +179,7 @@ static uint32_t windscreenPartsInside(NmAgent*agent,void*v){
 // swing back behind it, ignoring the car. It is free above the shell, so nothing of it starts inside the car, and the seated
 // pose never meets what stopped the car (07/11: feet first, the body stopped at the bonnet and sank into the shell).
 constexpr float windscreenPitch=1.3f,windscreenLegSwing=1.45f,windscreenSpin=1.2f;
+static bool windscreenAudit();
 static void windscreenCarry(Active&a,WindscreenHold&h,void*v,unsigned now){
     const M*m=matrix(v);if(!m)return;
     float rows[21*13]{},pose[21*7]{};
@@ -198,8 +206,15 @@ static void windscreenCarry(Active&a,WindscreenHold&h,void*v,unsigned now){
         row[0]=placed.x;row[1]=placed.y;row[2]=placed.z;row[3]=q.x;row[4]=q.y;row[5]=q.z;row[6]=q.w;
         row[7]=carried.x;row[8]=carried.y;row[9]=carried.z;row[10]=spin.x;row[11]=spin.y;row[12]=spin.z;
     }
-    ok(nm_agent_set_part_states(a.agent,rows,21));
+    if(!ok(nm_agent_set_part_states(a.agent,rows,21)))return;
     h.carried=u>=1.f;
+    if(h.carried&&windscreenAudit()){
+        V centre{},velocity{};
+        if(ok(nm_agent_get_com(a.agent,&centre.x,&velocity.x)))
+            event("windscreen_release_velocity",a.ref,a.model,
+                "horizontal_mps="+std::to_string(std::hypot(velocity.x,velocity.y))+
+                " vertical_mps="+std::to_string(velocity.z));
+    }
 }
 static void windscreenHoldStarted(Active&a,WindscreenHold&h,void*v){
     const M*m=matrix(v);V com{},velocity{};
@@ -292,8 +307,10 @@ static void windscreenNmFix(){
             if(phase>=1){
                 // The roll stays IV's; NMHFall's flail, arms up and catchFall fill the flight, as asked (IV's jump roll has only catchFall).
                 const V launch=it->second.launch;
-                if(ok(nm_agent_bike_throw_start(a->second->agent,collision->world,&launch.x,at<float>(a->second->ped,0x540)*2.f,(a->second->ped==player()?1u:0u)|2u)))
+                if(ok(nm_agent_bike_throw_start(a->second->agent,collision->world,&launch.x,ivHealth(a->second->ped),(a->second->ped==player()?1u:0u)|2u))){
                     event("windscreen_high_fall",a->first,a->second->model,"task=jump_roll speed_mps="+std::to_string(length(launch))+" original_times=3_6 sdk_times=2_30");
+                    tryCjFlightVoice(*a->second,launch,now);
+                }
             }
             if(phase>=1){it=windscreenMarks.erase(it);continue;}
         }
@@ -313,6 +330,30 @@ static void tickWindscreenEjection(){
         if(!seat[0]&&!seat[1]){windscreenRuns.erase(ref);continue;}
         const V now=at<V>(v,0x44)*50.f,d=now-before;
         auto&run=windscreenRuns[ref];
+        // The native damage record identifies the strongest collision in
+        // this step. Discard a bike's contribution to the two-frame sum.
+        // A following collision with a wall or car gets its own decision.
+        if(windscreenTwoWheeler(v)){
+            run.last={};run.lastFrame=frame;run.twoWheelerAt=gameTime();
+            if(windscreenAudit()){
+                auto*hit=at<void*>(v,0xDC);
+                event("windscreen_two_wheeler_ignored",ref,at<short>(v,0x22),
+                      "model="+std::to_string(at<short>(hit,0x22))+" dv_mps="+std::to_string(length(d)));
+            }
+            continue;
+        }
+        if(run.twoWheelerAt&&gameTime()-run.twoWheelerAt<=180){
+            // Native suspension and the rider may still move the car after
+            // the two-wheeler leaves its damage record. Admit a new frontal
+            // impact with a rigid object immediately, even in this window.
+            auto*hit=at<void*>(v,0xDC);
+            const int hitType=hit?(at<unsigned char>(hit,0x36)&7):0;
+            const V normal=at<V>(v,0xE0);
+            const bool rigid=at<float>(v,0xD8)>0.f&&(hitType==1||hitType==2||hitType==4)&&
+                !windscreenYields(v)&&std::abs(normal.z)<.8f&&dot(normal,matrix(v)->up)<-.35f;
+            if(!rigid){run.last={};run.lastFrame=frame;continue;}
+            run.twoWheelerAt=0;
+        }
         // IV's impact is one frame's impulse; our contact can spread over two frames, so that pair counts once.
         V best=d;if(run.lastFrame&&frame-run.lastFrame==1&&length(run.last+d)>length(d))best=run.last+d;
         run.last=d;run.lastFrame=frame;
@@ -347,7 +388,9 @@ static void tickWindscreenEjection(){
             }
             // Jump vector -dv x impact dir (0x823E8454..0x823E8468); ped velocity = vehicle velocity (0x8247F840) plus the door-0x1C
             // impulse mass x (0.25 x vector + (0,0,3)) (0x824BD9D0..0x824BDA50).
-            const V jump=V{}-dir*dv;const V launch=now+jump*windscreenAlong+V{0,0,windscreenUp};
+            const V jump=V{}-best;
+            const V originalLaunch=now+jump*windscreenIvImpulse+V{0,0,windscreenUp};
+            const V launch=originalLaunch+V{jump.x,jump.y,0.f}*windscreenExtraHorizontal;
             const int pedRef=reference(ped);const short model=at<short>(ped,0x22);
             if(!windscreenSetPedOut(ped,v)){event("windscreen_detach_failed",pedRef,model,"still_in_vehicle=1 no_ejection=1");continue;}
             // SA's SetPedOut places the ped at the door (1.3-1.7 m): the body leaves the cabin from its seat, as IV's clip does.
@@ -363,7 +406,8 @@ static void tickWindscreenEjection(){
             event("windscreen_ejection",pedRef,model,"vehicle_ref="+std::to_string(ref)+" vehicle_model="+std::to_string(at<short>(v,0x22))+" seat="+std::to_string(s?2:0)+
                 " dv_mps="+std::to_string(dv)+" forward_dot="+std::to_string(along)+" threshold="+std::to_string(isPlayer?playerDv:pedDv)+
                 " vehicle_mps="+std::to_string(length(now))+" launch_mps="+std::to_string(length(launch))+" launch_vz="+std::to_string(launch.z)+" root_kept="+std::to_string(moved)+
-                " iv_kind=6 door=0x1C added_launch=iv_0.25_vector_plus_3_up");
+                " original_horizontal_mps="+std::to_string(std::hypot(originalLaunch.x,originalLaunch.y))+
+                " horizontal_mps="+std::to_string(std::hypot(launch.x,launch.y))+" iv_kind=6 door=0x1C");
         }
     }
 }

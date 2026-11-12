@@ -403,6 +403,11 @@ pub(crate) fn game_pairs(pairs: impl Iterator<Item = (usize, usize)>, hands_back
 }
 
 impl Agent {
+    pub fn host_foot_support(&mut self, enable: bool) {
+        self.doll.support_feet = if enable { self.roles.foot } else { [None; 2] };
+        self.doll.foot_support = Default::default();
+    }
+
     pub fn limp_rage(&self) -> Vec<crate::ragdoll::Rigid> {
         let mut rigid = self.ch.as_ref().map_or(vec![], |ch| ch.rigid(1.0 / delirium_data::kv!(193), self.strength, self.most));
         rigid.iter_mut().for_each(|r| (r.max, r.gain) = ([0.0; 2], [0.0; 2]));

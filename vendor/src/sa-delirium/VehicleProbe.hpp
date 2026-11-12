@@ -44,6 +44,12 @@ static int recoveryFixture(int mode){
         if(!p)return -37;probeRecoveryPed=reference(p);event("probe_recovery_ped",probeRecoveryPed,7);return probeRecoveryPed;
     }
     void*p=pedFromRef(probeRecoveryPed);if(!p||!validPed(p))return -34;
+    if(mode==47){
+        if(!GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return -47;
+        // Verify the accepted native baseball-bat damage path without the desktop.
+        reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,player(),5,24,3,0);
+        return probeRecoveryPed;
+    }
     const int weapon=(mode==41||mode==44)?0:22;
     reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)(p,nullptr,weapon,mode==43?1000:mode==44?30:12,3,0);
     event("probe_recovery_damage",probeRecoveryPed,at<short>(p,0x22),"weapon="+std::to_string(weapon));return probeRecoveryPed;

@@ -19,9 +19,11 @@ inline bool glassSurface(unsigned char material){return reinterpret_cast<bool(__
 inline std::vector<VehiclePrimitive> readVehiclePrimitives(const ColModel*col,bool withoutGlass=false){
     std::vector<VehiclePrimitive> primitives;
     auto*d=col?col->data:nullptr;if(!d)return primitives;const V center=(col->box.min+col->box.max)*.5f;
+    primitives.reserve(std::min<int>(d->triangles,2048)+std::min<int>(d->boxes,128)+std::min<int>(d->spheres,128));
     if(d->tri&&d->vertices&&d->triangles<=2048)for(int i=0;i<d->triangles;i++){
         const auto t=d->tri[i];if(withoutGlass&&glassSurface(t.material))continue;
-        auto vertex=[&](int k){V p;reinterpret_cast<void(__thiscall*)(void*,V&,int)>(0x40F5E0)(d,p,k);return p-center;};
+        // CColData::GetTrianglePoint decodes a packed FixedVector<int16,128>.
+        auto vertex=[&](int k){const auto&v=d->vertices[k];return V{v.x/128.f,v.y/128.f,v.z/128.f}-center;};
         const V a=vertex(t.a),b=vertex(t.c),c=vertex(t.b);
         if(!finite(a)||!finite(b)||!finite(c)||length(cross(b-a,c-a))<1.e-6f)continue;
         primitives.push_back({0,a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z});

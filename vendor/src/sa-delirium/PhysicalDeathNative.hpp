@@ -6,6 +6,7 @@
 static std::map<int,physical_death_continuity::Record> physicalDeaths;
 struct PhysicalDeathScope {DamageEvent*event=nullptr;void*ped=nullptr;};
 static thread_local PhysicalDeathScope physicalDeathScope{};
+static thread_local PhysicalDeathScope roadAnimationScope{};
 static physical_death_continuity::Identity physicalDeathIdentity(const Active&a){
     return {a.ref,a.model,reinterpret_cast<uintptr_t>(a.ped),
         reinterpret_cast<uintptr_t>(at<void*>(a.ped,0x18)),
@@ -14,6 +15,12 @@ static physical_death_continuity::Identity physicalDeathIdentity(const Active&a)
 static void clearPhysicalDeaths(){physicalDeaths.clear();physicalDeathScope={};}
 static void forgetPhysicalDeath(int ref){physicalDeaths.erase(ref);}
 static bool replacePhysicalDeathAnimation(DamageEvent*d,void*p){
+    if(roadAnimationScope.event==d&&roadAnimationScope.ped==p){
+        d->anim=191;d->flags&=~2u;
+        auto&deathTime=at<unsigned>(p,0x750);
+        if(deathTime==0||int(d->time-deathTime)>0)deathTime=d->time;
+        return true;
+    }
     if(physicalDeathScope.event!=d||physicalDeathScope.ped!=p)return false;
     auto a=agents.find(reference(p));auto r=physicalDeaths.find(reference(p));
     if(a==agents.end()||r==physicalDeaths.end()||a->second->ped!=p||
@@ -29,10 +36,11 @@ static void __fastcall physicalDamageResponse(void*handler,void*,DamageEvent*d,v
     void*p=at<void*>(handler,0);const int ref=reference(p);
     auto a=agents.find(ref);bool own=false;physical_death_continuity::Facts f{};
     auto*shot=matchedGroundShot(*d,p);
+    const bool road=roadReplacesDamageAnimation(*d,p);
     if(shot){
         d->anim=191;d->flags&=~2u;
-        shot->groundShotDelivered=true;
-        event("grounded_shot_native_reaction_replaced",ref,shot->model,"weapon="+std::to_string(d->weapon)+" native_accounting=1");
+        shot->groundShot=shotReceipt(*d);shot->groundShotDelivered=true;
+        event("owned_shot_native_reaction_replaced",ref,shot->model,"weapon="+std::to_string(d->weapon)+" native_accounting=1");
     }
     if(a!=agents.end()&&a->second->ped==p){
         auto&body=*a->second;const auto&hit=body.roadDamage;
@@ -40,7 +48,7 @@ static void __fastcall physicalDamageResponse(void*handler,void*,DamageEvent*d,v
         f.delivered={d->time,vehicleRef(d->source),d->weapon,d->piece};
         f.enabled=ready&&playing();f.protectedContext=cutscene()||(protectMissions&&scriptMissionActive());
         f.inVehicle=inVehicle(p);f.preview=body.preview;f.mounted=body.mounted;
-        f.impact=body.kind==Reaction::Impact;f.healthZero=at<float>(p,0x540)<=0;
+        f.impact=body.kind==Reaction::Impact;f.healthZero=at<float>(p,0x540)<=0||(road&&d->response.zero);
         f.calculated=d->response.calculated;f.killed=d->response.zero;
         // Animated handback currently has a different owner and must be
         // explicitly transferred before it can enter this branch.
@@ -51,10 +59,23 @@ static void __fastcall physicalDamageResponse(void*handler,void*,DamageEvent*d,v
             // native event time. Keep the shot key for the native Die carrier.
             f.accepted=f.delivered={d->time,reference(d->source),d->weapon,d->piece};
         }
-        if((!simplest||f.ownCarrier)&&physical_death_continuity::acceptedPhysicalDeath(f))
+        if((!simplest||f.ownCarrier||road)&&physical_death_continuity::acceptedPhysicalDeath(f))
             own=physicalDeaths[ref].begin(f,reinterpret_cast<uintptr_t>(d));
     }
     const auto previous=physicalDeathScope;
+    const auto previousRoad=roadAnimationScope;
+    if(road){
+        const int nativeAnim=d->anim;
+        d->anim=191;d->flags&=~2u;
+        if(d->response.zero||at<float>(p,0x540)<1.f){
+            roadAnimationScope={d,p};
+            // The stock fall/get-up branch can overwrite the sentinel.
+            simplest=nullptr;
+        }
+        event("native_road_damage_animation_replaced",ref,at<short>(p,0x22),
+              "native_anim="+std::to_string(nativeAnim)+" vehicle_ref="+std::to_string(vehicleRef(d->source))+
+              " fatal="+std::to_string(d->response.zero));
+    }
     if(own){
         physicalDeathScope={d,p};d->anim=191;d->flags&=~2u;
         // 4C0987 selects FloorHit directly for SA GetUp205. This task is
@@ -63,6 +84,7 @@ static void __fastcall physicalDamageResponse(void*handler,void*,DamageEvent*d,v
     }
     originalPhysicalDamageResponse(handler,d,active,simplest,aborted);
     physicalDeathScope=previous;
+    roadAnimationScope=previousRoad;
     if(!own)return;
     a=agents.find(ref);auto r=physicalDeaths.find(ref);
     if(a==agents.end()||r==physicalDeaths.end()||a->second->ped!=p)return;

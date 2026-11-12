@@ -110,3 +110,32 @@ pub fn check(dir:&Path)->Result<(),String>{
     if receipt["version"]!=1||receipt["files"]!=expected{return Err("La caché del combate está incompleta o ha cambiado".into())}
     validate(dir)?;Ok(())
 }
+
+
+#[cfg(test)]
+#[test]
+#[ignore = "requires the owner-imported GTA IV combat bank"]
+fn audit_hit_reaction_coverage() {
+    let root = std::path::PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+    let cache = root.join("DeliriumSA-local-v3");
+    let program = fs::read(cache.join("iv-program.bin")).unwrap();
+    assert!(delirium_data::kv::unlock_program(&program));
+    let dir = cache.join("combat");
+    let read = |file: &str| fs::read(dir.join(file)).unwrap();
+    let mut data = sa_combat::Data::load(&read("MeleeAnims.dat"), &read("action_table.csv"), &read("pedpersonality.dat")).unwrap();
+    let bank = sa_combat::animation::Bank::load(&dir).unwrap();
+    data.install_gym(&bank).unwrap();
+    let mut ready = std::collections::BTreeSet::new();
+    let mut missing = std::collections::BTreeSet::new();
+    let mut unmapped = std::collections::BTreeSet::new();
+    for action in data.table.actions.iter().filter(|a| a.kind == sa_combat::hash("HitReaction")) {
+        match data.result_of(action).and_then(|i| data.clip_key(&data.table.results[i])) {
+            Some(key) if bank.clips.contains_key(&key) => { ready.insert(key); }
+            Some(key) => { missing.insert(key); }
+            None => { unmapped.insert(format!("{:08x}", action.name)); }
+        }
+    }
+    println!("HitReaction clips={}, unavailable={missing:?}, rows_without_clip={unmapped:?}", ready.len());
+    assert!(ready.len() >= 90, "The original bank has at least 90 distinct hit reactions");
+    assert!(missing.is_empty() && unmapped.is_empty(), "Unresolved hit reactions");
+}

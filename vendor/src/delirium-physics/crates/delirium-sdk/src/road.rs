@@ -49,6 +49,8 @@ pub unsafe extern "C" fn nm_agent_road_cancel(a: *mut NmAgent, w: *const NmWorld
     if a.road.state != 0 { stop_all(a, w); }
     a.road = Road::default();
     a.agent.doll.contact = bump::ContactRecord::new();
+    a.agent.doll.road_watch = -1;
+    a.agent.doll.road_watch_owner = None;
     0
 }
 
@@ -60,6 +62,18 @@ pub unsafe extern "C" fn nm_agent_road_arm(a: *mut NmAgent, w: *const NmWorld) -
     a.road = Road { state: 1, ..Default::default() };
     a.agent.contact_wake = true;
     a.agent.doll.contact = bump::ContactRecord::new();
+    a.agent.doll.road_watch = -2;
+    a.agent.doll.road_watch_owner = None;
+    0
+}
+
+/// Select the vehicle slot from the obstacle snapshot used by the next solve.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_road_watch(a: *mut NmAgent, vehicle: i32, owner: u64) -> i32 {
+    let a = agent!(a);
+    if vehicle < -1 { return fail(NM_E_ARG, "invalid road vehicle"); }
+    a.agent.doll.road_watch = vehicle;
+    a.agent.doll.road_watch_owner = (vehicle>=0 && owner!=0).then_some(owner);
     0
 }
 
@@ -78,12 +92,31 @@ pub unsafe extern "C" fn nm_agent_take_impact(a: *mut NmAgent, out: *mut f32) ->
     hit as i32
 }
 
+/// Ground impact evidence for host audio, independent of the damage record.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_take_ground_impact(a:*mut NmAgent,out:*mut f32)->i32{
+    let a=agent!(a);
+    if out.is_null(){return fail(NM_E_ARG,"null ground impact output")}
+    let [impulse,closing]=std::mem::take(&mut a.agent.doll.ground_impact);
+    let values=[impulse/a.agent.doll.mass(),closing];
+    unsafe{std::ptr::copy_nonoverlapping(values.as_ptr(),out,2)};
+    i32::from(impulse>0.0)
+}
+
 /// Call immediately after a solver step, before replacing obstacle identities.
 /// Returns 0 unchanged, 1 brace, 2 roll-up, 3 relax; negatives are SDK errors.
 /// report: solved Ns, component, roll milliseconds, minimum task milliseconds.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_agent_road_contact(a: *mut NmAgent, w: *const NmWorld, vehicle: i32,
     health_iv: f32, flags: u32, dt: f32, report: *mut f32) -> i32 {
+    unsafe { nm_agent_road_contact_detail(a, w, vehicle, health_iv, flags, dt, report, std::ptr::null_mut()) }
+}
+
+/// Optional geometry output: world point, normal toward the ped, normal
+/// closing speed (m/s), strongest impulse (N s), obstacle slot.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_road_contact_detail(a: *mut NmAgent, w: *const NmWorld, vehicle: i32,
+    health_iv: f32, flags: u32, dt: f32, report: *mut f32, geometry: *mut f32) -> i32 {
     let a = agent!(a);
     let Some(w) = (unsafe { w.as_ref() }) else { return fail(NM_E_ARG, "null world") };
     if !health_iv.is_finite() || !(dt > 0.0 && dt <= 0.25) || flags & !7 != 0 || report.is_null() {
@@ -93,6 +126,12 @@ pub unsafe extern "C" fn nm_agent_road_contact(a: *mut NmAgent, w: *const NmWorl
     if !matches!(a.road.state, 1 | 2) { return 0; }
     let c = &mut a.agent.doll.contact;
     if c.other != Some(vehicle) || !(c.strongest > 0.0 && c.sum > 0.0) { return 0; }
+    if !geometry.is_null() {
+        let [px, py, pz, _] = c.point;
+        let [nx, ny, nz, _] = c.normal;
+        let values = [px, py, pz, nx, ny, nz, f32::from_bits(c.extra[0]), c.strongest, c.extra[1] as i32 as f32];
+        unsafe { std::ptr::copy_nonoverlapping(values.as_ptr(), geometry, values.len()); }
+    }
     let car = Thing { id: vehicle, kind: ThingKind::Vehicle { player_driver: flags & 1 != 0 } };
     let imp = c.consume(4, dt, |_| car).expect("positive solved contact");
     let ped = bump::Ped { id: -2, health: health_iv, inv_mass: 1.0 / a.agent.doll.mass(), woke: true,
@@ -121,12 +160,16 @@ pub unsafe extern "C" fn nm_agent_road_contact(a: *mut NmAgent, w: *const NmWorl
             roll_ms = roll.max(0) as u32;
             a.road.roll = Some(with_tp(|tp| nm::RollUpAndRelax::start(&mut a.agent, &a.build, &w.0, tp, &mut rand, -1.0, 1.0, roll_ms)));
             a.road.state = 3;
+            a.agent.doll.road_watch = -1;
+            a.agent.doll.road_watch_owner = None;
             2
         }
         bump::Task::Relax { a: stiffness, b: damping } => {
             stop_all(a, w);
             nm::task_relax(&mut a.agent, stiffness, damping);
             a.road.state = 4;
+            a.agent.doll.road_watch = -1;
+            a.agent.doll.road_watch_owner = None;
             3
         }
         _ => return 0,

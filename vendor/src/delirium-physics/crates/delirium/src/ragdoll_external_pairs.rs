@@ -159,8 +159,8 @@ fn owner_mesh_sat()->bool{
   let t=[Vec3::new(offset,-0.5,-0.5),Vec3::new(offset,0.5,-0.5),Vec3::new(offset,0.,0.5)];
   let triangle=ObPart{shape:gjk::Shape::Tri(t,0.002),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:t[0].min(t[1]).min(t[2]),hi:t[0].max(t[1]).max(t[2]),mesh:None,filter:Default::default()};
   let mut g=Group::default();g.stage_external(1,&owners).unwrap();
-  let a=Obstacle{id:11,owner:Some(1),filter:CollisionFilter{kind:0x20,include:0x79FE},at:body,centre:body,com:body,rot,half:Vec3::splat(0.25),parts:Box::leak(vec![sphere].into_boxed_slice()),..Default::default()};
-  let mut b=Obstacle{id:22,owner:Some(2),at:root,centre:root,com:root,rot,half:Vec3::splat(offset.abs()+2.),parts:Box::leak(vec![triangle;count].into_boxed_slice()),..Default::default()};
+  let a=Obstacle{id:11,owner:Some(1),filter:CollisionFilter{kind:0x20,include:0x79FE},at:body,centre:body,com:body,rot,half:Vec3::splat(0.25),parts:vec![sphere].into(),..Default::default()};
+  let mut b=Obstacle{id:22,owner:Some(2),at:root,centre:root,com:root,rot,half:Vec3::splat(offset.abs()+2.),parts:vec![triangle;count].into(),..Default::default()};
   if previous{b.last=Some((root+Vec3::new(-0.02,0.01,0.),Quat::from_rotation_z(angle-0.15)));}
   g.stage_external_geometry(&[a,b]).unwrap();g
  }
@@ -215,7 +215,7 @@ fn owner_mesh_sat()->bool{
   let t=[Vec3::new(0.,d,0.),Vec3::new(d,0.,0.),Vec3::new(d,0.,1.)];
   assert!(t.iter().all(|p|p.x+p.y==d));
   let part=ObPart{shape:gjk::Shape::Tri(t,0.002),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:Vec3::ZERO,hi:Vec3::new(d,d,1.),mesh:None,filter:Default::default()};
-  obs[1].parts=Box::leak(vec![part;2048].into_boxed_slice());g.stage_external_geometry(&obs).unwrap();
+  obs[1].parts=vec![part;2048].into();g.stage_external_geometry(&obs).unwrap();
   OWNER_MESH_SAT.with(|v|v.set(false));let old=run(&mut g,0);
   OWNER_MESH_SAT.with(|v|v.set(true));let new=run(&mut g,0);
   assert_eq!(old.0,new.0,"must preserve every contact/witness/constraint bit");assert_eq!(old.0[0],0);

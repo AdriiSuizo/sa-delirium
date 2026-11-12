@@ -43,6 +43,11 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
    Every other Steam file must still match the stock reference. Install and
    restore journal the exact executable found. Editions.cs only names known
    builds for the user; acceptance always comes from the manifest.
+   For an audited classic PC executable, pass `--classic-executable PATH`.
+   The builder accepts only a SHA-256 in `VERIFIED_CLASSIC_EXECUTABLES` and
+   creates a delta to the existing profile executable. The audited SA DirectX
+   Optimiser variant uses this route. The installer still verifies the other
+   files and installs the variant in a separate folder.
    Before it: build the AVX2 engine (same cargo command with RUSTFLAGS=-C
    target-cpu=haswell and --target-dir build/bootstrap-portable-avx2 --lib),
    and the texture fixes with Fix-TxdConflicts.py --game <development game>
@@ -50,6 +55,14 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
    Refresh vendor/ from development with tools/Refresh-Vendor.py.
 8. Build-PortableSetup.ps1 embeds the manifest, freshly compiled current Steam
    launcher and small verified tools ZIP. No development sidecar is used.
+
+For the 0.4.0 unified package, generate the adapter with
+`tests/Prepare-VehicleLabRuntime.py --shipping --out <native>` and compile it
+with the same native build command. Run `Build-UnifiedCandidate.py` with the
+verified base package, native build, updated bootstrap CLI and DLL, and
+vgmstream release directory. Pass the matching AVX2 DLL with `--avx2`.
+Pass `--version 0.4.0` and compile its output with `Build-PortableSetup.ps1`. The install CLI selects the
+minimal profile with `--solo`. See [Vehicle Lab](../../docs/VEHICLE-LAB.md).
 
 Do not publish a package merely because these commands complete. Validate the
 literal EXE/RAR from owned stock Steam files and an external owner ISO with an

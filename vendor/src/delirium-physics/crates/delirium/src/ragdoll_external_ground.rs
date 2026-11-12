@@ -176,7 +176,7 @@ pub(super) fn begin(group:&mut Group,ms:&mut [Member],world:&Collision,dt:f32)->
     }
     for claim in claims {
         let owner=group.external.owners[&claim.id];
-        let ob=*group.external_geometry.iter().find(|o|o.owner==Some(claim.id)).unwrap();
+        let ob=group.external_geometry.iter().find(|o|o.owner==Some(claim.id)).unwrap().clone();
         let mut p=group.ground.states.remove(&claim.id).unwrap_or_else(||Ped{state:source::State{grounded:claim.initial_grounded,before:claim.initial_grounded,..Default::default()},..Default::default()});
         if claim.readd{p.maps=Default::default();}
         // Refresh the previous material point from the SAME staged epoch; a
@@ -305,7 +305,7 @@ pub(super) fn finish(group:&mut Group){
     }
     #[test]fn claimed_peer_capsule_is_removed_after_support_callback_and_mass_rule_is_real(){
         constants();let mut g=Group::default();let root=Vec3::Z;let a=original_ped_owner(1,7,root,Vec3::ZERO);let b=original_ped_owner(2,7,Vec3::ZERO,Vec3::ZERO);
-        g.stage_external(7,&[a,b]).unwrap();let oa=original_ped_obstacle(1,root,Vec3::ZERO);let ob=original_ped_obstacle(2,Vec3::ZERO,Vec3::ZERO);g.stage_external_geometry(&[oa,ob]).unwrap();
+        g.stage_external(7,&[a,b]).unwrap();let oa=original_ped_obstacle(1,root,Vec3::ZERO);let ob=original_ped_obstacle(2,Vec3::ZERO,Vec3::ZERO);g.stage_external_geometry(&[oa.clone(),ob.clone()]).unwrap();
         g.stage_external_ground_bodies(7,&[ExternalGroundBody{id:1,boat:false,excluded_type15:false,fixed:false,mass:25.},ExternalGroundBody{id:2,boat:false,excluded_type15:false,fixed:false,mass:25.}]).unwrap();g.stage_external_ground(7,&[ExternalGroundClaim{id:1,authored_xy:Vec2::ZERO,initial_grounded:true,opening_damping:true,readd:false}]).unwrap();
         begin(&mut g,&mut[],&Collision::default(),1./60.).unwrap();
         assert!(!pair(&mut g,&oa,&ob,1,Vec3::Z*0.4,Vec3::Z));assert_eq!(g.ground.states[&1].state.ground.unwrap().point.z,0.4);
@@ -329,7 +329,7 @@ pub(super) fn finish(group:&mut Group){
     #[test]fn boat_damping_uses_current_root_point_velocity_and_does_not_invent_reciprocal_spring(){
         constants();let mut g=Group::default();let root=Vec3::Z;let epoch=1;let ped=original_ped_owner(1,epoch,root,Vec3::ZERO);
         let boat=ExternalOwner{id:2,epoch,com:Vec3::ZERO,velocity:Vec3::Z,spin:Vec3::Y,linear_inverse:Mat3::IDENTITY/500.,angular_inverse:Mat3::IDENTITY/600.};
-        g.stage_external(epoch,&[ped,boat]).unwrap();let a=original_ped_obstacle(1,root,Vec3::ZERO);let b=Obstacle{id:2,owner:Some(2),at:Vec3::ZERO,rot:Quat::IDENTITY,centre:Vec3::ZERO,com:Vec3::ZERO,half:Vec3::new(3.,3.,0.1),vel:boat.velocity,spin:boat.spin,..Default::default()};g.stage_external_geometry(&[a,b]).unwrap();
+        g.stage_external(epoch,&[ped,boat]).unwrap();let a=original_ped_obstacle(1,root,Vec3::ZERO);let b=Obstacle{id:2,owner:Some(2),at:Vec3::ZERO,rot:Quat::IDENTITY,centre:Vec3::ZERO,com:Vec3::ZERO,half:Vec3::new(3.,3.,0.1),vel:boat.velocity,spin:boat.spin,..Default::default()};g.stage_external_geometry(&[a.clone(),b.clone()]).unwrap();
         g.stage_external_ground_bodies(epoch,&[ExternalGroundBody{id:1,boat:false,excluded_type15:false,fixed:false,mass:25.},ExternalGroundBody{id:2,boat:true,excluded_type15:false,fixed:false,mass:500.}]).unwrap();g.stage_external_ground(epoch,&[ExternalGroundClaim{id:1,authored_xy:Vec2::ZERO,initial_grounded:true,opening_damping:true,readd:false}]).unwrap();
         begin(&mut g,&mut[],&Collision::default(),1./120.).unwrap();pair(&mut g,&a,&b,1,Vec3::ZERO,Vec3::Z);
         assert_eq!(g.ground.states[&1].state.ground.unwrap().velocity,Vec3::X+Vec3::Z,"root lever, not contact lever, and current spin");

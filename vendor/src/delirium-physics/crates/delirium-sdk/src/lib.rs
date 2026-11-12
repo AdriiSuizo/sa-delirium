@@ -14,7 +14,7 @@ use delirium::collision::Collision;
 use delirium::msg::{self, Kind, Value};
 use delirium::nm::{self, Agent};
 use delirium::prelude::*;
-use delirium::ragdoll::{Build, Capsule, Obstacle, ObPart, Ragdoll};
+use delirium::ragdoll::{Build, Capsule, Obstacle, ObPart, ObstacleParts, Ragdoll};
 use std::cell::RefCell;
 use std::ffi::{CStr, c_char};
 use std::sync::RwLock;
@@ -175,23 +175,62 @@ pub unsafe extern "C" fn nm_part_name(i: i32, buf: *mut c_char, len: i32) -> i32
 
 pub struct NmWorld(Collision, Vec<Obstacle>, Vec<Capsule>);
 
-// Obstacle's core ABI uses immutable process-lifetime shape slices (also used
-// by imported game assets). Register once, deduplicate exact content, cap both
-// count and bytes; never allocate/leak geometry on each frame or world rebuild.
-static VEHICLE_SHAPES: std::sync::Mutex<Vec<(Vec<u32>, &'static [ObPart])>> = std::sync::Mutex::new(Vec::new());
+// Static hulls and bike components retain their handles. Instance COL
+// revisions have a lease and are reclaimed when the host replaces or retires
+// them. Staged worlds and replays hold their own Arc to the immutable parts.
+#[derive(Default)]
+struct VehicleShapes {
+    keys: std::collections::HashMap<std::sync::Arc<[u32]>, i32>,
+    entries: std::collections::HashMap<i32, VehicleShapeEntry>,
+    next: i32,
+    bytes: usize,
+}
+struct VehicleShapeEntry {
+    key: std::sync::Arc<[u32]>,
+    parts: ObstacleParts,
+    pinned: bool,
+    leases: u32,
+}
+impl VehicleShapes {
+    const BUDGET: usize = 48 * 1024 * 1024;
+    const TRANSIENT_RESERVE: usize = 16 * 1024 * 1024;
+    const ROW_BYTES: usize = 10 * size_of::<u32>() + size_of::<ObPart>();
 
-/// Rows of 10 floats: type 0 triangle (9 coordinates), 1 box (centre, half),
-/// 2 sphere (centre, radius). Coordinates are relative to the obstacle frame.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn nm_vehicle_shape_register(rows: *const f32, count: i32) -> i32 {
+    fn get(&self, id: i32) -> Option<&ObstacleParts> {
+        self.entries.get(&id).map(|entry| &entry.parts)
+    }
+
+    fn release(&mut self, id: i32) {
+        let Some(entry) = self.entries.get_mut(&id) else { return };
+        if entry.leases == 0 { return; }
+        entry.leases -= 1;
+        if entry.leases == 0 && !entry.pinned {
+            let entry = self.entries.remove(&id).unwrap();
+            self.keys.remove(&entry.key);
+            self.bytes -= entry.parts.len() * Self::ROW_BYTES;
+        }
+    }
+}
+static VEHICLE_SHAPES: std::sync::LazyLock<std::sync::Mutex<VehicleShapes>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(VehicleShapes::default()));
+
+fn store_vehicle_shape(rows: *const f32, count: i32, pinned: bool) -> i32 {
     use delirium::gjk::Shape;
     if !(1..=2048).contains(&count) || rows.is_null() { return fail(NM_E_ARG, "invalid vehicle shape rows"); }
     let f = unsafe { std::slice::from_raw_parts(rows, count as usize * 10) };
     if f.iter().any(|x| !x.is_finite() || x.abs() > 1000.0) { return fail(NM_E_ARG, "invalid vehicle shape values"); }
-    let key: Vec<u32> = f.iter().map(|x| x.to_bits()).collect();
+    let key = unsafe { std::slice::from_raw_parts(rows.cast::<u32>(), f.len()) };
     let mut cache = VEHICLE_SHAPES.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(i) = cache.iter().position(|(k, _)| *k == key) { return i as i32; }
-    if cache.len() >= 256 { return fail(NM_E_STATE, "vehicle shape cache limit"); }
+    if let Some(&id) = cache.keys.get(key) {
+        let entry = cache.entries.get_mut(&id).unwrap();
+        if pinned { entry.pinned = true; } else { entry.leases += 1; }
+        return id;
+    }
+    let bytes = count as usize * VehicleShapes::ROW_BYTES;
+    let budget = VehicleShapes::BUDGET - if pinned { VehicleShapes::TRANSIENT_RESERVE } else { 0 };
+    if cache.bytes + bytes > budget || cache.next == i32::MAX {
+        return fail(NM_E_STATE, "vehicle shape memory limit");
+    }
     let mut parts = Vec::new();
     for r in f.chunks_exact(10) {
         let c = Vec3::from_slice(&r[1..4]);
@@ -209,7 +248,52 @@ pub unsafe extern "C" fn nm_vehicle_shape_register(rows: *const f32, count: i32)
         };
         parts.push(ObPart { shape, m: Mat3::IDENTITY, at, lo, hi, mesh: None, filter:Default::default() });
     }
-    let id=cache.len();cache.push((key,Box::leak(parts.into_boxed_slice())));id as i32
+    let id = cache.next;
+    cache.next += 1;
+    let key: std::sync::Arc<[u32]> = key.into();
+    cache.keys.insert(key.clone(), id);
+    cache.entries.insert(id, VehicleShapeEntry { key, parts: parts.into(), pinned, leases: u32::from(!pinned) });
+    cache.bytes += bytes;
+    id
+}
+
+/// Rows of 10 floats: type 0 triangle, 1 box, 2 sphere.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_vehicle_shape_register(rows: *const f32, count: i32) -> i32 {
+    store_vehicle_shape(rows, count, true)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_vehicle_shape_acquire(rows: *const f32, count: i32) -> i32 {
+    store_vehicle_shape(rows, count, false)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn nm_vehicle_shape_release(shape: i32) {
+    VEHICLE_SHAPES.lock().unwrap_or_else(|e| e.into_inner()).release(shape);
+}
+
+#[cfg(test)]
+#[test]
+fn transient_vehicle_shapes_reclaim_revisions_and_keep_bound_parts() {
+    let world = nm_world_create();
+    let box_row = [0., 0., 0., 0., 0., 0., 1., 1., 1., 1., 0., 0., 0.];
+    let spin = [0.; 3];
+    assert_eq!(unsafe { nm_world_set_boxes(world, box_row.as_ptr(), 1) }, 0);
+    for index in 0..600 {
+        let x = (index as f32 + 1.) / 1024.;
+        let geometry = [1., x, 0., 0., 1., 2., 3., 0., 0., 0.];
+        let id = unsafe { nm_vehicle_shape_acquire(geometry.as_ptr(), 1) };
+        assert!(id >= 0);
+        assert_eq!(unsafe { nm_vehicle_shape_acquire(geometry.as_ptr(), 1) }, id);
+        assert_eq!(unsafe { nm_world_set_vehicle_shape(world, 0, id, spin.as_ptr()) }, 0);
+        nm_vehicle_shape_release(id);
+        assert!(VEHICLE_SHAPES.lock().unwrap().get(id).is_some());
+        nm_vehicle_shape_release(id);
+        assert!(VEHICLE_SHAPES.lock().unwrap().get(id).is_none());
+        assert_eq!(unsafe { &*world }.1[0].parts[0].at.x, x);
+    }
+    unsafe { nm_world_destroy(world) };
 }
 
 #[unsafe(no_mangle)]
@@ -218,9 +302,9 @@ pub unsafe extern "C" fn nm_world_set_vehicle_shape(w: *mut NmWorld, index: i32,
     if index<0 || shape<0 || spin.is_null() { return fail(NM_E_ARG,"invalid vehicle shape binding"); }
     let v=unsafe { v3(spin) };if !v.is_finite() { return fail(NM_E_ARG,"invalid spin"); }
     let cache=VEHICLE_SHAPES.lock().unwrap_or_else(|e| e.into_inner());
-    let Some((_,parts))=cache.get(shape as usize) else { return fail(NM_E_ARG,"unknown vehicle shape") };
+    let Some(parts)=cache.get(shape) else { return fail(NM_E_ARG,"unknown vehicle shape") };
     let Some(ob)=w.1.get_mut(index as usize) else { return fail(NM_E_ARG,"unknown vehicle instance") };
-    ob.parts=parts;ob.spin=v;0
+    ob.parts=parts.clone();ob.spin=v;0
 }
 
 /// Previous pose seen by the particular agent being stepped. Host array order
@@ -325,7 +409,7 @@ pub unsafe extern "C" fn nm_world_set_boxes(w: *mut NmWorld, boxes: *const f32, 
     w.1 = f.chunks(13).enumerate().map(|(k, b)| {
         let c = Vec3::new(b[0], b[1], b[2]);
         let (rot, half, vel) = (Quat::from_xyzw(b[3], b[4], b[5], b[6]).normalize(), Vec3::new(b[7], b[8], b[9]), Vec3::new(b[10], b[11], b[12]));
-        Obstacle { id: k as i32, at: c, rot, centre: c, half, vel, spin: Vec3::ZERO, com: c, parts: &[], last: None, owner: None, filter:Default::default() }
+        Obstacle { id: k as i32, at: c, rot, centre: c, half, vel, spin: Vec3::ZERO, com: c, parts: Default::default(), last: None, owner: None, filter:Default::default() }
     }).collect();
     0
 }
@@ -557,6 +641,13 @@ fn placed(b: &NmBuild, pos: Vec3, yaw: f32) -> Vec<Transform> {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_set_lunar_player(agent: *mut NmAgent, player: i32) {
+    if let Some(agent) = unsafe { agent.as_mut() } {
+        agent.agent.doll.lunar_player = player != 0;
+    }
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_agent_create(b: *const NmBuild, pos: *const f32, yaw: f32, seed: f32) -> *mut NmAgent {
     let Some(b) = (unsafe { b.as_ref() }) else {
         fail(NM_E_ARG, "null build");
@@ -704,6 +795,13 @@ pub unsafe extern "C" fn nm_agent_no_collision_active(a:*const NmAgent)->i32{
 pub unsafe extern "C" fn nm_agent_no_collision_diag(a:*const NmAgent)->i32{
     let d=&agent_ref!(a).agent.doll;
     i32::from(d.no_collision_seen)|(d.no_collision_parts.count_ones() as i32)<<8
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nm_agent_host_foot_support(a: *mut NmAgent, enable: i32) -> i32 {
+    let a=agent!(a);
+    a.agent.host_foot_support(enable!=0);
+    0
 }
 
 #[unsafe(no_mangle)]

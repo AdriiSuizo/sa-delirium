@@ -121,7 +121,7 @@ impl Ragdoll {
                         let shape_b=gjk::Shape::Box(ob.half,0.);
                         let query=|f|gjk::closest(&shape,rot,from+remaining*f-ob.centre,&shape_b,body_rot,Vec3::ZERO,Vec3::Z,f32::MAX.sqrt(),Some(gjk::Pen::Sphere));
                         take(cast(&query));
-                    }else{for component in ob.parts{
+                    }else{for component in ob.parts.iter(){
                         if matches!(component.shape,gjk::Shape::Hull(v,_) if v.is_empty()){continue}
                         let origin=ob.at+body_rot*component.at;let r=body_rot*component.m;
                         if !overlaps(origin+r*((component.lo+component.hi)*0.5),r,(component.hi-component.lo)*0.5){continue}

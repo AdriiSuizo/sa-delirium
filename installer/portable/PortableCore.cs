@@ -38,6 +38,9 @@ namespace SAPortable {
         public long source_bytes, bytes;
     }
     public static class Originals {
+        internal const string VorbisFile = "vorbisFile.dll";
+        internal static readonly string[] VorbisAliases = { "vorbisHooked.dll", "vorbisFileHooked.dll" };
+
         // Every accepted original of a game-file recipe, primary first,
         // with source, patch and verified output made explicit.
         public static List<RecipeSource> Candidates(Recipe f) {
@@ -56,9 +59,13 @@ namespace SAPortable {
             return list;
         }
     }
+    public enum SetupPhase { Validation, Packages, Files, Resources, Install, Restore }
+
     public sealed class Manifest {
         public int schema;
+        public string version;
         public bool lab_only;
+        public bool unified;
         public bool choose_compatible_renderer;
         public bool prepare_legacy_directx;
         public string tools_sha256;
@@ -75,6 +82,7 @@ namespace SAPortable {
         readonly HashSet<string> resolving = new HashSet<string>();
         readonly Dictionary<string,string> archivePasswords = new Dictionary<string,string>();
         public Action<long,long,string> Progress = delegate {};
+        public Action<SetupPhase> Phase = delegate {};
         public Func<bool> Cancelled = delegate {return false;};
         public bool Unattended, HdModels;
         public readonly List<string> Skipped=new List<string>();
@@ -118,6 +126,13 @@ namespace SAPortable {
             if(value.Contains('"') || value.EndsWith("\\")) throw new IOException("Argumento de herramienta no válido.");
             return "\""+value+"\"";
         }
+        static Exception ToolFailure(Exception error, string log, string operation, int? exitCode = null, string detail = null) {
+            error.Data["SetupLog"] = log;
+            error.Data["SetupTool"] = operation;
+            if (exitCode.HasValue) error.Data["SetupExitCode"] = exitCode.Value;
+            if (detail != null) error.Data["SetupDetail"] = detail;
+            return error;
+        }
         void Run(string filename, string arguments, string log, string operation, bool allowRestart=false, int timeoutMilliseconds=0, bool showToolError=false) {
             CheckCancellation();
             var start = new ProcessStartInfo(filename,arguments) {UseShellExecute=false,CreateNoWindow=true,
@@ -129,7 +144,7 @@ namespace SAPortable {
                 try {process.Start();}
                 catch(System.ComponentModel.Win32Exception error) {
                     output.WriteLine(error.Message);
-                    throw new System.ComponentModel.Win32Exception(error.NativeErrorCode,failure+" "+error.Message+logLocation);
+                    throw ToolFailure(new System.ComponentModel.Win32Exception(error.NativeErrorCode,failure+" "+error.Message+logLocation),log,operation);
                 }
                 var watch=Stopwatch.StartNew();
                 object sync=new object();
@@ -143,12 +158,12 @@ namespace SAPortable {
                 process.BeginOutputReadLine();process.BeginErrorReadLine();
                 while(!process.WaitForExit(200)) {
                     if(Cancelled()) {process.Kill();process.WaitForExit();throw new OperationCanceledException();}
-                    if(timeoutMilliseconds>0&&watch.ElapsedMilliseconds>timeoutMilliseconds){process.Kill();process.WaitForExit();throw new TimeoutException("Tiempo agotado en "+operation+"."+logLocation);}
+                    if(timeoutMilliseconds>0&&watch.ElapsedMilliseconds>timeoutMilliseconds){process.Kill();process.WaitForExit();throw ToolFailure(new TimeoutException("Tiempo agotado en "+operation+"."+logLocation),log,operation);}
                 }
                 process.WaitForExit();
                 if(process.ExitCode!=0 && !(allowRestart&&process.ExitCode==3010)) {
                     var detail=toolError==null?"":"\r\n"+toolError.Substring(0,Math.Min(toolError.Length,400));
-                    throw new IOException(failure+" Código "+process.ExitCode+"."+detail+logLocation);
+                    throw ToolFailure(new IOException(failure+" Código "+process.ExitCode+"."+detail+logLocation),log,operation,process.ExitCode,toolError);
                 }
             }
         }
@@ -300,17 +315,31 @@ namespace SAPortable {
             foreach(var name in selected)Paths.NoLinks(Paths.Inside(root,name));
             return root;
         }
-        public ProfileIndex Prepare(string steam,string iso,out string preparedRoot) {
+        public ProfileIndex Prepare(string selection,string iso,out string preparedRoot) {
             Engine.NoRunningGame();
-            steam=Paths.Full(steam);iso=Path.GetFullPath(iso);Paths.NoLinks(steam);Paths.NoLinks(iso);
-            var edition=Editions.Identify(steam,Manifest,null);
+            var edition=Editions.Identify(selection,Manifest,null);
             if(!edition.accepted)throw new IOException(edition.message);
+            var steam=edition.folder;
+            iso=Path.GetFullPath(iso);Paths.NoLinks(steam);Paths.NoLinks(iso);
             if(!File.Exists(iso) || !Path.GetExtension(iso).Equals(".iso",StringComparison.OrdinalIgnoreCase))throw new IOException("Selecciona la ISO de GTA IV para Xbox 360.");
+            var originals = ScanOriginals(Manifest, edition, Cancelled, Progress);
+            if (originals.Missing.Count != 0) {
+                bool vorbisMissing = originals.Missing.Contains(Originals.VorbisFile, StringComparer.OrdinalIgnoreCase);
+                var message = vorbisMissing
+                    ? "Falta una copia verificable de vorbisFile.dll. El asistente también ha buscado vorbisHooked.dll y vorbisFileHooked.dll. Verifica los archivos del juego o selecciona otra instalación."
+                    : "Revisa los archivos de San Andreas. Falta un original compatible de " + originals.Missing[0] +
+                        (originals.Missing.Count == 1 ? "." : " y " + (originals.Missing.Count - 1) + " más.") +
+                        " Usa una copia limpia o verifica sus archivos en la tienda.";
+                var error = new IOException(message);
+                error.Data["SetupOriginals"] = String.Join(", ", originals.Missing.Take(20));
+                throw error;
+            }
             Directory.CreateDirectory(cache);
             var bootstrap=Path.Combine(tools,"sa-delirium-bootstrap.exe");
             Progress(0,0,"Comprobando la ISO de GTA IV…");
             Run(bootstrap,"--check-iso "+Quote(iso),Paths.Inside(cache,"iso-check-"+Guid.NewGuid().ToString("N")+".log"),"la comprobación de la ISO de GTA IV",showToolError:true);
             preparedRoot=Paths.Inside(cache,"prepared-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(preparedRoot);
+            Phase(SetupPhase.Packages);
             var sources=new Dictionary<string,string>();
             // Urbanize comes from its author's Drive, whose daily quota runs out (07/11): the game installs without it.
             foreach(var chosen in Manifest.packages.Where(x=>x.opt_in&&!HdModels))
@@ -353,19 +382,24 @@ namespace SAPortable {
                     sources.Add(f.path,matching[0]);
                 }
             }
+            Phase(SetupPhase.Files);
             long completed=0,total=Manifest.files.Sum(x=>x.bytes);
             var outputs=new Dictionary<string,RecipeSource>(StringComparer.OrdinalIgnoreCase);
-            var measured=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
             foreach(var f in Manifest.files) {
                 CheckCancellation();var destination=Paths.Inside(preparedRoot,f.path);Directory.CreateDirectory(Path.GetDirectoryName(destination));
                 string source;
                 if(f.kind=="steam" || f.kind=="steam_delta") {
                     // The game folder may come from any edition: each file is
                     // matched by its measured hash, never by store or name.
-                    var choice=ChooseOriginal(f,steam,measured);outputs[f.path]=choice;
-                    source=Paths.Inside(steam,choice.source);
-                    if(choice.patch!=null)Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+choice.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"),"la preparación de "+f.path);
-                    else File.Copy(source,destination);
+                    var choice=originals.Files[f.path];outputs[f.path]=choice;
+                    var executable = IsExecutableRecipe(f);
+                    source = executable ? Editions.ExecutableInput(edition, preparedRoot) : Paths.Inside(steam,choice.source);
+                    try {
+                        if(choice.patch!=null)Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+choice.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"),"la preparación de "+f.path);
+                        else File.Copy(source,destination);
+                    } finally {
+                        if (executable && edition.NormalizeLargeAddressAware) File.Delete(source);
+                    }
                     Verify(destination,choice.sha256,choice.bytes);completed+=f.bytes;Progress(completed,total,f.path);
                     continue;
                 }
@@ -380,18 +414,15 @@ namespace SAPortable {
                 } else {Verify(source,f.sha256,f.bytes);File.Copy(source,destination);}
                 Verify(destination,f.sha256,f.bytes);completed+=f.bytes;Progress(completed,total,f.path);
             }
-            Progress(total,total,"Preparando Delirium desde tu ISO…");
+            Phase(SetupPhase.Resources);
+            Progress(0,0,"Preparando Delirium desde tu ISO…");
             Run(bootstrap,Quote(preparedRoot)+" --iso "+Quote(iso),Paths.Inside(preparedRoot,"iso-import.log"),"la importación desde la ISO de GTA IV",showToolError:true);
+            if (Manifest.unified) ImportMeleeAudio(bootstrap, preparedRoot, iso);
             var files=Manifest.files.Select(f=>{RecipeSource o;var used=outputs.TryGetValue(f.path,out o);
                 return new ProfileFile {path=f.path,sha256=used?o.sha256:f.sha256,bytes=used?o.bytes:f.bytes,components=f.components};}).ToList();
             if(Manifest.prepare_legacy_directx)EnsureLegacyRuntime(preparedRoot);
             if(Manifest.choose_compatible_renderer)SelectRenderer(preparedRoot,files);
-            var resources=Paths.Inside(preparedRoot,"DeliriumSA-local-v3");
-            if(!Directory.Exists(resources))throw new IOException("No se ha generado el contenido de la ISO.");
-            foreach(var path in Directory.GetFiles(resources,"*",SearchOption.AllDirectories)) {
-                Paths.NoLinks(path);
-                files.Add(new ProfileFile {path="DeliriumSA-local-v3/"+path.Substring(resources.Length+1).Replace('\\','/'),sha256=Engine.Hash(path),bytes=new FileInfo(path).Length,components=new[]{"delirium"}});
-            }
+            IndexResources(preparedRoot, files);
             if(!HdModels) {
                 Progress(0,0,"Suavizando codos y rodillas de tus modelos…");
                 SoftModels.Write(preparedRoot,files,x=>{Skipped.Add(x);Progress(0,0,x);});
@@ -401,16 +432,114 @@ namespace SAPortable {
             Json.Write(Paths.Inside(preparedRoot,"portable-preparation.json"),new{status="prepared",index,omissions=Manifest.omissions,iso_copied=false});
             return index;
         }
-        // The original is chosen by the measured hash of the owner's file.
-        RecipeSource ChooseOriginal(Recipe f,string game,Dictionary<string,string> measured) {
-            foreach(var c in Originals.Candidates(f)) {
-                var path=Paths.Inside(game,c.source);
-                if(!File.Exists(path) || new FileInfo(path).Length!=c.source_bytes)continue;
-                string hash;
-                if(!measured.TryGetValue(path,out hash)){Paths.NoLinks(path);hash=Engine.Hash(path);measured[path]=hash;}
-                if(hash==c.source_sha256)return c;
+
+        public ProfileIndex PrepareSolo(EditionReport edition, string iso, Recipe[] recipes, out string prepared) {
+            if (!Manifest.unified || !Solo.NativeCompatible(edition)) throw new IOException("Solo Delirium requiere un GTA SA 1.0 US con el ejecutable compatible.");
+            iso = Path.GetFullPath(iso);
+            Paths.NoLinks(iso);
+            foreach (var path in new[] { "models/gta3.img", "data/melee.dat" })
+                if (!File.Exists(Paths.Inside(edition.folder, path)))
+                    throw new IOException("Solo Delirium necesita leer " + path + " de tu San Andreas.");
+            var bootstrap = Paths.Inside(tools, "sa-delirium-bootstrap.exe");
+            Directory.CreateDirectory(cache);
+            Progress(0, 0, "Comprobando la ISO de GTA IV…");
+            Run(bootstrap, "--check-iso " + Quote(iso), Paths.Inside(cache, "iso-check-" + Guid.NewGuid().ToString("N") + ".log"),
+                "la comprobación de la ISO de GTA IV", showToolError:true);
+            prepared = Paths.Inside(cache, "solo-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(prepared);
+            Phase(SetupPhase.Packages);
+            Phase(SetupPhase.Files);
+            var files = new List<ProfileFile>();
+            long copied = 0, total = recipes.Sum(f => f.bytes);
+            foreach (var f in recipes) {
+                CheckCancellation();
+                var source = Paths.Inside(tools, "payload/" + f.source);
+                var target = Paths.Inside(prepared, f.path);
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                Verify(source, f.sha256, f.bytes);
+                File.Copy(source, target);
+                Verify(target, f.sha256, f.bytes);
+                files.Add(new ProfileFile { path=f.path, sha256=f.sha256, bytes=f.bytes, components=f.components });
+                copied += f.bytes;
+                Progress(copied, total, f.path);
             }
-            throw new IOException("Tu copia del juego tiene un archivo modificado o ausente: "+f.source+". Reinstala o verifica el juego y vuelve a intentarlo.");
+            Phase(SetupPhase.Resources);
+            Progress(0, 0, "Preparando recursos de GTA IV y animaciones de tu San Andreas…");
+            Run(bootstrap, "--prepare-addon " + Quote(prepared) + " " + Quote(edition.folder) + " " + Quote(iso),
+                Paths.Inside(prepared,"iso-import.log"), "la importación para Solo Delirium", showToolError:true);
+            ImportMeleeAudio(bootstrap, prepared, iso);
+            IndexResources(prepared, files);
+            return new ProfileIndex { schema=1, profile="solo-delirium-" + Manifest.version,
+                files=files.ToArray(), total_bytes=files.Sum(f => f.bytes) };
+        }
+
+        void ImportMeleeAudio(string bootstrap, string prepared, string iso) {
+            var decoder = Paths.Inside(tools, "vgmstream/vgmstream-cli.exe");
+            Progress(0, 0, "Importando sonidos de golpes y bate de tu ISO…");
+            Run(bootstrap, "--import-melee " + Quote(prepared) + " " + Quote(iso) + " " + Quote(decoder),
+                Paths.Inside(prepared,"iso-melee.log"), "la importación de sonidos de GTA IV", showToolError:true);
+        }
+
+        static void IndexResources(string root, List<ProfileFile> files) {
+            var resources = Paths.Inside(root, Solo.Resources);
+            if (!Directory.Exists(resources)) throw new IOException("No se ha generado el contenido de la ISO.");
+            foreach (var path in Directory.GetFiles(resources, "*", SearchOption.AllDirectories)) {
+                Paths.NoLinks(path);
+                files.Add(new ProfileFile { path=Solo.Resources+"/"+path.Substring(resources.Length+1).Replace('\\','/'),
+                    sha256=Engine.Hash(path), bytes=new FileInfo(path).Length, components=new[]{"delirium"} });
+            }
+        }
+        internal sealed class OriginalScan {
+            public readonly Dictionary<string, RecipeSource> Files = new Dictionary<string, RecipeSource>(StringComparer.OrdinalIgnoreCase);
+            public readonly List<string> Missing = new List<string>();
+        }
+
+        static bool IsExecutableRecipe(Recipe file) {
+            return file.path.Equals("gta_sa.exe", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Also used by --verify-source, which needs neither ISO nor helper binaries.
+        internal static OriginalScan ScanOriginals(Manifest manifest, EditionReport edition, Func<bool> cancelled, Action<long,long,string> progress) {
+            Paths.NoLinks(edition.folder);
+            var result = new OriginalScan();
+            var measured = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+            var required = manifest.files.Where(f => f.kind == "steam" || f.kind == "steam_delta").ToArray();
+            for (int i = 0; i < required.Length; i++) {
+                if (cancelled()) throw new OperationCanceledException();
+                var file = required[i];
+                progress(i, required.Length, "Comprobando " + file.source);
+                var source = IsExecutableRecipe(file) ? edition.Recipe : FindOriginal(file, edition.folder, measured);
+                if (source == null) result.Missing.Add(file.source);
+                else result.Files.Add(file.path, source);
+            }
+            progress(required.Length, required.Length, "Archivos de San Andreas comprobados");
+            return result;
+        }
+
+        static RecipeSource FindOriginal(Recipe file, string game, Dictionary<string,string> measured) {
+            foreach (var candidate in Originals.Candidates(file)) {
+                // ASI loaders commonly move the original library to one of
+                // these names. Only reuse it when its full SHA-256 matches.
+                var names = candidate.source.Equals(Originals.VorbisFile, StringComparison.OrdinalIgnoreCase)
+                    ? new[] { candidate.source }.Concat(Originals.VorbisAliases)
+                    : new[] { candidate.source };
+                foreach (var name in names) {
+                    var path = Paths.Inside(game, name);
+                    if (!File.Exists(path) || new FileInfo(path).Length != candidate.source_bytes) continue;
+                    string hash;
+                    if (!measured.TryGetValue(path, out hash)) {
+                        hash = Engine.Hash(path);
+                        measured[path] = hash;
+                    }
+                    if (hash == candidate.source_sha256) {
+                        // Candidates returns new objects, so the routing table
+                        // remains untouched when we record the actual filename.
+                        candidate.source = name;
+                        return candidate;
+                    }
+                }
+            }
+            return null;
         }
         void SelectRenderer(string root,List<ProfileFile> files) {
             var dxvk=files.Single(f=>f.path.Equals("d3d9.dll",StringComparison.OrdinalIgnoreCase));

@@ -50,6 +50,7 @@ namespace SASetup {
         // Absent for Steam installs. "standalone": own folder, game only read.
         public string Mode;
         public string[] Shortcuts;
+        public ProfileFile[] OwnedFiles;
     }
     public static class Paths {
         public static void EnableLongPaths() {
@@ -58,10 +59,14 @@ namespace SASetup {
         }
         public static string Full(string p) {
             if (String.IsNullOrWhiteSpace(p)) throw new IOException("Falta una ruta.");
-            return Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar);
+            var full = Path.GetFullPath(p);
+            return full.Length == Path.GetPathRoot(full).Length ? full : full.TrimEnd(Path.DirectorySeparatorChar);
         }
         public static bool Under(string path, string root) {
-            return Full(path).StartsWith(Full(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            var full = Full(path);
+            var prefix = Full(root);
+            if (!prefix.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)) prefix += Path.DirectorySeparatorChar;
+            return full.Length > prefix.Length && full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
         }
         public static void NoLinks(string path) {
             for (var p = new DirectoryInfo(Full(path)); p != null; p = p.Parent)

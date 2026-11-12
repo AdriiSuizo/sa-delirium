@@ -1,6 +1,5 @@
 #pragma once
-// CPhysical::AddCollisionRecord is emitted by native contact resolution, even
-// when a slow bump does not generate health damage. Proximity alone is not a hit.
+// Pre-frame motion and pose seed the articulated replay of a native collision.
 static std::map<int,V> beforeVehicleVelocity;
 static std::map<int,V> beforePedVelocity;
 static std::map<int,T> beforeVehicleFrame;
@@ -15,7 +14,7 @@ static bool legacyRoadKickBaseline(){
         return passive[0]=='1'&&baseline[0]=='1';}();
     return value;
 }
-struct RoadForceContext {void*car=nullptr;int ped=-1,vehicle=-1;bool eligible=false;};
+struct RoadForceContext {void*car=nullptr;int ped=-1,vehicle=-1;bool eligible=false,replaceAnimation=false;};
 static thread_local RoadForceContext roadForceContext;
 static void(__thiscall* originalRoadApplyForce)(void*,V,V,bool)=nullptr;
 static void __fastcall roadApplyForce(void*car,void*,V force,V point,bool turn){
@@ -55,36 +54,115 @@ static void captureVehicleVelocities(){
         beforeVehicleFrame[(i<<8)|pool->flags[i]]=transform(*matrix(v));
     }
 }
-static void(__thiscall* originalCollisionRecord)(void*,void*)=nullptr;
-static void __fastcall collisionRecord(void*self,void*,void*other){
-    originalCollisionRecord(self,other);
-    if(!ready||!detectImpacts||!playing()||cutscene()||(protectMissions&&scriptMissionActive()))return;
-    void*ped=nullptr;void*car=nullptr;
-    if(reference(self)>=0&&vehicleRef(other)>=0){ped=self;car=other;}
-    else if(vehicleRef(self)>=0&&reference(other)>=0){ped=other;car=self;}else return;
+static bool roadCanReplaceAnimation(void*ped,void*car){
+    if(!ready||!applyBones||!detectImpacts||!playing()||cutscene()||
+       (protectMissions&&scriptMissionActive())||ped==player()||!validPed(ped,true))return false;
+    const int carRef=vehicleRef(car);
+    if(carRef<0||!playerGroundVehicle(at<int>(car,0x594)))return false;
+    const auto prior=beforeVehicleVelocity.find(carRef);
+    const V speed=prior!=beforeVehicleVelocity.end()?prior->second:at<V>(car,0x44)*50.f;
+    if(!finite(speed)||std::hypot(speed.x,speed.y)<6.f)return false;
+    const int ref=reference(ped);
+    if(auto a=agents.find(ref);a!=agents.end())
+        return a->second->ped==ped&&!a->second->mounted&&!a->second->recoveryAnimatedOwner;
+    return beforePedPose.contains(ref);
+}
+
+static bool roadHasImpact(int ref,int carRef){
+    if(auto request=pending.find(ref);request!=pending.end()&&
+       request->second.kind==Reaction::Impact&&request->second.vehicle==carRef)return true;
+    auto body=agents.find(ref);
+    return body!=agents.end()&&body->second->kind==Reaction::Impact&&body->second->vehicle==carRef;
+}
+
+static bool roadReplacesDamageAnimation(const DamageEvent&damage,void*ped){
+    if(!applyBones||!ready||!playing()||cutscene()||(protectMissions&&scriptMissionActive()))return false;
+    const int ref=reference(ped);
+    const RoadDamageReceipt delivered{damage.time,vehicleRef(damage.source),damage.weapon,damage.piece};
+    const auto matches=[&](const RoadDamageReceipt&accepted){
+        return accepted.replaceAnimation&&sameDeliveredRoadDamage(accepted,delivered,gameTime());
+    };
+    if(auto request=pending.find(ref);request!=pending.end()&&matches(request->second.roadDamage))return true;
+    auto body=agents.find(ref);
+    return body!=agents.end()&&body->second->ped==ped&&matches(body->second->roadDamage);
+}
+
+static void(__thiscall* originalRoadCollisionResponse)(void*,void*,void*,void*)=nullptr;
+static void __fastcall roadCollisionResponse(void*handler,void*,void*collisionEvent,void*active,void*simplest){
+    auto*ped=at<void*>(handler,0);
+    auto*car=at<void*>(collisionEvent,0x14);
+    const int ref=reference(ped),carRef=vehicleRef(car);
+    const bool physical=carRef>=0&&roadHasImpact(ref,carRef)&&roadCanReplaceAnimation(ped,car);
+    originalRoadCollisionResponse(handler,collisionEvent,active,simplest);
+    auto*&task=at<void*>(handler,0x24);
+    // Keep the native collision and anger bookkeeping. Only retire the
+    // newly constructed HitPedWithCar animation task, before it can start.
+    if(physical&&task&&at<void*>(task,0)==reinterpret_cast<void*>(0x86F294)){
+        auto*hit=task;
+        task=nullptr;
+        reinterpret_cast<void(__thiscall*)(void*,unsigned)>((*reinterpret_cast<void***>(hit))[0])(hit,1);
+        event("native_road_collision_task_replaced",ref,at<short>(ped,0x22),"vehicle_ref="+std::to_string(carRef));
+    }
+}
+struct RoadContact {
+    void* ped=nullptr;
+    void* car=nullptr;
+    V point{},normal{},relative{};
+    float closing=0,vehicleClosing=0;
+    int vehiclePiece=-1,pedPiece=-1;
+};
+static V roadPointVelocity(void*body,V point){
+    const M& m=*matrix(body);
+    const V local=at<V>(body,0xA4);
+    const V centre=(at<unsigned>(body,0x40)&0x40u)?m.pos:
+        m.pos+m.right*local.x+m.up*local.y+m.at*local.z;
+    return (at<V>(body,0x44)+at<V>(body,0x5C)+
+        cross(at<V>(body,0x50)+at<V>(body,0x68),point-centre))*50.f;
+}
+static RoadContact beforeRoadContact(void*self,void*other,const ColPoint&point){
+    if(!ready||!detectImpacts||!self||!other)return {};
+    const int a=at<unsigned char>(self,0x36)&7,b=at<unsigned char>(other,0x36)&7;
+    const bool pedFirst=a==3&&b==2;
+    if(!pedFirst&&!(a==2&&b==3))return {};
+    auto*ped=pedFirst?self:other;
+    auto*car=pedFirst?other:self;
+    if(!matrix(ped)||!matrix(car)||!finite(point.point)||!finite(point.normal)||length(point.normal)<.5f)return {};
+    const V normal=normalized(point.normal)*(pedFirst?1.f:-1.f);
+    const V vehicleVelocity=roadPointVelocity(car,point.point);
+    const V relative=vehicleVelocity-roadPointVelocity(ped,point.point);
+    return {ped,car,point.point,normal,relative,dot(relative,normal),dot(vehicleVelocity,normal),
+        point.surfaces[pedFirst?4:1],point.surfaces[pedFirst?1:4]};
+}
+static void acceptRoadContact(const RoadContact& hit,unsigned path){
+    if(!hit.ped||!finite(hit.relative)||hit.closing<.65f||length(hit.relative)>80.f||
+       !playing()||cutscene()||(protectMissions&&scriptMissionActive()))return;
+    void*ped=hit.ped;
+    void*car=hit.car;
+    const int ref=reference(ped),carRef=vehicleRef(car);
+    if(ref<0||carRef<0)return;
     const bool playerImpact=ped==player()&&playerVehicleImpacts&&playerGroundVehicle(at<int>(car,0x594));
     if(!validPed(ped,true,false,playerImpact)||(!playerImpact&&at<int>(car,0x594)!=0))return;
-    int ref=reference(ped),carRef=vehicleRef(car);
-    V velocity=beforeVehicleVelocity.count(carRef)?beforeVehicleVelocity[carRef]:at<V>(car,0x44)*50.f;
-    V toward=position(ped)-position(car);toward.z=0;toward=normalized(toward);
-    const V pedVelocity=beforePedVelocity.count(ref)?beforePedVelocity[ref]:at<V>(ped,0x44);
-    V relative=velocity-pedVelocity*50.f;relative.z=0;
-    const float speed=dot(relative,toward);
-    if(!finite(relative)||speed<.65f||length(relative)>80)return;
     // Walking into a parked car is not a vehicle running CJ over.
-    if(playerImpact&&!playerMovingContact(dot(velocity,toward),speed))return;
+    if(playerImpact&&!playerMovingContact(hit.vehicleClosing,hit.closing))return;
     if(at<float>(ped,0x540)<=0)return; // Native damage owns death.
     if(lastContactReaction.count(ref)&&gameTime()-lastContactReaction[ref]<1000)return;
     if(auto a=agents.find(ref);a!=agents.end()&&!a->second->preview&&!a->second->recovering)return;
     if(pending.count(ref)&&pending[ref].kind!=Reaction::Brace)return;
-    const V dir=normalized(relative);
+    const V dir=hit.normal;
     watchRoadVehicle(carRef,ref);queueRoadFrames(ref);
     pending[ref]={{},dir,gameTime(),0,false,Reaction::Impact,carRef};
     pending[ref].playerVehicle=playerImpact;
     if(auto seed=beforePedPose.find(ref);seed!=beforePedPose.end())pending[ref].pose=seed->second;
     if(beforePedVelocity.count(ref)){pending[ref].velocityOverride=true;pending[ref].velocity=beforePedVelocity[ref];}
     nativeVehicleContacts++;lastContactReaction[ref]=gameTime();roadHealthBefore[ref]={gameTime(),at<float>(ped,0x540)};
-    event("accepted_vehicle_contact",ref,at<short>(ped,0x22),"vehicle_ref="+std::to_string(carRef)+" closing_mps="+std::to_string(speed)+" native_health="+std::to_string(at<float>(ped,0x540)));
+    const V local=rotate(conjugate(transform(*matrix(car)).q),hit.normal);
+    const auto vec=[](V v){return std::to_string(v.x)+","+std::to_string(v.y)+","+std::to_string(v.z);};
+    event("accepted_vehicle_contact",ref,at<short>(ped,0x22),"vehicle_ref="+std::to_string(carRef)+
+        " closing_mps="+std::to_string(hit.closing)+" native_health="+std::to_string(at<float>(ped,0x540))+
+        " native_path="+std::to_string(path)+" vehicle_piece="+std::to_string(hit.vehiclePiece)+
+        " ped_piece="+std::to_string(hit.pedPiece)+" point="+vec(hit.point)+
+        " normal="+vec(hit.normal)+" vehicle_local_normal="+vec(local)+
+        " relative_mps="+vec(hit.relative));
 }
 // KillPedWithCar applies an additional force to the car AFTER generic contact
 // resolution (5F12CA calls ApplyForce). Observe that specific ped/car response;
@@ -111,9 +189,12 @@ static void __fastcall carPedResponse(void*ped,void*,void*car,float intensity,bo
     const V spin=eligible?at<V>(car,0x50)*50.f:V{};
     const float carMass=eligible?at<float>(car,0x8C):0,pedMass=eligible?std::clamp(at<float>(ped,0x8C),40.f,150.f):0;
     const auto priorContext=roadForceContext;
-    roadForceContext={car,pedRef,carRef,eligible};
+    const bool replaceAnimation=eligible&&roadHasImpact(pedRef,carRef)&&roadCanReplaceAnimation(ped,car);
+    roadForceContext={car,pedRef,carRef,eligible,replaceAnimation};
     if(eligible)watchRoadVehicle(carRef);
-    originalCarPedResponse(ped,car,intensity,deadAnimation);
+    originalCarPedResponse(ped,car,intensity,deadAnimation&&!replaceAnimation);
+    if(replaceAnimation&&deadAnimation)
+        event("native_road_blend_disabled",pedRef,at<short>(ped,0x22),"vehicle_ref="+std::to_string(carRef));
     roadForceContext=priorContext;
     if(eligible&&vehicleFromRef(carRef)==car&&pedFromRef(pedRef)==ped){
         const V after=at<V>(car,0x44)*50.f,horizontal{before.x,before.y,0};

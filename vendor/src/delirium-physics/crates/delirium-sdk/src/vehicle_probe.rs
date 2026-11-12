@@ -91,9 +91,11 @@ pub unsafe extern "C" fn nm_vehicle_shape_sphere(shape:i32,centre:*const f32,rad
         let mut meshes=PROBE_MESHES.lock().unwrap_or_else(|e|e.into_inner());
         if let Some(m)=meshes.get(&shape){m.clone()} else {
             let shapes=VEHICLE_SHAPES.lock().unwrap_or_else(|e|e.into_inner());
-            let Some((key,_))=shapes.get(shape as usize)else{return fail(NM_E_ARG,"unknown vehicle shape");};
-            let rows:Vec<f32>=key.iter().copied().map(f32::from_bits).collect();
-            let m=Arc::new(mesh_from_rows(&rows));meshes.insert(shape,m.clone());m
+            let Some(entry)=shapes.entries.get(&shape)else{return fail(NM_E_ARG,"unknown vehicle shape");};
+            let rows:Vec<f32>=entry.key.iter().copied().map(f32::from_bits).collect();
+            let m=Arc::new(mesh_from_rows(&rows));
+            if entry.pinned { meshes.insert(shape,m.clone()); }
+            m
         }
     };
     let Some(hit)=local_probe(&mesh,c,radius)else{return 0;};

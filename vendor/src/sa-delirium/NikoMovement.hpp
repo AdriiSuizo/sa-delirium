@@ -23,7 +23,7 @@ static bool nikoEligible(void*p){
             if(!sub){if(nikoTask==TASK_SIMPLE_GO_TO_POINT)nikoTaskMove=at<int>(t,8);break;}t=sub;
         }
     }
-    if(p!=player()||!combatAllowed()||!validPed(p,false,false,true)||combatLocomotionOwns(p)||
+    if(p!=player()||!combatAllowed()||player_cover::owns(p)||!validPed(p,false,false,true)||combatLocomotionOwns(p)||
        agents.contains(reference(p))||pending.contains(reference(p))||at<float>(p,0x540)<=0)return false;
     // CPed::IsPedInControl (0x5E3960) tests airborne/landing, not bIsStanding.
     // Support can disappear for a frame when stepping off a curb without a
@@ -110,8 +110,20 @@ static void nikoRender(void*p){
     const T root=transform(*matrix(p));std::vector<T> bones;for(size_t i=0;i<nikoRig->ids.size();i++){const float*r=nikoPose.data()+7*i;bones.push_back(mul(root,T{{r[3],r[4],r[5],r[6]},{r[0],r[1],r[2]}}));}
     // Preserve SA's weapon/aim upper layer until its own IV retarget is complete.
     // Arms cannot inherit locomotion rotations while holding a two-handed gun.
-    if(combatWeapon(p)>1&&nikoNativeHoldsWeapon(p)){std::array<T,21> parts{};std::vector<T> native;if(nikoRig->incoming(p,parts,native)){
-        for(size_t i=0;i<bones.size();i++)if(nikoRig->ids[i]>=3&&nikoRig->ids[i]<41){const int par=nikoRig->parents[i];if(par>=0&&par<int(i))bones[i]=mul(bones[par],mul(inverse(native[par]),native[i]));}
-    }}
+    const int weapon=combatWeapon(p);
+    const bool pistol=weapon>=22&&weapon<=24&&at<void*>(p,0x4F4);
+    const bool armedUpper=weapon>1&&nikoNativeHoldsWeapon(p);
+    if(pistol||armedUpper){
+        std::array<T,21> parts{};std::vector<T> native;
+        if(nikoRig->incoming(p,parts,native)){
+            for(size_t i=0;i<bones.size();i++){
+                const int id=nikoRig->ids[i],parent=nikoRig->parents[i];
+                // Pistols can use SA's default locomotion group. Preserve
+                // the weapon hand and its arm even in that group.
+                if(parent>=0&&parent<int(i)&&((armedUpper&&id>=3&&id<41)||(pistol&&id>=21&&id<=26)))
+                    bones[i]=mul(bones[parent],mul(inverse(native[parent]),native[i]));
+            }
+        }
+    }
     const auto palette=nikoRig->renderPalette(h->matrices,bones);std::copy(palette.begin(),palette.end(),h->matrices);
 }

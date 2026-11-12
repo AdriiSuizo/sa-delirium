@@ -438,7 +438,7 @@ mod tests{
         let mut world=Collision::default();world.add(&tri.map(|v|v.to_array()),&[[0,1,2]],&[53]);
         let part=ObPart{shape:gjk::Shape::Capsule(0.,0.72),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:Vec3::splat(-0.72),hi:Vec3::splat(0.72),mesh:None,filter:Default::default()};
         let mut group=setup(at,Vec3::ZERO,Vec3::ZERO,Vec3::splat(0.72));
-        group.external_geometry[0].parts=Box::leak(vec![part].into_boxed_slice());
+        group.external_geometry[0].parts=vec![part].into();
         let extra=Vec3::Z*0.001;
         let contacts=collect(&group,&world,&[(9,(extra,Vec3::ZERO))].into_iter().collect());
         assert_eq!(contacts.len(),1);
@@ -455,7 +455,7 @@ mod tests{
         // This test exercises an ACTUAL pending placement. A newly solved
         // impulse is future momentum, not a way to move a post-step snapshot.
         group=setup(at+extra,extra,Vec3::ZERO,Vec3::splat(0.72));
-        group.external_geometry[0].parts=Box::leak(vec![part].into_boxed_slice());
+        group.external_geometry[0].parts=vec![part].into();
         Ragdoll::step_group(&mut[],&world,h,&mut group);
         let accepted=group.external_placements()[0];
         assert!(accepted.valid&&accepted.world_contacts>0,"the shared solve must satisfy its unchanged geometric admission: {accepted:?} {:?}",group.external_placement_diagnostics());
@@ -493,12 +493,12 @@ mod tests{
     }
     #[test]fn native_environment_stage_rejects_stale_missing_duplicate_and_nonfinite_atomically(){
         use crate::external_mobility::ExternalError as E;
-        let mut group=setup(Vec3::Z*2.,Vec3::ZERO,Vec3::ZERO,Vec3::splat(0.25));let ob=group.external_geometry[0];
-        group.stage_external_environment_geometry(42,&[ob]).unwrap();
-        assert_eq!(group.stage_external_environment_geometry(41,&[ob]),Err(E::WrongEpoch(41)));assert!(group.external_environment_geometry.is_empty());
-        assert_eq!(group.stage_external_environment_geometry(42,&[ob,ob]),Err(E::DuplicateEnvironment(ob.id)));
-        assert_eq!(group.stage_external_environment_geometry(42,&[Obstacle{owner:Some(123),..ob}]),Err(E::MissingSnapshot(123)));
-        assert_eq!(group.stage_external_environment_geometry(42,&[Obstacle{at:Vec3::NAN,..ob}]),Err(E::InvalidEnvironment(9)));
+        let mut group=setup(Vec3::Z*2.,Vec3::ZERO,Vec3::ZERO,Vec3::splat(0.25));let ob=group.external_geometry[0].clone();
+        group.stage_external_environment_geometry(42,std::slice::from_ref(&ob)).unwrap();
+        assert_eq!(group.stage_external_environment_geometry(41,std::slice::from_ref(&ob)),Err(E::WrongEpoch(41)));assert!(group.external_environment_geometry.is_empty());
+        assert_eq!(group.stage_external_environment_geometry(42,&[ob.clone(),ob.clone()]),Err(E::DuplicateEnvironment(ob.id)));
+        assert_eq!(group.stage_external_environment_geometry(42,&[Obstacle{owner:Some(123),..ob.clone()}]),Err(E::MissingSnapshot(123)));
+        assert_eq!(group.stage_external_environment_geometry(42,&[Obstacle{at:Vec3::NAN,..ob.clone()}]),Err(E::InvalidEnvironment(9)));
         assert_eq!(group.external_geometry[0].at,ob.at);
         Ragdoll::step_group(&mut[],&Collision::default(),1./60.,&mut group);
         assert_eq!(group.external_error(),Some(E::InvalidEnvironment(9)));assert!(group.external_results().is_empty(),"invalid environment cannot silently fall back to peer/render bounds");
@@ -510,7 +510,7 @@ mod tests{
         let car=ExternalOwner{id:1,epoch:7,com:Vec3::Z,velocity:Vec3::X,spin:Vec3::ZERO,linear_inverse:Mat3::IDENTITY/300.,angular_inverse:Mat3::ZERO};
         let ped=original_ped_owner(2,7,Vec3::new(0.9,0.,1.),Vec3::ZERO);
         let peer=Obstacle{id:1,owner:Some(1),at:car.com,centre:car.com,com:car.com,vel:car.velocity,half:Vec3::splat(0.75),..Default::default()};
-        let mut g=Group::default();g.stage_external(7,&[car,ped]).unwrap();g.stage_external_geometry(&[peer,original_ped_obstacle(2,ped.com,ped.velocity)]).unwrap();
+        let mut g=Group::default();g.stage_external(7,&[car,ped]).unwrap();g.stage_external_geometry(&[peer.clone(),original_ped_obstacle(2,ped.com,ped.velocity)]).unwrap();
         g.stage_external_environment_geometry(7,&[Obstacle{id:88,half:Vec3::splat(0.1),..peer}]).unwrap();
         assert_eq!(g.external_world_geometry().count(),2,"unoverridden ped retains its source geometry");
         Ragdoll::step_group(&mut[],&Collision::default(),1./60.,&mut g);
@@ -571,7 +571,7 @@ mod tests{
     #[test]fn corrected_clear_trial_retains_source_floor_until_the_island_is_committed(){
         let mut group=setup(Vec3::Z*0.4,Vec3::ZERO,Vec3::ZERO,Vec3::splat(0.25));
         let mut geometry=group.external_geometry.clone();
-        geometry[0].parts=Box::leak(vec![ObPart{shape:gjk::Shape::Capsule(0.,0.25),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:Vec3::splat(-0.25),hi:Vec3::splat(0.25),mesh:None,filter:Default::default()}].into_boxed_slice());
+        geometry[0].parts=vec![ObPart{shape:gjk::Shape::Capsule(0.,0.25),m:Mat3::IDENTITY,at:Vec3::ZERO,lo:Vec3::splat(-0.25),hi:Vec3::splat(0.25),mesh:None,filter:Default::default()}].into();
         group.stage_external_geometry(&geometry).unwrap();
         let mut world=Collision::default();world.add_floor(0.,0.,0.,8.,0);
         let id=geometry[0].owner.unwrap();
@@ -672,7 +672,7 @@ mod linearization_tests {
   let part=ObPart{shape:gjk::Shape::Capsule(0.,radius),m:Mat3::IDENTITY,at:Vec3::Y,
    lo:Vec3::splat(-radius),hi:Vec3::splat(radius),mesh:None,filter:Default::default()};
   let mut group=Group::default();group.stage_external(1,&[owner]).unwrap();
-  group.stage_external_geometry(&[Obstacle{id:2,owner:Some(7),at:com,centre:com,com,half:Vec3::splat(2.),parts:Box::leak(vec![part].into_boxed_slice()),..Default::default()}]).unwrap();
+  group.stage_external_geometry(&[Obstacle{id:2,owner:Some(7),at:com,centre:com,com,half:Vec3::splat(2.),parts:vec![part].into(),..Default::default()}]).unwrap();
   let mut world=Collision::default();world.add_floor(0.,0.,0.,10.,0);
   let spin=Vec3::X*-angle;let measured=-0.0069;
   let extra=Vec3::Z*(radius+delirium_data::kv!(565)+measured-com.z+angle.sin());

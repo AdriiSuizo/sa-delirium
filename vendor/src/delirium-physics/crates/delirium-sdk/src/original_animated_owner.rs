@@ -76,7 +76,7 @@ pub fn room_clear_ignoring(world:&Collision,obstacles:&[Obstacle],at:Vec3,exclud
         let r=Mat3::from_quat(ob.rot);
         let meets=|s:&gjk::Shape,m:Mat3,p:Vec3|gjk::closest(&shape,stand,centre,s,m,p,Vec3::X,f32::INFINITY,Some(gjk::Pen::Sphere)).is_some_and(|q|q.dist<0.);
         if ob.parts.is_empty(){if meets(&gjk::Shape::Box(ob.half,0.),r,ob.centre){return false}}
-        else{let shapes=if ob.owner.is_some_and(|id|id>>32==2){parts().as_slice()}else{ob.parts};for p in shapes{
+        else{let shapes=if ob.owner.is_some_and(|id|id>>32==2){parts().as_slice()}else{&ob.parts};for p in shapes{
             if matches!(p.shape,gjk::Shape::Hull(v,_)if v.is_empty()){continue}
             if meets(&p.shape,r*p.m,ob.at+r*p.at){return false}
         }}
@@ -127,7 +127,7 @@ pub fn fragment_contacts(body:AnimatedOwner,shape:gjk::Shape,rotation:Mat3,centr
             let position=owner.root+owner.transform()*Vec3::new(0.28,0.,0.085);
             let pose=[delirium::prelude::Transform::from_translation(position)];
             let mut doll=delirium::ragdoll::Ragdoll::new(&build,&pose,Vec3::ZERO);
-            let obstacle=Obstacle{filter:delirium::ragdoll::CollisionFilter{kind:0x20,include:0x79FE},at:owner.root,rot:Quat::from_rotation_z(heading),parts:parts(),..Default::default()};
+            let obstacle=Obstacle{filter:delirium::ragdoll::CollisionFilter{kind:0x20,include:0x79FE},at:owner.root,rot:Quat::from_rotation_z(heading),parts:delirium::ragdoll::ObstacleParts::Static(parts()),..Default::default()};
             let rows=doll.query_obstacle_pose_contacts(&build,&pose,&obstacle);
             assert!(!rows.is_empty());
             for row in &rows{
@@ -196,8 +196,8 @@ pub fn fragment_contacts(body:AnimatedOwner,shape:gjk::Shape,rotation:Mat3,centr
         init();let mut world=Collision::default();world.add_floor(0.,0.,0.,10.,0);
         let root=Vec3::Z;assert!(room_clear(&world,&[],root,1));
         let car=Obstacle{id:0,at:Vec3::new(0.3,0.,1.),centre:Vec3::new(0.3,0.,1.),half:Vec3::new(0.1,1.,1.),rot:Quat::IDENTITY,owner:Some(3),..Default::default()};
-        assert!(!room_clear(&world,&[car],root,1));assert!(room_clear(&world,&[car],root,3));
-        let peer=Obstacle{owner:Some(4),at:Vec3::new(0.4,0.,1.),rot:Quat::IDENTITY,parts:parts(),..Default::default()};
+        assert!(!room_clear(&world,std::slice::from_ref(&car),root,1));assert!(room_clear(&world,std::slice::from_ref(&car),root,3));
+        let peer=Obstacle{owner:Some(4),at:Vec3::new(0.4,0.,1.),rot:Quat::IDENTITY,parts:delirium::ragdoll::ObstacleParts::Static(parts()),..Default::default()};
         assert!(!room_clear(&world,&[peer],root,1));
         world.add(&[[0.2,-2.,0.],[0.2,2.,0.],[0.2,2.,3.],[0.2,-2.,3.]],&[[0,1,2],[0,2,3]],&[0,0]);
         assert!(!room_clear(&world,&[],root,1));

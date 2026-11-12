@@ -19,6 +19,7 @@ inline bool sameDeliveredShot(const ShotDamageReceipt&a,const ShotDamageReceipt&
 struct RoadDamageReceipt {
     std::uint32_t time=0;
     int vehicle=-1,weapon=-1,piece=-1;
+    bool replaceAnimation=false;
 };
 inline bool sameDeliveredRoadDamage(const RoadDamageReceipt& accepted,const RoadDamageReceipt& delivered,std::uint32_t now){
     return accepted.vehicle>=0&&(accepted.weapon==49||accepted.weapon==50)&&

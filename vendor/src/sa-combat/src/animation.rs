@@ -75,7 +75,8 @@ impl Bank {
             }
         }
         // Optional dictionaries beside the sealed bank (the owner's disc, added later).
-        if let Some(extra)=dir.parent().map(|p|p.join("injured")).and_then(|p|std::fs::read_dir(p).ok()){
+        for extra in ["injured", "cover"].into_iter()
+            .filter_map(|name|dir.parent().and_then(|p|std::fs::read_dir(p.join(name)).ok())) {
             for e in extra.flatten(){
                 let path=e.path();if path.extension().and_then(|s|s.to_str())!=Some("xad"){continue}
                 let dictionary=path.file_stem().unwrap().to_string_lossy().to_ascii_lowercase();
