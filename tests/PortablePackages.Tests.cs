@@ -94,6 +94,12 @@ static class PortablePackageTests {
         Edition(root,"listed-without-recipe",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),future),"unknown",false);
         exe.alternatives = new[] { new RecipeSource { source_sha256=Engine.Hash(future), source_bytes=future.Length } };
         Edition(root,"listed-future-build",manifest,launcher,d=>File.WriteAllBytes(Path.Combine(d,"gta-sa.exe"),future),"unknown",true);
+        Assert(Editions.IsUnsupportedRetailDisc(Editions.RetailDiscSha256, Editions.RetailDiscMd5),
+            "Recognize the known original retail-disc executable");
+        Assert(!Editions.IsUnsupportedRetailDisc(Engine.Hash(stock), Editions.RetailDiscMd5),
+            "A familiar MD5 alone must not classify an unverified executable as the retail disc");
+        Assert(!Editions.IsUnsupportedRetailDisc(Editions.RetailDiscSha256, Engine.Hash(stock)),
+            "A familiar SHA alone must not override the version identity");
         results.Add("edition-identification");
     }
     static void ExecutableCompatibility(string root, List<string> results) {
