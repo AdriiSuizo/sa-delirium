@@ -39,9 +39,13 @@ jobs:
             'installer/portable/Solo.cs',
             'installer/portable/PortableSetup.cs'
           )
-          & $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 $refs /out:installer-syntax-check.exe $src
+          # .NET Framework csc resolves relative source names incorrectly in CI.
+          # Feed absolute Windows paths to avoid bare-filename interpretation.
+          $absoluteSources = @($src | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
+          $testSource = (Resolve-Path -LiteralPath 'tests/PortablePackages.Tests.cs').Path
+          & $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 $refs /out:installer-syntax-check.exe $absoluteSources
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
-          & $csc /nologo /target:exe /platform:x64 /optimize+ /codepage:65001 /main:PortablePackageTests $refs /out:portable-package-tests.exe ($src + @('tests/PortablePackages.Tests.cs'))
+          & $csc /nologo /target:exe /platform:x64 /optimize+ /codepage:65001 /main:PortablePackageTests $refs /out:portable-package-tests.exe ($absoluteSources + @($testSource))
           if ($LASTEXITCODE -ne 0) { throw 'Portable package test compilation failed' }
 
       - name: Run synthetic package boundary tests
