@@ -192,6 +192,8 @@ static class PortablePackageTests {
         Assert(scan.Missing.SequenceEqual(new[]{"main.scm"}),"critical script still requires known hash");
         Assert(scan.Files["audio/sfx/SCRIPT"].sha256==Engine.Hash(audio),"different audio edition copied with its actual hash");
         Assert(scan.Files["stream.ini"].sha256==Engine.Hash(ini),"different stream ini copied with its actual hash");
+        Assert(scan.Uncatalogued.Contains("audio/sfx/SCRIPT") && scan.Uncatalogued.Contains("stream.ini"),
+            "uncatalogued copies are reported");
         Assert(!Composer.CanCopyUnrecognizedOriginal(files[0]) && !Composer.CanCopyUnrecognizedOriginal(files[3]),
             "only selected non-executable files may vary");
         File.Delete(Path.Combine(game,"stream.ini"));
@@ -388,6 +390,10 @@ static class PortablePackageTests {
         bool missingVorbisRejected=false;
         try { Solo.NeedsLoader(game); } catch(IOException) { missingVorbisRejected=true; }
         Assert(missingVorbisRejected,"missing Vorbis library still rejected");
+        File.WriteAllBytes(unknownVorbis,new byte[0]);
+        bool emptyVorbisRejected=false;
+        try { Solo.NeedsLoader(game); } catch(IOException) { emptyVorbisRejected=true; }
+        Assert(emptyVorbisRejected,"empty Vorbis file is not accepted as a loader");
         File.WriteAllBytes(unknownVorbis,Bytes("unrecognized existing loader",512));
         var files=new[]{"scripts/DeliriumSA.asi","DeliriumSA.ini","DeliriumSA-local-v3/fixture.bin"}
             .Select(path=>{
