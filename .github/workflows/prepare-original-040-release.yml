@@ -1,0 +1,34 @@
+name: Prepare original 0.4.0 release for owner upload
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prepare-original-040-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    if: github.repository == 'AdriiSuizo/sa-delirium'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create original 0.4.0 draft release if it does not exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          tags="$(gh release list --limit 100 --json tagName --jq '.[].tagName')"
+          if grep -Fxq 'v0.4.0' <<< "$tags"; then
+            echo 'Release v0.4.0 already exists. Do not overwrite it.'
+            exit 0
+          fi
+          gh release create 'v0.4.0' --draft \
+            --title 'SA Delirium 0.4.0 (original release)' \
+            --notes 'Archive of original 0.4.0 installer. The owner must attach SA-Delirium-0.4.0-Setup.exe (SHA256: 91666d55ce29022762647a940ec8b82196d47f40234b2ce0bdbbb9302625f81d). Publishing this draft after uploading the installer triggers the 0.4.1 compatibility rebuild.' \
+            --target '3300d19d0e389396063b4c69a3afe328f93e93eb'
+          echo 'Draft v0.4.0 release created for original installer upload.'
