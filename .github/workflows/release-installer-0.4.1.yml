@@ -11,6 +11,11 @@ on:
 
 permissions:
   contents: write
+  statuses: write
+
+concurrency:
+  group: sa-delirium-041-release
+  cancel-in-progress: true
 
 jobs:
   repack:
@@ -21,6 +26,11 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Record publication start on commit
+        shell: pwsh
+        run: |
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=pending -f context=release/sa-delirium-0.4.1 -f description='Building the full 0.4.1 package'
 
       - name: Download previously published 0.4.0 package
         shell: pwsh
@@ -120,3 +130,15 @@ jobs:
           gh release create 'v0.4.1' 'SA-Delirium-0.4.1-Setup.exe' --title 'SA Delirium 0.4.1 - installer compatibility' --notes-file release-notes.txt --target $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed' }
           gh release view 'v0.4.1' --json url,assets,tagName
+
+      - name: Record verified release on commit
+        if: success()
+        shell: pwsh
+        run: |
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases'
+
+      - name: Record release failure on commit
+        if: failure()
+        shell: pwsh
+        run: |
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions'
