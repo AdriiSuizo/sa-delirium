@@ -282,7 +282,9 @@ static class PortablePackageTests {
         run("classic-pc-copy",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),classicExe);File.WriteAllBytes(Path.Combine(g,"audio","streams","CH"),classicAudio);},true,h(output),h(classicAudio));
         run("classic-already-output",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),output);File.WriteAllBytes(Path.Combine(g,"audio","streams","CH"),classicAudio);},true,h(output),h(classicAudio));
         run("mixed-steam-data-classic-exe",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),classicExe);File.WriteAllBytes(Path.Combine(g,"audio","streams","CH"),steamAudio);},true,h(output),h(steamAudio));
-        run("modified-data-file",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),classicExe);File.WriteAllBytes(Path.Combine(g,"audio","streams","CH"),Bytes("someone-else-radio",12288));},false,null,null);
+        var unlistedAudio=Bytes("someone-else-radio",12288);
+        run("different-audio-edition",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),classicExe);File.WriteAllBytes(Path.Combine(g,"audio","streams","CH"),unlistedAudio);},true,h(output),h(unlistedAudio));
+        run("modified-critical-map",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),classicExe);File.WriteAllBytes(Path.Combine(g,"audio","streams","CH"),steamAudio);File.WriteAllBytes(Path.Combine(g,"data","maps","shared.ipl"),Bytes("altered shared map",4096));},false,null,null);
         run("missing-data-file",g=>{File.WriteAllBytes(Path.Combine(g,"gta_sa.exe"),classicExe);},false,null,null);
         // Downgraded Steam folder: 1.0 bytes under the Steam name.
         var downgraded=Path.Combine(folder,"downgraded-steam");Directory.CreateDirectory(downgraded);File.WriteAllBytes(Path.Combine(downgraded,"gta-sa.exe"),classicExe);
