@@ -25,11 +25,19 @@ namespace SAPortable {
 
         static string HashIfPresent(string game, string file) {
             var path = Paths.Inside(game, file);
-            return File.Exists(path) ? Engine.Hash(path) : null;
+            if (!File.Exists(path)) return null;
+            Paths.NoLinks(path);
+            return Engine.Hash(path);
         }
 
-        internal static bool NeedsLoader(string game) {
+        // Solo Delirium is additive: an unknown loader already installed by the
+        // owner is left untouched. A hash mismatch alone must not block the mod.
+        // This does NOT certify that the third-party DLL actually loads ASI files.
+        internal static bool NeedsLoader(string game, Action<string> warning = null) {
+            warning = warning ?? delegate {};
             var vorbis = HashIfPresent(game, Originals.VorbisFile);
+            if (vorbis == null)
+                throw new IOException("Falta vorbisFile.dll en la carpeta del juego. Verifica los archivos de San Andreas o selecciona la carpeta principal del juego.");
             if (vorbis == UltimateLoader) return false;
             if (vorbis == SilentLoader) {
                 if (HashIfPresent(game, "vorbisHooked.dll") == OriginalVorbis) return false;
@@ -37,17 +45,20 @@ namespace SAPortable {
             }
             foreach (var name in new[] { "winmm.dll", "dinput8.dll", "d3d9.dll" })
                 if (HashIfPresent(game, name) == UltimateLoader) return false;
-            if (vorbis == null)
-                throw new IOException("Falta vorbisFile.dll en la carpeta del juego. Verifica los archivos de San Andreas o selecciona la carpeta principal del juego.");
-            if (vorbis != OriginalVorbis)
-                throw UnverifiedLoader(Originals.VorbisFile);
-            foreach (var name in new[] { Loader, "dinput8.dll" })
-                if (File.Exists(Paths.Inside(game, name))) throw UnverifiedLoader(name);
+            if (vorbis != OriginalVorbis) {
+                warning("Se conservará vorbisFile.dll, que no coincide con un cargador ASI verificado. Si Delirium no arranca, prueba una copia limpia o la instalación completa.");
+                return false;
+            }
+            foreach (var name in new[] { Loader, "dinput8.dll" }) {
+                var path = Paths.Inside(game, name);
+                if (!File.Exists(path)) continue;
+                Paths.NoLinks(path);
+                if (new FileInfo(path).Length == 0)
+                    throw new IOException(name + " está vacío. Repara este cargador antes de instalar Delirium.");
+                warning("Se conservará el posible cargador ASI existente (" + name + "). No se instalará otro para evitar conflictos.");
+                return false;
+            }
             return true;
-        }
-
-        static IOException UnverifiedLoader(string file) {
-            return new IOException("El asistente no puede verificar " + file + " como parte de un cargador ASI compatible. Usa la instalación completa con una copia verificada de San Andreas.");
         }
 
         internal static Recipe[] Recipes(Manifest manifest, bool needsLoader) {
