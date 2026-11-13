@@ -139,7 +139,8 @@ namespace SAPortable {
                             var scan = edition.accepted ? Composer.ScanOriginals(manifest, edition, delegate { return false; }, delegate {}) : null;
                             bool compatible = scan != null && scan.Missing.Count == 0;
                             Json.Write(report, new { compatible, edition, verified_files = scan == null ? 0 : scan.Files.Count,
-                                missing_or_changed = scan == null ? new string[0] : scan.Missing.ToArray() });
+                                missing_or_changed = scan == null ? new string[0] : scan.Missing.ToArray(),
+                             copied_without_catalogued_hash = scan == null ? new string[0] : scan.Uncatalogued.ToArray() });
                             return compatible ? 0 : 1;
                         }
                         case "--install":result=Install(manifest,Option(args,"--target"),Option(args,"--iso"),cache,delegate{},delegate{return false;},args.Contains("--unattended"),args.Contains("--lab"),
