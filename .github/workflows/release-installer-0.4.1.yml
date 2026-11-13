@@ -2,6 +2,9 @@ name: Build and publish SA Delirium 0.4.1 installer
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-installer-0.4.1.yml']
   release:
     types: [published]
 
@@ -15,7 +18,7 @@ concurrency:
 
 jobs:
   repack:
-    if: github.repository == 'AdriiSuizo/sa-delirium' && (github.event_name == 'workflow_dispatch' || github.event.release.tag_name == 'v0.4.0')
+    if: github.repository == 'AdriiSuizo/sa-delirium' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.release.tag_name == 'v0.4.0')
     runs-on: windows-2022
     timeout-minutes: 55
     env:
@@ -30,28 +33,26 @@ jobs:
         run: |
           gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=pending -f context=release/sa-delirium-0.4.1 -f description='Building the full 0.4.1 package' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
-      - name: Download previously published 0.4.0 package
+      - name: Download public 0.4.0 installer and verify checksum
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $releaseJson = gh release list --limit 100 --json tagName,name
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot list published releases' }
-          Write-Host 'Existing releases:'
-          Write-Host $releaseJson
-          $releases = @($releaseJson | ConvertFrom-Json)
-          $matched = @($releases | Where-Object { $_.tagName -match '(?i)(^|[^0-9])v?0[.]4[.]0($|[^0-9])' })
-          if ($matched.Count -eq 0) { throw 'No existing 0.4.0 release; need the original published installer asset to repack' }
-          $tag = $matched[0].tagName
-          $assetsJson = gh release view $tag --json assets --jq '.assets[].name'
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot list original release assets' }
-          Write-Host ('Files in ' + $tag + ':')
-          Write-Host $assetsJson
-          $setupNames = @($assetsJson | Where-Object { $_ -match '(?i)[.]exe
-          Write-Host "Existing published 0.4.0 package SHA256:"
-          (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash
+          New-Item -ItemType Directory -Path old -Force | Out-Null
+          gh release download v0.4.0 --repo $env:GITHUB_REPOSITORY -p 'SA-Delirium-0.4.0-Setup.exe' -D old
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download published 0.4.0 installer' }
+          $old = (Resolve-Path -LiteralPath 'old/SA-Delirium-0.4.0-Setup.exe').Path
+          if ((Get-Item $old).Length -lt 1000000) { throw 'Original installer is implausibly small' }
+          $actualHash = (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLowerInvariant()
+          gh release download v0.4.0 --repo $env:GITHUB_REPOSITORY -p 'SHA256SUMS.txt' -D old
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download original SHA256SUMS.txt' }
+          $matches = @(Get-Content -LiteralPath 'old/SHA256SUMS.txt' | Where-Object { $_ -match 'SA-Delirium-0[.]4[.]0-Setup[.]exe' })
+          if ($matches.Count -ne 1) { throw 'Missing or ambiguous checksum for 0.4.0 installer' }
+          $expected = [regex]::Match($matches[0], '(?i)[0-9a-f]{64}').Value.ToLowerInvariant()
+          if (!$expected -or $actualHash -ne $expected) { throw 'Original installer does not match published SHA256SUMS.txt' }
+          Write-Host ('Verified 0.4.0 installer SHA256: ' + $actualHash)
 
       - name: Extract only publicly released installer resources
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $old = (Resolve-Path 'old/SA-Delirium-0.4.0-Setup.exe').Path
