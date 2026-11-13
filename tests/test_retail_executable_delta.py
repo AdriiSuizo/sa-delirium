@@ -36,8 +36,8 @@ class RetailDiscDeltaTests(unittest.TestCase):
         }]
         builder.VERIFIED_CLASSIC_EXECUTABLES[self.input_hash] = "Synthetic fixture"
         builder.CLASSIC_EXECUTABLE_SIZES[self.input_hash] = self.source.stat().st_size
-        self.addCleanup(builder.VERIFIED_CLASSIC_EXECUTABLES.pop, self.input_hash)
-        self.addCleanup(builder.CLASSIC_EXECUTABLE_SIZES.pop, self.input_hash)
+        self.addCleanup(lambda: builder.VERIFIED_CLASSIC_EXECUTABLES.pop(self.input_hash, None))
+        self.addCleanup(lambda: builder.CLASSIC_EXECUTABLE_SIZES.pop(self.input_hash, None))
 
     def test_local_verified_delta_recipe(self):
         patch, source, target = builder.classic_executable_delta(self.recipes, self.source, self.target)
