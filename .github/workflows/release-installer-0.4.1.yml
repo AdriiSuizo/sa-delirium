@@ -109,8 +109,12 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $report = Join-Path $env:RUNNER_TEMP 'sa-delirium-detect.json'
-          & .\SA-Delirium-0.4.1-Setup.exe --detect --report $report
-          if ($LASTEXITCODE -ne 0 -or !(Test-Path $report)) { throw 'Compiled setup CLI smoke test failed' }
+          # The setup uses the Windows GUI subsystem (winexe); PowerShell's
+          # invocation operator does not necessarily wait for GUI processes.
+          $setup = (Resolve-Path -LiteralPath 'SA-Delirium-0.4.1-Setup.exe').Path
+          $process = Start-Process -FilePath $setup -ArgumentList ('--detect --report "' + $report + '"') -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw ("Compiled setup returned exit code " + $process.ExitCode) }
+          if (!(Test-Path -LiteralPath $report)) { throw 'Compiled setup did not produce CLI report' }
           $details = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
           if ($details.version -ne '0.4.1') { throw 'Release candidate does not report version 0.4.1' }
           Write-Host 'Embedded manifest and compiled CLI passed startup smoke test'
@@ -139,12 +143,14 @@ jobs:
 
       - name: Record verified release on commit
         if: success()
+        continue-on-error: true
         shell: pwsh
         run: |
           gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
       - name: Record release failure on commit
         if: failure()
+        continue-on-error: true
         shell: pwsh
         run: |
           gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
