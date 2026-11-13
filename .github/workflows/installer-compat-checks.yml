@@ -1,0 +1,68 @@
+name: Installer compatibility checks
+
+on:
+  push:
+    branches:
+      - fix/installer-tolerant-sources-and-asi-loaders
+  pull_request:
+    paths:
+      - 'installer/portable/**'
+      - 'installer/SetupCore.cs'
+      - 'tests/PortablePackages.Tests.cs'
+      - '.github/workflows/installer-compat-checks.yml'
+
+jobs:
+  framework-compile-and-fixtures:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile setup and package-boundary tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          if (!(Test-Path $csc)) { throw "Missing .NET Framework C# compiler: $csc" }
+          $refs = @(
+            '/r:System.Web.Extensions.dll',
+            '/r:System.Windows.Forms.dll',
+            '/r:System.Drawing.dll',
+            '/r:System.IO.Compression.dll',
+            '/r:System.IO.Compression.FileSystem.dll'
+          )
+          $src = @(
+            'installer/SetupCore.cs',
+            'installer/portable/PortableCore.cs',
+            'installer/portable/Editions.cs',
+            'installer/portable/Standalone.cs',
+            'installer/portable/Solo.cs',
+            'installer/portable/PortableSetup.cs'
+          )
+          # .NET Framework csc resolves relative source names incorrectly in CI.
+          # Feed absolute Windows paths to avoid bare-filename interpretation.
+          $absoluteSources = @($src | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
+          $testSource = (Resolve-Path -LiteralPath 'tests/PortablePackages.Tests.cs').Path
+          & $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 $refs /out:installer-syntax-check.exe $absoluteSources
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+          & $csc /nologo /target:exe /platform:x64 /optimize+ /codepage:65001 /main:PortablePackageTests $refs /out:portable-package-tests.exe ($absoluteSources + @($testSource))
+          if ($LASTEXITCODE -ne 0) { throw 'Portable package test compilation failed' }
+
+      - name: Run synthetic package boundary tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
+          if (!(Test-Path $sevenZip)) { throw '7-Zip must be installed on runner for archive boundary fixtures' }
+          $out = Join-Path $env:RUNNER_TEMP 'portable-package-fixtures'
+          & .\portable-package-tests.exe $out
+          if ($LASTEXITCODE -ne 0) { throw 'Portable package fixtures failed' }
+          Get-Content (Join-Path $out 'results.json')
+
+      - name: Save diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-compatibility-fixtures
+          path: ${{ runner.temp }}/portable-package-fixtures/results.json
+          if-no-files-found: ignore

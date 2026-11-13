@@ -90,6 +90,38 @@ modpacks desde octubre2026. El asistente obtiene su original y aplica los ajuste
 locales verificados. Se instalan sus readmes/licencia y se acredita a
 [Junior_Djjr](https://www.mixmods.com.br/2026/02/urbanize/).
 
+## Compatibilidad de instalaciones existentes (corrección candidata)
+
+El instalador acepta archivos de audio en `audio/sfx/` y `audio/streams/`,
+y `stream.ini`, de diferentes ediciones del juego cuando la receta **solo
+los copia**: registra y comprueba su hash real durante la preparación. Un
+archivo ausente o vacío sigue bloqueando la instalación. Los ejecutables,
+DLL del paquete, scripts, modelos y recursos que necesitan un parche binario
+siguen utilizando las comprobaciones estrictas.
+
+**Solo Delirium** conserva los posibles cargadores ASI que ya existen en
+`vorbisFile.dll`, `winmm.dll` o `dinput8.dll` cuando no coinciden con
+las huellas conocidas. Se avisa de que un cargador desconocido **no está
+validado**: instalar el mod no garantiza que ese cargador lo ejecute.
+No se sobrescribe ni se añade otro cargador encima. Si faltan las bibliotecas
+que necesita el juego o el archivo está vacío, se sigue notificando el error.
+Para una instalación reproducible, utiliza una copia limpia verificada.
+
+El comando `--verify-source` añade al informe
+`copied_without_catalogued_hash`, separado de `missing_or_changed`.
+Esto ayuda a distinguir una edición distinta de un archivo que realmente
+falta. Son cambios en el **código fuente**, no en el instalador publicado:
+hasta compilar y probar un nuevo ejecutable no afectan a la versión 0.4.0
+descargable.
+
+**Si el juego se cierra al iniciar una partida:** comprueba si ocurre también
+con una partida nueva y sin otros mods, guarda los registros de
+`logs/manual-sessions` junto al perfil `SA` cuando existan y consulta
+el módulo con errores en el Visor de eventos de Windows → Registros de Windows
+→ Aplicación. Indica tu edición de GTA SA, modo de instalación, GPU y
+el nombre del módulo; un cierre después de instalar no permite identificar
+el plugin responsable por sí solo. No borres las partidas de `SA/userfiles`.
+
 ## Partidas, restauración y diagnóstico
 
 En **Solo Delirium**, abre tu juego como siempre. **Restaurar** retira los

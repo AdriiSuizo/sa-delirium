@@ -1,0 +1,110 @@
+name: Build and publish SA Delirium 0.4.1 installer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'installer/portable/**'
+      - 'installer/SetupCore.cs'
+      - '.github/workflows/release-installer-0.4.1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repack:
+    if: github.repository == 'AdriiSuizo/sa-delirium'
+    runs-on: windows-2022
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download previously published 0.4.0 package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = @(gh release list --json tagName --jq '.[] | select(.tagName == "v0.4.0" or .tagName == "0.4.0") | .tagName' | Select-Object -First 1)
+          if ($LASTEXITCODE -ne 0 -or !$tag -or !$tag[0]) { throw 'Published 0.4.0 release not found' }
+          New-Item -ItemType Directory -Path old -Force | Out-Null
+          gh release download $tag[0] -p 'SA-Delirium-0.4.0-Setup.exe' -D old
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download official previous setup binary' }
+          $old = (Resolve-Path 'old/SA-Delirium-0.4.0-Setup.exe').Path
+          Write-Host "Existing published 0.4.0 package SHA256:"
+          (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash
+
+      - name: Extract only publicly released installer resources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $old = (Resolve-Path 'old/SA-Delirium-0.4.0-Setup.exe').Path
+          $assembly = [Reflection.Assembly]::LoadFrom($old)
+          $expected = @('portable-manifest.json', 'SteamLauncher.exe', 'portable-tools.zip')
+          $names = @($assembly.GetManifestResourceNames())
+          foreach ($name in $expected) {
+            if ($name -cnotin $names) { throw "Missing embedded resource: $name" }
+            $inputStream = $assembly.GetManifestResourceStream($name)
+            if ($null -eq $inputStream) { throw "Cannot open resource: $name" }
+            $file = [IO.File]::Create((Join-Path (Get-Location) $name))
+            try { $inputStream.CopyTo($file) }
+            finally { $file.Dispose(); $inputStream.Dispose() }
+          }
+          $spec = Get-Content -Raw -LiteralPath 'portable-manifest.json' | ConvertFrom-Json
+          if ($spec.version -ne '0.4.0' -or $spec.lab_only) { throw 'Previous release does not contain the expected public manifest' }
+          $toolsHash = (Get-FileHash -LiteralPath 'portable-tools.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($toolsHash -ne $spec.tools_sha256) { throw 'Embedded tools ZIP fingerprint does not match release manifest' }
+          $json = [IO.File]::ReadAllText((Resolve-Path 'portable-manifest.json').Path)
+          $updated = [regex]::Replace($json, '"version"\s*:\s*"0\.4\.0"', '"version": "0.4.1"')
+          if ($updated -eq $json) { throw 'Could not safely update version in manifest' }
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'portable-manifest.json'), $updated, [Text.UTF8Encoding]::new($false))
+          Write-Host 'Previous public resources extracted and verified'
+
+      - name: Compile production installer 0.4.1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          if (!(Test-Path $csc)) { throw 'Missing .NET Framework C# compiler' }
+          $refs = @('/r:System.Web.Extensions.dll','/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.IO.Compression.dll','/r:System.IO.Compression.FileSystem.dll')
+          $src = @('installer/SetupCore.cs','installer/portable/PortableCore.cs','installer/portable/Editions.cs','installer/portable/Standalone.cs','installer/portable/Solo.cs','installer/portable/PortableSetup.cs') |
+            ForEach-Object { (Resolve-Path -LiteralPath $_).Path }
+          $manifest = (Resolve-Path -LiteralPath 'installer/setup.manifest').Path
+          $out = Join-Path (Get-Location) 'SA-Delirium-0.4.1-Setup.exe'
+          $cscArguments = @('/nologo','/target:winexe','/platform:x64','/optimize+','/codepage:65001') + $refs + @(
+            ('/win32manifest:'+$manifest),
+            '/resource:portable-manifest.json,portable-manifest.json',
+            '/resource:SteamLauncher.exe,SteamLauncher.exe',
+            '/resource:portable-tools.zip,portable-tools.zip',
+            ('/out:'+$out)
+          ) + $src
+          & $csc @cscArguments
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path $out)) { throw 'Production setup compilation failed' }
+          $newAssembly = [Reflection.Assembly]::LoadFrom($out)
+          foreach ($name in @('portable-manifest.json','SteamLauncher.exe','portable-tools.zip')) {
+            if ($name -cnotin $newAssembly.GetManifestResourceNames()) { throw "Output is missing $name" }
+          }
+          Write-Host ("Release candidate SHA256: " + (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash)
+          Write-Host ("Release candidate bytes: " + (Get-Item -LiteralPath $out).Length)
+
+      - name: Publish 0.4.1 patch release with known limitations
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # gh release create fails if the tag/release already exists; it never overwrites an existing release.
+          $notes = @'
+          SA Delirium 0.4.1 — installer compatibility update.
+
+          - Relaxed exact-hash checks for copied original audio banks and stream.ini.
+          - Solo Delirium preserves unrecognized existing ASI loaders and warns about unverified compatibility.
+          - Better reports for missing/modified vs edition-specific original files.
+          - No game executables, official game files, or GTA IV content included; the same owner game/ISO requirements remain.
+
+          Verification: Windows setup source compiled and synthetic regression tests passed. The repackaged binary was compiled using the verified resources embedded in the previously published 0.4.0 setup.
+
+          KNOWN LIMITATION: Not yet validated end-to-end with a real GTA SA game and GTA IV ISO. Some existing ASI loaders may not work. The reported crash when starting/loading a game is NOT confirmed fixed. Back up saves and use the 0.4.0 release if problems occur.
+          '@
+          $notes | Set-Content -LiteralPath release-notes.txt -Encoding utf8
+          gh release create 'v0.4.1' 'SA-Delirium-0.4.1-Setup.exe' --title 'SA Delirium 0.4.1 - installer compatibility' --notes-file release-notes.txt --target $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed' }
+          gh release view 'v0.4.1' --json url,assets,tagName
