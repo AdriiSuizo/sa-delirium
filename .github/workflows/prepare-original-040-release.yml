@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  statuses: write
 
 jobs:
   draft:
@@ -32,3 +33,20 @@ jobs:
             --notes 'Archive of original 0.4.0 installer. The owner must attach SA-Delirium-0.4.0-Setup.exe (SHA256: 91666d55ce29022762647a940ec8b82196d47f40234b2ce0bdbbb9302625f81d). Publishing this draft after uploading the installer triggers the 0.4.1 compatibility rebuild.' \
             --target '3300d19d0e389396063b4c69a3afe328f93e93eb'
           echo 'Draft v0.4.0 release created for original installer upload.'
+      - name: Record draft release availability
+        if: success()
+        shell: bash
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state=success -f context=release/original-0.4.0-ready \
+            -f description='Original installer release is ready for file attachment' \
+            -f target_url="https://github.com/$GITHUB_REPOSITORY/releases"
+      - name: Record draft preparation failure
+        if: failure()
+        shell: bash
+        run: |
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state=failure -f context=release/original-0.4.0-ready \
+            -f description='Could not create original 0.4.0 release draft' \
+            -f target_url="https://github.com/$GITHUB_REPOSITORY/actions"
+
