@@ -84,6 +84,14 @@ def patch_names(recipes):
 VERIFIED_CLASSIC_EXECUTABLES = {
     '611db14a6d0eb35911f7671c6c97ad3fbc8ff720ec7c4fad956ce86547baa10c':
         'PC 1.0 US · SA DirectX Optimiser',
+    # Publicly identified original retail-disc image; an actual owner-supplied
+    # input is required before the build can produce its source-checked delta.
+    # Merely recognizing this hash never makes it installable by itself.
+    '8c609f108ad737deffbd0d17c702f5974d290c4379de742277b809f80350da1c':
+        'PC 1.0 US · original retail-disc executable',
+}
+CLASSIC_EXECUTABLE_SIZES = {
+    '8c609f108ad737deffbd0d17c702f5974d290c4379de742277b809f80350da1c': 14405632,
 }
 
 
@@ -93,6 +101,9 @@ def classic_executable_delta(recipes, source, target):
     digest = sha(source)
     if digest not in VERIFIED_CLASSIC_EXECUTABLES:
         raise ValueError(f'Classic executable has no verified compatibility recipe: {digest}')
+    pinned_size = CLASSIC_EXECUTABLE_SIZES.get(digest)
+    if pinned_size is not None and source.stat().st_size != pinned_size:
+        raise ValueError('Retail executable size differs from the audited reference')
     recipe = next(f for f in recipes if f['path'] == 'gta_sa.exe' and f['kind'] == 'steam_delta')
     if sha(target) != recipe['sha256'] or target.stat().st_size != recipe['bytes']:
         raise ValueError('The target differs from the verified profile executable')
@@ -507,6 +518,13 @@ def main():
                 check.unlink()
             else:
                 subprocess.run([str(delta),'make',str(source),str(target),str(patch)],check=True,stdout=subprocess.DEVNULL)
+                # The patch generator returning 0 is not sufficient: replay the
+                # exact source->target conversion and compare the whole output.
+                check=Path(temp)/'roundtrip'
+                subprocess.run([str(delta),'apply',str(source),str(patch),str(check)],check=True,stdout=subprocess.DEVNULL)
+                assert check.stat().st_size == target.stat().st_size and sha(check)==sha(target), \
+                    'Generated patch does not reproduce the verified executable'
+                check.unlink()
     for source,name in [(delta,'DeltaTool.exe'),(sdk/'sa-delirium-bootstrap.exe','sa-delirium-bootstrap.exe'),(seven,'7z.exe'),(seven.with_name('7z.dll'),'7z.dll'),(seven.with_name('License.txt'),'7-Zip-LICENSE.txt')]:shutil.copy2(source,helpers/name)
     shutil.copy2(repo/'build/portable-tools/RendererProbe.exe',helpers/'RendererProbe.exe')
     if browser_package:
