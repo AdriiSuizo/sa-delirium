@@ -56,15 +56,33 @@ namespace SAPortable {
             int i=Array.IndexOf(args,key);if(i<0){if(fallback!=null)return fallback;throw new ArgumentException("Falta "+key);}
             if(i+1>=args.Length)throw new ArgumentException("Falta el valor de "+key);return args[i+1];
         }
-        // One Restore for both kinds of install, chosen by the journal.
+        // Do not let the Solo button silently restore a different full-pack
+        // destination. A previous install in the game folder is distinct from
+        // an independent profile living under LocalAppData.
+        internal static string SelectRestoreTarget(bool solo, string gameFolder, string destinationFolder) {
+            if (!String.IsNullOrWhiteSpace(gameFolder) &&
+                File.Exists(Path.Combine(gameFolder, Engine.ReceiptName))) return gameFolder;
+            if (!solo && Standalone.Installed(destinationFolder)) return destinationFolder;
+            return null;
+        }
+
+        // One Restore for all three modes, chosen by the journal. Verify the
+        // journal was actually archived before reporting a successful restore.
         public static Receipt Restore(Manifest manifest,string target) {
+            target = Paths.Full(target);
             var journal=Path.Combine(target,Engine.ReceiptName);
+            Receipt restored;
             if(File.Exists(journal)) {
                 var mode=Json.Read<Receipt>(journal).Mode;
-                if(mode=="standalone")return Standalone.Restore(target);
-                if(mode=="solo")return Solo.Restore(target);
+                if(mode=="standalone")restored=Standalone.Restore(target);
+                else if(mode=="solo")restored=Solo.Restore(target);
+                else restored=new Engine(manifest.profile,Resource("SteamLauncher.exe")).Restore(target);
+            } else {
+                restored=new Engine(manifest.profile,Resource("SteamLauncher.exe")).Restore(target);
             }
-            return new Engine(manifest.profile,Resource("SteamLauncher.exe")).Restore(target);
+            if(File.Exists(journal))
+                throw new IOException("Restaurar no ha terminado en esta carpeta; se conserva el registro de instalación. Revisa el diagnóstico antes de volver a instalar.");
+            return restored;
         }
         public static EditionReport Identify(Manifest manifest,string folder) {
             return Editions.Identify(folder,manifest,Engine.Hash(Resource("SteamLauncher.exe")));
@@ -469,10 +487,7 @@ namespace SAPortable {
         }
 
         string RestoreTarget() {
-            var folder = GameFolder();
-            if (folder != null && File.Exists(Path.Combine(folder, Engine.ReceiptName))) return folder;
-            var own = ReadPath(destination.Text);
-            return Standalone.Installed(own) ? own : null;
+            return Program.SelectRestoreTarget(solo.Checked, GameFolder(), ReadPath(destination.Text));
         }
 
         string DestinationIssue(string own) {
@@ -731,7 +746,7 @@ namespace SAPortable {
                 detail.Text = receipt.State == "installed"
                     ? (receipt.Mode == "solo" ? "Abre tu juego como de costumbre." : own ? "Abre SA Delirium desde su acceso directo." : "Abre San Andreas con Jugar en Steam.") +
                         (receipt.SavesFrom != null ? "\n\nSe han recuperado tus partidas anteriores." : "")
-                    : "El perfil y sus partidas están en la copia de respaldo.";
+                    : "Restauración terminada en: " + receipt.Target + ". El perfil y sus partidas están en la copia de respaldo.";
                 checkedFolder = null;
                 edition = null;
                 pendingFolder = ReadPath(game.Text);
