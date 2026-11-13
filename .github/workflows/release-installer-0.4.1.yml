@@ -2,12 +2,8 @@ name: Build and publish SA Delirium 0.4.1 installer
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'installer/portable/**'
-      - 'installer/SetupCore.cs'
-      - '.github/workflows/release-installer-0.4.1.yml'
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -19,18 +15,20 @@ concurrency:
 
 jobs:
   repack:
-    if: github.repository == 'AdriiSuizo/sa-delirium'
+    if: github.repository == 'AdriiSuizo/sa-delirium' && (github.event_name == 'workflow_dispatch' || github.event.release.tag_name == 'v0.4.0')
     runs-on: windows-2022
     timeout-minutes: 55
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Record publication start on commit
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=pending -f context=release/sa-delirium-0.4.1 -f description='Building the full 0.4.1 package' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=pending -f context=release/sa-delirium-0.4.1 -f description='Building the full 0.4.1 package' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
       - name: Download previously published 0.4.0 package
         shell: pwsh
@@ -134,7 +132,7 @@ jobs:
           KNOWN LIMITATION: Not yet validated end-to-end with a real GTA SA game and GTA IV ISO. Some existing ASI loaders may not work. The reported crash when starting/loading a game is NOT confirmed fixed. Back up saves and use the 0.4.0 release if problems occur.
           '@
           $notes | Set-Content -LiteralPath release-notes.txt -Encoding utf8
-          gh release create 'v0.4.1' 'SA-Delirium-0.4.1-Setup.exe' --title 'SA Delirium 0.4.1 - installer compatibility' --notes-file release-notes.txt --target $env:GITHUB_SHA
+          gh release create 'v0.4.1' 'SA-Delirium-0.4.1-Setup.exe' --title 'SA Delirium 0.4.1 - installer compatibility' --notes-file release-notes.txt --target main
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed' }
           gh release view 'v0.4.1' --json url,assets,tagName
 
@@ -142,21 +140,23 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
       - name: Record release failure on commit
         if: failure()
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
  -and $_ -match '0[.]4[.]0' })
           if ($setupNames.Count -ne 1) { throw 'Need exactly one published 0.4.0 installer EXE' }
           New-Item -ItemType Directory -Path old -Force | Out-Null
           gh release download $tag -p $setupNames[0] -D old
           if ($LASTEXITCODE -ne 0) { throw 'Could not download original 0.4.0 setup binary' }
           $old = (Resolve-Path (Join-Path old $setupNames[0])).Path
-          Write-Host "Existing published 0.4.0 package SHA256:"
-          (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash
+          $receivedHash = (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedHash = '91666d55ce29022762647a940ec8b82196d47f40234b2ce0bdbbb9302625f81d'
+          if ($receivedHash -ne $expectedHash) { throw "Original 0.4.0 installer does not match the verified owner upload: $receivedHash" }
+          Write-Host "Owner-verified original 0.4.0 package SHA256: $receivedHash"
 
       - name: Extract only publicly released installer resources
         shell: pwsh
@@ -248,10 +248,10 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
       - name: Record release failure on commit
         if: failure()
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
