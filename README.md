@@ -122,6 +122,24 @@ el módulo con errores en el Visor de eventos de Windows → Registros de Window
 el nombre del módulo; un cierre después de instalar no permite identificar
 el plugin responsable por sí solo. No borres las partidas de `SA/userfiles`.
 
+## Ejecutable original del disco de PC 1.0 US
+
+El instalador puede identificar el ejecutable original de disco de
+14.405.632 bytes con SHA-256
+`8c609f108ad737deffbd0d17c702f5974d290c4379de742277b809f80350da1c`.
+**Identificarlo no significa que sea compatible.** El ejecutable es distinto
+del 1.0 US verificado que usa el runtime y no se aplica ninguna transformación
+sin una receta binaria y comprobaciones de salida válidas.
+
+Para incorporar esa edición hará falta analizar una copia legítima del ejecutable
+original y producir un parche diferencial hacia el perfil existente. El proceso
+de construcción ya admite ejecutables auditados mediante
+`--classic-executable`, pero **el hash anterior no figura entre las fuentes
+aprobadas para generar deltas**. No se incluyen ejecutables originales ni se
+sustituyen archivos del usuario a ciegas. Hasta que exista una receta verificada,
+se debe utilizar una edición ya compatible y se conservará intacta la instalación
+original.
+
 ## Partidas, restauración y diagnóstico
 
 En **Solo Delirium**, abre tu juego como siempre. **Restaurar** retira los
