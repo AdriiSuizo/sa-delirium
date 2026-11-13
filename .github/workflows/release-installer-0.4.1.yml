@@ -30,7 +30,7 @@ jobs:
       - name: Record publication start on commit
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=pending -f context=release/sa-delirium-0.4.1 -f description='Building the full 0.4.1 package'
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=pending -f context=release/sa-delirium-0.4.1 -f description='Building the full 0.4.1 package' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
       - name: Download previously published 0.4.0 package
         shell: pwsh
@@ -135,10 +135,10 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases'
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=success -f context=release/sa-delirium-0.4.1 -f description='0.4.1 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
 
       - name: Record release failure on commit
         if: failure()
         shell: pwsh
         run: |
-          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions'
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -f state=failure -f context=release/sa-delirium-0.4.1 -f description='0.4.1 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
