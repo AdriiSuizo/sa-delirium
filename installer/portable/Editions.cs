@@ -23,6 +23,15 @@ namespace SAPortable {
     }
     public static class Editions {
         sealed class Known { public string Name, Kind; public Known(string name, string kind) { Name = name; Kind = kind; } }
+        // The original retail disc executable is not interchangeable with the
+        // verified 1.0 US game image used by Delirium's native hooks. Recognize
+        // it to show an accurate explanation, not to authorize binary patching.
+        internal const string RetailDiscSha256 = "8c609f108ad737deffbd0d17c702f5974d290c4379de742277b809f80350da1c";
+        internal const string RetailDiscMd5 = "e7697a085336f974a4a6102a51223960";
+        internal static bool IsUnsupportedRetailDisc(string sha256, string md5) {
+            return String.Equals(sha256, RetailDiscSha256, StringComparison.OrdinalIgnoreCase) &&
+                   String.Equals(md5, RetailDiscMd5, StringComparison.OrdinalIgnoreCase);
+        }
         // Executable MD5 values published by gtasa-open-downgrader (MIT),
         // downgrader/main.py VERSION_HASHES, release-candidate 2026-10-19.
         static readonly Dictionary<string, Known> ByMd5 = new Dictionary<string, Known>(StringComparer.Ordinal) {
@@ -178,7 +187,12 @@ namespace SAPortable {
             var source = report.Recipe;
             report.accepted = source != null;
             Known known;
-            if (ByMd5.TryGetValue(report.md5, out known)) { report.edition = known.Name; report.kind = known.Kind; }
+            if (IsUnsupportedRetailDisc(report.sha256, report.md5)) {
+                report.edition = "PC 1.0 US · ejecutable original de disco";
+                report.kind = "pc-retail-disc";
+            } else if (ByMd5.TryGetValue(report.md5, out known)) {
+                report.edition = known.Name; report.kind = known.Kind;
+            }
             if (source != null && !String.IsNullOrEmpty(source.name)) report.edition = source.name;
             if (report.accepted) {
                 if (report.kind == "unknown" && String.IsNullOrEmpty(source.name)) report.edition = "GTA San Andreas clásico · ejecutable verificado";
@@ -199,6 +213,12 @@ namespace SAPortable {
                     break;
                 case "steam-r2-german":
                     report.message = "Detectado: " + report.edition + ". Está reconocida, pero este instalador no incluye el parche para su ejecutable.";
+                    break;
+                case "pc-retail-disc":
+                    report.message = "Detectado: GTA San Andreas original de disco para PC 1.0 US. Tu ejecutable es real y está identificado, " +
+                        "pero esta versión de Delirium todavía no tiene una transformación binaria verificada para ese EXE. " +
+                        "No se modificará ni sustituirá a ciegas. Utiliza una copia compatible ya verificada " +
+                        "(Steam clásico o PC 1.0 US Hoodlum) o prepara un parche desde tu propia instalación original.";
                     break;
                 case "pc-1.0-us":
                     report.message = "Detectado: GTA SA " + report.edition + ". Es la versión correcta del juego, pero este ejecutable concreto no tiene parche verificado. Funciona con el ejecutable 1.0 US Hoodlum o con la copia de Steam.";
