@@ -498,6 +498,32 @@ namespace SAPortable {
             return file.path.Equals("gta_sa.exe", StringComparison.OrdinalIgnoreCase);
         }
 
+        // These are copied verbatim from the owner's game without applying a binary
+        // patch or interpreting their contents as executable code. Different retail
+        // audio/configuration editions do not need identical hashes.
+        // Keep executable, script, archive and patched inputs pinned to the manifest.
+        internal static bool CanCopyUnrecognizedOriginal(Recipe file) {
+            if (file.kind != "steam" || file.alternatives == null && String.IsNullOrEmpty(file.source))
+                return false;
+            var path = (file.source ?? "").Replace('\\', '/');
+            return path.Equals("audio/sfx/SCRIPT", StringComparison.OrdinalIgnoreCase) ||
+                   path.Equals("stream.ini", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static RecipeSource UnrecognizedOriginal(Recipe file, string game) {
+            if (!CanCopyUnrecognizedOriginal(file)) return null;
+            var path = Paths.Inside(game, file.source);
+            if (!File.Exists(path)) return null;
+            Paths.NoLinks(path);
+            var length = new FileInfo(path).Length;
+            // Reject placeholders and absurd sizes, but do not constrain normal
+            // localized or edition-specific audio banks to a single known hash.
+            if (length <= 0 || length > 2L * 1024 * 1024 * 1024) return null;
+            var sha256 = Engine.Hash(path);
+            return new RecipeSource { name="Copia original no catalogada", source=file.source,
+                source_sha256=sha256, source_bytes=length, sha256=sha256, bytes=length };
+        }
+
         // Also used by --verify-source, which needs neither ISO nor helper binaries.
         internal static OriginalScan ScanOriginals(Manifest manifest, EditionReport edition, Func<bool> cancelled, Action<long,long,string> progress) {
             Paths.NoLinks(edition.folder);
@@ -509,6 +535,7 @@ namespace SAPortable {
                 var file = required[i];
                 progress(i, required.Length, "Comprobando " + file.source);
                 var source = IsExecutableRecipe(file) ? edition.Recipe : FindOriginal(file, edition.folder, measured);
+                if (source == null) source = UnrecognizedOriginal(file, edition.folder);
                 if (source == null) result.Missing.Add(file.source);
                 else result.Files.Add(file.path, source);
             }
