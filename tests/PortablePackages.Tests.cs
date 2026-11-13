@@ -165,6 +165,40 @@ static class PortablePackageTests {
         Assert(!Editions.Identify(executable, manifest, null, steamLibrary).accepted, "Header flag cannot hide modified code");
         results.Add("verified-executable-alias-laa-and-vorbis");
     }
+    // A copied source is allowed to vary by edition; a patched or executable
+    // input is not. These are synthetic files, not a compatibility certification.
+    static void UncataloguedCopiedOriginals(string root,List<string> results) {
+        var game=Path.Combine(root,"uncatalogued-copies");
+        Directory.CreateDirectory(Path.Combine(game,"audio","sfx"));
+        var exe=Bytes("stock executable",4096);
+        var other=Bytes("stock critical data",128);
+        var audio=Bytes("different edition audio",8192);
+        var ini=Bytes("different stream configuration",256);
+        File.WriteAllBytes(Path.Combine(game,"gta_sa.exe"),exe);
+        File.WriteAllBytes(Path.Combine(game,"audio","sfx","SCRIPT"),audio);
+        File.WriteAllBytes(Path.Combine(game,"stream.ini"),ini);
+        File.WriteAllBytes(Path.Combine(game,"main.scm"),Bytes("wrong critical script",128));
+        var files=new[] {
+            new Recipe {path="gta_sa.exe",kind="steam",source="gta_sa.exe",sha256=Engine.Hash(exe),bytes=exe.Length},
+            new Recipe {path="audio/sfx/SCRIPT",kind="steam",source="audio/sfx/SCRIPT",sha256=Engine.Hash(Bytes("catalogued audio",8192)),bytes=8192},
+            new Recipe {path="stream.ini",kind="steam",source="stream.ini",sha256=Engine.Hash(Bytes("catalogued ini",256)),bytes=256},
+            new Recipe {path="main.scm",kind="steam",source="main.scm",sha256=Engine.Hash(other),bytes=other.Length}
+        };
+        var manifest=new Manifest {schema=1,packages=new Package[0],files=files,
+            profile=new ProfileIndex{schema=1,profile="copy fixture",stock_steam_executable_sha256=Engine.Hash(exe)}};
+        var report=Editions.Identify(game,manifest,null);
+        Assert(report.accepted,"fixture executable recognized");
+        var scan=Composer.ScanOriginals(manifest,report,delegate{return false;},delegate{});
+        Assert(scan.Missing.SequenceEqual(new[]{"main.scm"}),"critical script still requires known hash");
+        Assert(scan.Files["audio/sfx/SCRIPT"].sha256==Engine.Hash(audio),"different audio edition copied with its actual hash");
+        Assert(scan.Files["stream.ini"].sha256==Engine.Hash(ini),"different stream ini copied with its actual hash");
+        Assert(!Composer.CanCopyUnrecognizedOriginal(files[0]) && !Composer.CanCopyUnrecognizedOriginal(files[3]),
+            "only selected non-executable files may vary");
+        File.Delete(Path.Combine(game,"stream.ini"));
+        scan=Composer.ScanOriginals(manifest,report,delegate{return false;},delegate{});
+        Assert(scan.Missing.Contains("stream.ini"),"missing stream.ini still rejected");
+        results.Add("uncatalogued-copy-only-originals");
+    }
     static void MakeDelta(string tool,string source,string target,string patch) {
         using(var process=Process.Start(new ProcessStartInfo(tool,"make \""+source+"\" \""+target+"\" \""+patch+"\""){UseShellExecute=false,CreateNoWindow=true})){
             process.WaitForExit();Assert(process.ExitCode==0,"Fixture delta not built");
@@ -341,6 +375,20 @@ static class PortablePackageTests {
         Directory.CreateDirectory(Path.Combine(game,"modloader"));
         var existing=Path.Combine(game,"modloader","keep.ini");
         File.WriteAllText(existing,"existing mod");
+        // Preserve a different pre-existing loader without treating its hash
+        // as proof of compatibility or replacing it with a second loader.
+        var unknownVorbis=Path.Combine(game,"vorbisFile.dll");
+        File.WriteAllBytes(unknownVorbis,Bytes("unrecognized existing loader",512));
+        var unknownHash=Engine.Hash(unknownVorbis);
+        var warnings=new List<string>();
+        Assert(!Solo.NeedsLoader(game,warnings.Add) && warnings.Count==1,
+            "unknown loader is preserved with a compatibility warning");
+        Assert(Engine.Hash(unknownVorbis)==unknownHash,"unknown loader unchanged");
+        File.Delete(unknownVorbis);
+        bool missingVorbisRejected=false;
+        try { Solo.NeedsLoader(game); } catch(IOException) { missingVorbisRejected=true; }
+        Assert(missingVorbisRejected,"missing Vorbis library still rejected");
+        File.WriteAllBytes(unknownVorbis,Bytes("unrecognized existing loader",512));
         var files=new[]{"scripts/DeliriumSA.asi","DeliriumSA.ini","DeliriumSA-local-v3/fixture.bin"}
             .Select(path=>{
                 var local=Path.Combine(prepared,path);
@@ -410,6 +458,7 @@ static class PortablePackageTests {
             Case(root,"wrong-public-password",false,false,false,false,false,false,true,true);results.Add("wrong-public-password");
             EditionCases(root,results);
             ExecutableCompatibility(root,results);
+            UncataloguedCopiedOriginals(root,results);
             StandaloneCases(root,results);
             SoloCases(root,results);
             SavesCarry(root,results);
