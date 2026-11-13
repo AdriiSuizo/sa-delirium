@@ -1,6 +1,7 @@
 name: Build and publish SA Delirium 0.4.1 installer
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -86,6 +87,17 @@ jobs:
           }
           Write-Host ("Release candidate SHA256: " + (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash)
           Write-Host ("Release candidate bytes: " + (Get-Item -LiteralPath $out).Length)
+
+      - name: Smoke-test packaged installer resources and CLI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $report = Join-Path $env:RUNNER_TEMP 'sa-delirium-detect.json'
+          & .\SA-Delirium-0.4.1-Setup.exe --detect --report $report
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path $report)) { throw 'Compiled setup CLI smoke test failed' }
+          $details = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+          if ($details.version -ne '0.4.1') { throw 'Release candidate does not report version 0.4.1' }
+          Write-Host 'Embedded manifest and compiled CLI passed startup smoke test'
 
       - name: Publish 0.4.1 patch release with known limitations
         shell: pwsh
