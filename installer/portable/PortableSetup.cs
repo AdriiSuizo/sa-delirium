@@ -96,7 +96,7 @@ namespace SAPortable {
                     if(solo) {
                         if(!manifest.unified || !Solo.NativeCompatible(edition))
                             throw new IOException("Solo Delirium requiere el ejecutable nativo compatible de GTA SA 1.0 US. El perfil completo puede preparar otras copias verificadas aparte.");
-                        soloRecipes=Solo.Recipes(manifest,Solo.NeedsLoader(steam));
+                        soloRecipes=Solo.Recipes(manifest,Solo.NeedsLoader(steam, message => progress(0, 0, message)));
                         Solo.CheckLocations(steam,soloRecipes);
                     }
                     var helper=Helpers(cache);
