@@ -38,6 +38,8 @@ namespace SAPortable {
             var vorbis = HashIfPresent(game, Originals.VorbisFile);
             if (vorbis == null)
                 throw new IOException("Falta vorbisFile.dll en la carpeta del juego. Verifica los archivos de San Andreas o selecciona la carpeta principal del juego.");
+            if (new FileInfo(Paths.Inside(game, Originals.VorbisFile)).Length == 0)
+                throw new IOException("vorbisFile.dll está vacío. Repara el archivo antes de instalar Delirium.");
             if (vorbis == UltimateLoader) return false;
             if (vorbis == SilentLoader) {
                 if (HashIfPresent(game, "vorbisHooked.dll") == OriginalVorbis) return false;
