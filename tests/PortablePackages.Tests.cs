@@ -411,13 +411,26 @@ static class PortablePackageTests {
                 return new ProfileFile {path=path,bytes=new FileInfo(local).Length,sha256=Engine.Hash(local)};
             }).ToArray();
         var index=new ProfileIndex {schema=1,profile="solo fixture",files=files,total_bytes=files.Sum(f=>f.bytes)};
+        var otherProfile=Path.Combine(folder,"full-pack-destination");
+        Directory.CreateDirectory(otherProfile);
+        File.WriteAllText(Path.Combine(otherProfile,Engine.ReceiptName),"{\"mode\":\"standalone\"}");
+        Assert(Program.SelectRestoreTarget(true,game,otherProfile)==null,
+            "Solo mode must never restore a different full-pack profile");
+        Assert(Program.SelectRestoreTarget(false,game,otherProfile)==otherProfile,
+            "Full mode can restore its separate destination");
         var receipt=Solo.Install(index,prepared,game,delegate{},delegate{return false;});
         Assert(receipt.Mode=="solo" && receipt.State=="installed","Solo install committed");
+        Assert(Program.SelectRestoreTarget(true,game,otherProfile)==game,
+            "Solo restore selects the game folder with its own journal");
         var ini=Path.Combine(game,"DeliriumSA.ini");
         File.WriteAllText(ini,"player changed settings");
         Assert(File.ReadAllText(existing)=="existing mod","Solo preserved an existing mod");
-        var restored=Solo.Restore(game);
+        var restored=Program.Restore(new Manifest {schema=1},game);
         Assert(restored.State=="restored" && !File.Exists(ini),"Solo restored managed files");
+        Assert(!File.Exists(Path.Combine(game, Engine.ReceiptName)),
+            "Successful restore archives the active journal");
+        Assert(Program.SelectRestoreTarget(true,game,otherProfile)==null,
+            "Solo mode does not offer to restore the full destination after success");
         Assert(File.ReadAllText(Path.Combine(game,restored.BackupDirectory,"DeliriumSA.ini"))=="player changed settings",
             "Solo preserved the player's settings in the backup");
         File.WriteAllText(ini,"another mod's file");
