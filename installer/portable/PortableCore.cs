@@ -334,6 +334,9 @@ namespace SAPortable {
                 error.Data["SetupOriginals"] = String.Join(", ", originals.Missing.Take(20));
                 throw error;
             }
+            if (originals.Uncatalogued.Count != 0)
+                Progress(0,0,"Se conservarán " + originals.Uncatalogued.Count +
+                    " archivos de audio/configuración de esta edición sin exigir su hash catalogado.");
             Directory.CreateDirectory(cache);
             var bootstrap=Path.Combine(tools,"sa-delirium-bootstrap.exe");
             Progress(0,0,"Comprobando la ISO de GTA IV…");
@@ -492,6 +495,7 @@ namespace SAPortable {
         internal sealed class OriginalScan {
             public readonly Dictionary<string, RecipeSource> Files = new Dictionary<string, RecipeSource>(StringComparer.OrdinalIgnoreCase);
             public readonly List<string> Missing = new List<string>();
+            public readonly List<string> Uncatalogued = new List<string>();
         }
 
         static bool IsExecutableRecipe(Recipe file) {
@@ -503,10 +507,10 @@ namespace SAPortable {
         // audio/configuration editions do not need identical hashes.
         // Keep executable, script, archive and patched inputs pinned to the manifest.
         internal static bool CanCopyUnrecognizedOriginal(Recipe file) {
-            if (file.kind != "steam" || file.alternatives == null && String.IsNullOrEmpty(file.source))
-                return false;
-            var path = (file.source ?? "").Replace('\\', '/');
-            return path.Equals("audio/sfx/SCRIPT", StringComparison.OrdinalIgnoreCase) ||
+            if (file.kind != "steam" || String.IsNullOrEmpty(file.source)) return false;
+            var path = file.source.Replace('\\', '/');
+            return path.StartsWith("audio/sfx/", StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith("audio/streams/", StringComparison.OrdinalIgnoreCase) ||
                    path.Equals("stream.ini", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -537,7 +541,10 @@ namespace SAPortable {
                 var source = IsExecutableRecipe(file) ? edition.Recipe : FindOriginal(file, edition.folder, measured);
                 if (source == null) source = UnrecognizedOriginal(file, edition.folder);
                 if (source == null) result.Missing.Add(file.source);
-                else result.Files.Add(file.path, source);
+                else {
+                    result.Files.Add(file.path, source);
+                    if (source.name == "Copia original no catalogada") result.Uncatalogued.Add(file.source);
+                }
             }
             progress(required.Length, required.Length, "Archivos de San Andreas comprobados");
             return result;
