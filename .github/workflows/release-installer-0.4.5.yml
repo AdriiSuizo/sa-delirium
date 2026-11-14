@@ -1,0 +1,153 @@
+name: Build and publish SA Delirium 0.4.5 installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-installer-0.4.5.yml']
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  statuses: write
+
+concurrency:
+  group: sa-delirium-045-release
+  cancel-in-progress: true
+
+jobs:
+  repack:
+    if: github.repository == 'AdriiSuizo/sa-delirium' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.release.tag_name == 'v0.4.4')
+    runs-on: windows-2022
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Record publication start on commit
+        shell: pwsh
+        run: |
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=pending -f context=release/sa-delirium-0.4.5 -f description='Building the full 0.4.5 package' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+
+      - name: Download and verify published v0.4.4 installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path old -Force | Out-Null
+          gh release download v0.4.4 --repo $env:GITHUB_REPOSITORY -p 'SA-Delirium-0.4.4-Setup.exe' -D old
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download published 0.4.4 installer' }
+          $old = (Resolve-Path -LiteralPath 'old/SA-Delirium-0.4.4-Setup.exe').Path
+          $expected = '88917cd23577290195443c0e536a067d067fbb8339f468526b5f3038b9a1f870'
+          $actual = (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Published 0.4.4 installer checksum changed; found $actual" }
+          if ((Get-Item $old).Length -ne 56805888) { throw 'Published 0.4.4 installer size changed' }
+          Write-Host "Verified original 0.4.4: $actual"
+
+      - name: Extract only publicly released installer resources
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $old = (Resolve-Path 'old/SA-Delirium-0.4.4-Setup.exe').Path
+          $assembly = [Reflection.Assembly]::LoadFrom($old)
+          $expected = @('portable-manifest.json', 'SteamLauncher.exe', 'portable-tools.zip')
+          $names = @($assembly.GetManifestResourceNames())
+          foreach ($name in $expected) {
+            if ($name -cnotin $names) { throw "Missing embedded resource: $name" }
+            $inputStream = $assembly.GetManifestResourceStream($name)
+            if ($null -eq $inputStream) { throw "Cannot open resource: $name" }
+            $file = [IO.File]::Create((Join-Path (Get-Location) $name))
+            try { $inputStream.CopyTo($file) }
+            finally { $file.Dispose(); $inputStream.Dispose() }
+          }
+          $spec = Get-Content -Raw -LiteralPath 'portable-manifest.json' | ConvertFrom-Json
+          if ($spec.version -ne '0.4.4' -or $spec.lab_only) { throw 'Previous release does not contain the expected public manifest' }
+          $toolsHash = (Get-FileHash -LiteralPath 'portable-tools.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($toolsHash -ne $spec.tools_sha256) { throw 'Embedded tools ZIP fingerprint does not match release manifest' }
+          $json = [IO.File]::ReadAllText((Resolve-Path 'portable-manifest.json').Path)
+          $updated = [regex]::Replace($json, '"version"\s*:\s*"0\.4\.4"', '"version": "0.4.5"')
+          if ($updated -eq $json) { throw 'Could not safely update version in manifest' }
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'portable-manifest.json'), $updated, [Text.UTF8Encoding]::new($false))
+          Write-Host 'Previous public resources extracted and verified'
+
+      - name: Compile production installer 0.4.5
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          if (!(Test-Path $csc)) { throw 'Missing .NET Framework C# compiler' }
+          $refs = @('/r:System.Web.Extensions.dll','/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.IO.Compression.dll','/r:System.IO.Compression.FileSystem.dll')
+          $src = @('installer/SetupCore.cs','installer/portable/PortableCore.cs','installer/portable/Editions.cs','installer/portable/Standalone.cs','installer/portable/Solo.cs','installer/portable/PortableSetup.cs') |
+            ForEach-Object { (Resolve-Path -LiteralPath $_).Path }
+          $manifest = (Resolve-Path -LiteralPath 'installer/setup.manifest').Path
+          $out = Join-Path (Get-Location) 'SA-Delirium-0.4.5-Setup.exe'
+          $cscArguments = @('/nologo','/target:winexe','/platform:x64','/optimize+','/codepage:65001') + $refs + @(
+            ('/win32manifest:'+$manifest),
+            '/resource:portable-manifest.json,portable-manifest.json',
+            '/resource:SteamLauncher.exe,SteamLauncher.exe',
+            '/resource:portable-tools.zip,portable-tools.zip',
+            ('/out:'+$out)
+          ) + $src
+          & $csc @cscArguments
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path $out)) { throw 'Production setup compilation failed' }
+          $newAssembly = [Reflection.Assembly]::LoadFrom($out)
+          foreach ($name in @('portable-manifest.json','SteamLauncher.exe','portable-tools.zip')) {
+            if ($name -cnotin $newAssembly.GetManifestResourceNames()) { throw "Output is missing $name" }
+          }
+          Write-Host ("Release candidate SHA256: " + (Get-FileHash -LiteralPath $out -Algorithm SHA256).Hash)
+          Write-Host ("Release candidate bytes: " + (Get-Item -LiteralPath $out).Length)
+
+      - name: Smoke-test packaged installer resources and CLI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $report = Join-Path $env:RUNNER_TEMP 'sa-delirium-detect.json'
+          # The setup uses the Windows GUI subsystem (winexe); PowerShell's
+          # invocation operator does not necessarily wait for GUI processes.
+          $setup = (Resolve-Path -LiteralPath 'SA-Delirium-0.4.5-Setup.exe').Path
+          $process = Start-Process -FilePath $setup -ArgumentList ('--detect --report "' + $report + '"') -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw ("Compiled setup returned exit code " + $process.ExitCode) }
+          if (!(Test-Path -LiteralPath $report)) { throw 'Compiled setup did not produce CLI report' }
+          $details = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+          if ($details.version -ne '0.4.5') { throw 'Release candidate does not report version 0.4.5' }
+          Write-Host 'Embedded manifest and compiled CLI passed startup smoke test'
+
+      - name: Publish 0.4.5 patch release with known limitations
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # gh release create fails if the tag/release already exists; it never overwrites an existing release.
+          $notes = @'
+          SA Delirium 0.4.5 — standalone install compatibility.
+
+          - Fixes full-pack installation rollback when Windows shortcut COM returns NotImplementedException / E_NOTIMPL (0x80004001).
+          - The standalone profile now completes even if WScript.Shell cannot create a .lnk; it writes a small SA Delirium.cmd fallback in the affected Desktop/Start Menu folder.
+          - Fallback launchers are tracked and content-verified on Restore. Existing user files are never overwritten.
+          - The error report now includes the sanitized managed stack trace and inner-exception chain, making any unrelated future failure traceable.
+          - Includes the 0.4.4 Urbanize optional-patch fallback, 0.4.3 copy-only GXT/movie compatibility, and 0.4.2 Grinch Trainer default-disable behavior.
+
+          Validation: Windows .NET compilation and synthetic package-boundary tests passed. The new regression test injects the exact NotImplementedException during shortcut creation, verifies that the installation finishes, the .cmd launcher uses the prepared profile as working directory, and Restore removes the launcher while retaining the installed profile. The 0.4.4 public installer and embedded resources are SHA256 checked before rebuilding; release smoke tests verify the embedded manifest version and resources.
+
+          LIMITS: The fallback handles E_NOTIMPL in optional Windows shortcut creation, not arbitrary failures elsewhere in the install pipeline. The viewer's PC has not yet been re-tested end-to-end. Back up existing saves and use Restore before reinstalling over a previous SA Delirium profile. No official GTA SA or GTA IV game files are distributed.
+          '@
+          $notes | Set-Content -LiteralPath release-notes.txt -Encoding utf8
+          gh release create 'v0.4.5' 'SA-Delirium-0.4.5-Setup.exe' --title 'SA Delirium 0.4.5 - installer compatibility' --notes-file release-notes.txt --target main
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed' }
+          gh release view 'v0.4.5' --json url,assets,tagName
+
+      - name: Record verified release on commit
+        if: success()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=success -f context=release/sa-delirium-0.4.5 -f description='0.4.5 setup uploaded to GitHub Releases' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+
+      - name: Record release failure on commit
+        if: failure()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          gh api -X POST "repos/$env:GITHUB_REPOSITORY/statuses/$(git rev-parse HEAD)" -f state=failure -f context=release/sa-delirium-0.4.5 -f description='0.4.5 packaging or release failed; inspect Actions' -f target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
