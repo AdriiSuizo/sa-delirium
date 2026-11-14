@@ -176,18 +176,38 @@ static class PortablePackageTests {
     static void UncataloguedCopiedOriginals(string root,List<string> results) {
         var game=Path.Combine(root,"uncatalogued-copies");
         Directory.CreateDirectory(Path.Combine(game,"audio","sfx"));
+        Directory.CreateDirectory(Path.Combine(game,"movies"));
+        Directory.CreateDirectory(Path.Combine(game,"text"));
         var exe=Bytes("stock executable",4096);
         var other=Bytes("stock critical data",128);
         var audio=Bytes("different edition audio",8192);
         var ini=Bytes("different stream configuration",256);
+        var intro=Bytes("localized intro movie",4096);
+        var logo=Bytes("localized logo movie",2048);
+        var american=Bytes("owner american text",512);
+        var french=Bytes("owner french text",512);
+        var german=Bytes("owner german text",512);
+        var italian=Bytes("owner italian text",512);
         File.WriteAllBytes(Path.Combine(game,"gta_sa.exe"),exe);
         File.WriteAllBytes(Path.Combine(game,"audio","sfx","SCRIPT"),audio);
         File.WriteAllBytes(Path.Combine(game,"stream.ini"),ini);
+        File.WriteAllBytes(Path.Combine(game,"movies","GTAtitles.mpg"),intro);
+        File.WriteAllBytes(Path.Combine(game,"movies","Logo.mpg"),logo);
+        File.WriteAllBytes(Path.Combine(game,"text","american.gxt"),american);
+        File.WriteAllBytes(Path.Combine(game,"text","french.gxt"),french);
+        File.WriteAllBytes(Path.Combine(game,"text","german.gxt"),german);
+        File.WriteAllBytes(Path.Combine(game,"text","italian.gxt"),italian);
         File.WriteAllBytes(Path.Combine(game,"main.scm"),Bytes("wrong critical script",128));
         var files=new[] {
             new Recipe {path="gta_sa.exe",kind="steam",source="gta_sa.exe",sha256=Engine.Hash(exe),bytes=exe.Length},
             new Recipe {path="audio/sfx/SCRIPT",kind="steam",source="audio/sfx/SCRIPT",sha256=Engine.Hash(Bytes("catalogued audio",8192)),bytes=8192},
             new Recipe {path="stream.ini",kind="steam",source="stream.ini",sha256=Engine.Hash(Bytes("catalogued ini",256)),bytes=256},
+            new Recipe {path="movies/GTAtitles.mpg",kind="steam",source="movies/GTAtitles.mpg",sha256=Engine.Hash(Bytes("catalogued movie",4096)),bytes=4096},
+            new Recipe {path="movies/Logo.mpg",kind="steam",source="movies/Logo.mpg",sha256=Engine.Hash(Bytes("catalogued logo",2048)),bytes=2048},
+            new Recipe {path="text/american.gxt",kind="steam",source="text/american.gxt",sha256=Engine.Hash(Bytes("catalogued american",512)),bytes=512},
+            new Recipe {path="text/french.gxt",kind="steam",source="text/french.gxt",sha256=Engine.Hash(Bytes("catalogued french",512)),bytes=512},
+            new Recipe {path="text/german.gxt",kind="steam",source="text/german.gxt",sha256=Engine.Hash(Bytes("catalogued german",512)),bytes=512},
+            new Recipe {path="text/italian.gxt",kind="steam",source="text/italian.gxt",sha256=Engine.Hash(Bytes("catalogued italian",512)),bytes=512},
             new Recipe {path="main.scm",kind="steam",source="main.scm",sha256=Engine.Hash(other),bytes=other.Length}
         };
         var manifest=new Manifest {schema=1,packages=new Package[0],files=files,
@@ -200,11 +220,30 @@ static class PortablePackageTests {
         Assert(scan.Files["stream.ini"].sha256==Engine.Hash(ini),"different stream ini copied with its actual hash");
         Assert(scan.Uncatalogued.Contains("audio/sfx/SCRIPT") && scan.Uncatalogued.Contains("stream.ini"),
             "uncatalogued copies are reported");
-        Assert(!Composer.CanCopyUnrecognizedOriginal(files[0]) && !Composer.CanCopyUnrecognizedOriginal(files[3]),
-            "only selected non-executable files may vary");
+        foreach(var input in new[] {
+            Tuple.Create("movies/GTAtitles.mpg",intro),Tuple.Create("movies/Logo.mpg",logo),
+            Tuple.Create("text/american.gxt",american),Tuple.Create("text/french.gxt",french),
+            Tuple.Create("text/german.gxt",german),Tuple.Create("text/italian.gxt",italian)
+        }) {
+            Assert(scan.Files[input.Item1].sha256==Engine.Hash(input.Item2),
+                input.Item1+": unlisted owner media/language file is copied unchanged");
+            Assert(scan.Uncatalogued.Contains(input.Item1),
+                input.Item1+": unlisted owner file is noted separately from missing files");
+        }
+        Assert(!Composer.CanCopyUnrecognizedOriginal(files[0]) &&
+            !Composer.CanCopyUnrecognizedOriginal(files.Single(x=>x.path=="main.scm")),
+            "critical scripts and game executables still need known hashes");
+        Assert(!Composer.CanCopyUnrecognizedOriginal(new Recipe {path="text/main.scm",source="text/main.scm",kind="steam"}) &&
+            !Composer.CanCopyUnrecognizedOriginal(new Recipe {path="movies/GTAtitles.mpg",source="movies/GTAtitles.mpg",kind="steam_delta"}),
+            "only copy-only media/language files may bypass catalogued hashes");
         File.Delete(Path.Combine(game,"stream.ini"));
+        File.Delete(Path.Combine(game,"text","german.gxt"));
         scan=Composer.ScanOriginals(manifest,report,delegate{return false;},delegate{});
-        Assert(scan.Missing.Contains("stream.ini"),"missing stream.ini still rejected");
+        Assert(scan.Missing.Contains("stream.ini") && scan.Missing.Contains("text/german.gxt"),
+            "absent original text/config inputs still block installation");
+        File.WriteAllBytes(Path.Combine(game,"text","german.gxt"),new byte[0]);
+        scan=Composer.ScanOriginals(manifest,report,delegate{return false;},delegate{});
+        Assert(scan.Missing.Contains("text/german.gxt"),"empty GXT file still rejected");
         results.Add("uncatalogued-copy-only-originals");
     }
     static void MakeDelta(string tool,string source,string target,string patch) {
