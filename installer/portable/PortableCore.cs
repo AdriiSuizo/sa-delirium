@@ -167,6 +167,30 @@ namespace SAPortable {
                 }
             }
         }
+        // Optional downloads are not allowed to abort the entire game install
+        // when a local patch, archive extraction or a checksum check fails.
+        // In particular Urbanize's Root.cs delta can fail after download.
+        static bool RecoverableOptionalFailure(Exception error) {
+            if(error is IOException && (error.HResult & 0xffff)==112) return false; // disk full
+            return error is IOException || error is TimeoutException ||
+                error is System.Net.WebException || error is System.ComponentModel.Win32Exception;
+        }
+        Recipe[] OmitOptionalPackage(string id,string reason,string preparedRoot=null) {
+            var component=Manifest.packages.Single(x=>x.id==id);
+            if(!component.optional)throw new IOException("No se puede omitir un componente obligatorio: "+id);
+            var omitted=Manifest.files.Where(f=>f.package==id).ToArray();
+            if(preparedRoot!=null)foreach(var file in omitted) {
+                var output=Paths.Inside(preparedRoot,file.path);
+                if(!File.Exists(output))continue;
+                Paths.NoLinks(output);
+                File.Delete(output);
+            }
+            Manifest.files=Manifest.files.Where(f=>f.package!=id).ToArray();
+            var label=component.title??component.id;
+            if(!Skipped.Contains(label))Skipped.Add(label);
+            Progress(0,0,label+" no se pudo preparar ("+reason+"). Se instalará Delirium sin ese extra.");
+            return omitted;
+        }
         void Verify(string path,string hash,long size=-1) {
             Paths.NoLinks(path);
             if(!File.Exists(path) || (size>=0 && new FileInfo(path).Length!=size) || Engine.Hash(path)!=hash)
@@ -350,14 +374,14 @@ namespace SAPortable {
             foreach(var optional in Manifest.packages.Where(x=>x.optional&&Manifest.files.Any(f=>f.package==x.id)).ToArray()) {
                 try {Resolve(optional.id);}
                 catch(Exception error) {
-                    if(!(error is IOException||error is System.Net.WebException))throw;
-                    Manifest.files=Manifest.files.Where(f=>f.package!=optional.id).ToArray();
-                    Skipped.Add(optional.title??optional.id);
-                    Progress(0,0,"No se pudo descargar "+(optional.title??optional.id)+": se instala sin él.");
+                    if(!RecoverableOptionalFailure(error))throw;
+                    OmitOptionalPackage(optional.id,"descarga",null);
                 }
             }
-            foreach(var group in Manifest.files.Where(x=>x.kind=="package" || x.kind=="package_delta").GroupBy(x=>x.package)) {
+            foreach(var group in Manifest.files.Where(x=>x.kind=="package" || x.kind=="package_delta").GroupBy(x=>x.package).ToArray()) {
+                if(!Manifest.files.Any(f=>f.package==group.Key))continue;
                 var package=Manifest.packages.Single(x=>x.id==group.Key);
+                try {
                 var archive=Resolve(group.Key);
                 if(package.format=="raw") {
                     foreach(var f in group) {
@@ -384,11 +408,18 @@ namespace SAPortable {
                     if(matching.Length==0)throw new IOException("El componente original no coincide: "+f.path);
                     sources.Add(f.path,matching[0]);
                 }
+                } catch(Exception error) {
+                    if(!package.optional || !RecoverableOptionalFailure(error))throw;
+                    var omitted=OmitOptionalPackage(group.Key,"archivos del paquete",null);
+                    foreach(var file in omitted)sources.Remove(file.path);
+                }
             }
             Phase(SetupPhase.Files);
             long completed=0,total=Manifest.files.Sum(x=>x.bytes);
             var outputs=new Dictionary<string,RecipeSource>(StringComparer.OrdinalIgnoreCase);
-            foreach(var f in Manifest.files) {
+            var completedPaths=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach(var f in Manifest.files.ToArray()) {
+                if(!Manifest.files.Contains(f))continue; // an optional package failed earlier
                 CheckCancellation();var destination=Paths.Inside(preparedRoot,f.path);Directory.CreateDirectory(Path.GetDirectoryName(destination));
                 string source;
                 if(f.kind=="steam" || f.kind=="steam_delta") {
@@ -403,9 +434,10 @@ namespace SAPortable {
                     } finally {
                         if (executable && edition.NormalizeLargeAddressAware) File.Delete(source);
                     }
-                    Verify(destination,choice.sha256,choice.bytes);completed+=f.bytes;Progress(completed,total,f.path);
+                    Verify(destination,choice.sha256,choice.bytes);completed+=f.bytes;completedPaths.Add(f.path);Progress(completed,total,f.path);
                     continue;
                 }
+                try {
                 switch(f.kind) {
                     case "package":case "package_delta":source=sources[f.path];break;
                     case "payload":source=Paths.Inside(tools,"payload/"+f.source);break;
@@ -415,7 +447,16 @@ namespace SAPortable {
                     Verify(source,f.source_sha256,f.source_bytes);
                     Run(Path.Combine(tools,"DeltaTool.exe"),"apply "+Quote(source)+" "+Quote(Paths.Inside(tools,"patches/"+f.patch))+" "+Quote(destination),Paths.Inside(preparedRoot,"patch-"+Guid.NewGuid().ToString("N")+".log"),"la preparación de "+f.path);
                 } else {Verify(source,f.sha256,f.bytes);File.Copy(source,destination);}
-                Verify(destination,f.sha256,f.bytes);completed+=f.bytes;Progress(completed,total,f.path);
+                Verify(destination,f.sha256,f.bytes);completed+=f.bytes;completedPaths.Add(f.path);Progress(completed,total,f.path);
+                } catch(Exception error) {
+                    var optional=f.package==null?null:Manifest.packages.FirstOrDefault(p=>p.id==f.package && p.optional);
+                    if(optional==null || !RecoverableOptionalFailure(error))throw;
+                    var omitted=Manifest.files.Where(x=>x.package==optional.id).ToArray();
+                    completed-=omitted.Where(x=>completedPaths.Contains(x.path)).Sum(x=>x.bytes);
+                    total-=omitted.Sum(x=>x.bytes);
+                    foreach(var file in omitted)completedPaths.Remove(file.path);
+                    OmitOptionalPackage(optional.id,"parche o copia de "+f.path,preparedRoot);
+                }
             }
             Phase(SetupPhase.Resources);
             Progress(0,0,"Preparando Delirium desde tu ISO…");
@@ -433,7 +474,8 @@ namespace SAPortable {
             }
             var index=Json.Serializer().Deserialize<ProfileIndex>(Json.Serializer().Serialize(Manifest.profile));
             index.files=files.ToArray();index.total_bytes=files.Sum(f=>f.bytes);
-            Json.Write(Paths.Inside(preparedRoot,"portable-preparation.json"),new{status="prepared",index,omissions=Manifest.omissions,iso_copied=false});
+            Json.Write(Paths.Inside(preparedRoot,"portable-preparation.json"),new{status="prepared",index,omissions=Manifest.omissions,
+                skipped_optional_components=Skipped.ToArray(),iso_copied=false});
             return index;
         }
 
