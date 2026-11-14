@@ -378,6 +378,43 @@ static class PortablePackageTests {
             results.Add(name);
         }
     }
+    static void TrainerCompatibility(string root,List<string> results) {
+        var folder=Path.Combine(root,"trainer-compatibility");
+        Directory.CreateDirectory(folder);
+        var trainer=Path.Combine(folder,"GrinchTrainerSA.asi");
+        var bytes=Bytes("grinch-fixture",1536);
+        File.WriteAllBytes(trainer,bytes);
+        var originalHash=Engine.Hash(trainer);
+        var files=new List<ProfileFile> {
+            new ProfileFile {path="GrinchTrainerSA.asi",sha256=originalHash,bytes=bytes.Length,components=new[]{"trainer"}},
+            new ProfileFile {path="scripts/DeliriumSA.asi",sha256=originalHash,bytes=bytes.Length,components=new[]{"delirium"}}
+        };
+        Composer.QuarantineTrainer(folder,files);
+        var disabled=Path.Combine(folder,"Documentation","Optional","GrinchTrainerSA.asi.disabled");
+        Assert(!File.Exists(trainer) && File.Exists(disabled),"incompatible trainer is unloaded by default");
+        Assert(Engine.Hash(disabled)==originalHash,"disabled original trainer bytes remain unchanged");
+        Assert(files.Single(x=>x.path.EndsWith("GrinchTrainerSA.asi.disabled")).sha256==originalHash,
+            "prepared index points at the same verified trainer in optional storage");
+        Assert(files.Any(x=>x.path=="scripts/DeliriumSA.asi"),"core physics is unaffected");
+        var notes=Path.Combine(folder,"Documentation","Optional","GrinchTrainer-compatibility.txt");
+        Assert(File.Exists(notes) && File.ReadAllText(notes).Contains("DESACTIVADO"),
+            "owner has clear instructions and can opt back in");
+        Composer.QuarantineTrainer(folder,files);
+        Assert(files.Count==3,"reapplying compatibility pass does not duplicate trainer or notes");
+
+        var badFolder=Path.Combine(root,"trainer-corrupt");
+        Directory.CreateDirectory(badFolder);
+        var bad=Path.Combine(badFolder,"GrinchTrainerSA.asi");
+        File.WriteAllBytes(bad,Bytes("different-trainer",1536));
+        bool rejected=false;
+        try { Composer.QuarantineTrainer(badFolder,new List<ProfileFile> {
+            new ProfileFile {path="GrinchTrainerSA.asi",sha256=originalHash,bytes=bytes.Length}
+        }); } catch(IOException) { rejected=true; }
+        Assert(rejected && File.Exists(bad) &&
+            !File.Exists(Path.Combine(badFolder,"Documentation","Optional","GrinchTrainerSA.asi.disabled")),
+            "unverified trainer is never silently moved or installed");
+        results.Add("trainer-disabled-by-default-without-data-loss");
+    }
     static void SoloCases(string root,List<string> results) {
         var folder=Path.Combine(root,"solo");
         var game=Path.Combine(folder,"game");
@@ -488,6 +525,7 @@ static class PortablePackageTests {
             UncataloguedCopiedOriginals(root,results);
             StandaloneCases(root,results);
             SoloCases(root,results);
+            TrainerCompatibility(root,results);
             SavesCarry(root,results);
             FullPreparation(root,results);
             if(args.Length>1) {

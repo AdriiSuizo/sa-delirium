@@ -423,6 +423,7 @@ namespace SAPortable {
             if (Manifest.unified) ImportMeleeAudio(bootstrap, preparedRoot, iso);
             var files=Manifest.files.Select(f=>{RecipeSource o;var used=outputs.TryGetValue(f.path,out o);
                 return new ProfileFile {path=f.path,sha256=used?o.sha256:f.sha256,bytes=used?o.bytes:f.bytes,components=f.components};}).ToList();
+            QuarantineTrainer(preparedRoot, files);
             if(Manifest.prepare_legacy_directx)EnsureLegacyRuntime(preparedRoot);
             if(Manifest.choose_compatible_renderer)SelectRenderer(preparedRoot,files);
             IndexResources(preparedRoot, files);
@@ -481,6 +482,39 @@ namespace SAPortable {
             Progress(0, 0, "Importando sonidos de golpes y bate de tu ISO…");
             Run(bootstrap, "--import-melee " + Quote(prepared) + " " + Quote(iso) + " " + Quote(decoder),
                 Paths.Inside(prepared,"iso-melee.log"), "la importación de sonidos de GTA IV", showToolError:true);
+        }
+
+        // Grinch Trainer has reproduced a load-time access violation when
+        // combined with Delirium in a full portable profile. Ship its verified
+        // bytes as an optional, unloaded file instead of deleting or altering it.
+        // This affects only the full profile, never the Solo Delirium add-on.
+        internal static void QuarantineTrainer(string root, List<ProfileFile> files) {
+            const string sourcePath = "GrinchTrainerSA.asi";
+            const string optionalPath = "Documentation/Optional/GrinchTrainerSA.asi.disabled";
+            const string readmePath = "Documentation/Optional/GrinchTrainer-compatibility.txt";
+            var trainer = files.SingleOrDefault(x => x.path.Equals(sourcePath, StringComparison.OrdinalIgnoreCase));
+            if(trainer == null)return;
+            var source = Paths.Inside(root,sourcePath);
+            var optional = Paths.Inside(root,optionalPath);
+            var info = Paths.Inside(root,readmePath);
+            Paths.NoLinks(source);
+            if(!File.Exists(source) || new FileInfo(source).Length!=trainer.bytes || Engine.Hash(source)!=trainer.sha256)
+                throw new IOException("El Trainer cambió antes de desactivarlo. No se puede preparar una instalación segura.");
+            if(File.Exists(optional) || Directory.Exists(optional) || File.Exists(info))
+                throw new IOException("La carpeta opcional ya contiene un Trainer o instrucciones inesperados.");
+            Directory.CreateDirectory(Path.GetDirectoryName(optional));
+            File.Move(source,optional);
+            trainer.path=optionalPath;
+            var explanation="Grinch Trainer se entrega DESACTIVADO por defecto en SA Delirium.\r\n" +
+                "Se ha observado un cierre al iniciar partidas al combinarlo con el motor de físicas.\r\n" +
+                "El archivo verificado se conserva sin modificar aquí, fuera de las carpetas de plugins.\r\n" +
+                "Para reactivarlo voluntariamente, copia GrinchTrainerSA.asi.disabled a la raíz\r\n" +
+                "del perfil SA como GrinchTrainerSA.asi, con el juego cerrado.\r\n" +
+                "Puede volver a provocar el crash. Para desactivarlo, retira esa copia de la raíz.\r\n" +
+                "La configuración GrinchTrainerSA.toml permanece sin cambios.\r\n";
+            File.WriteAllText(info,explanation,new UTF8Encoding(false));
+            files.Add(new ProfileFile {path=readmePath,sha256=Engine.Hash(info),
+                bytes=new FileInfo(info).Length,components=new[]{"trainer-compatibility"}});
         }
 
         static void IndexResources(string root, List<ProfileFile> files) {
