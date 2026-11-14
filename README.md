@@ -67,7 +67,7 @@ Windowed Mode, Open Limit Adjuster, Framerate Vigilante y PortableGTA.
 DXVK se comprueba en el equipo; si no puede crear un dispositivo, se usa D3D9
 de Windows. Los créditos y readmes originales se instalan en `SA/Documentation`.
 
-Se conservan Urbanize, Grinch Trainer, Advanced Aiming y los eventos civiles de desarrollo.
+Se conservan Urbanize, Advanced Aiming y los eventos civiles de desarrollo. **Grinch Trainer se incluye desactivado por defecto** debido a un crash de carga observado al combinarlo con Delirium. Su archivo original, verificado y sin modificar, queda en `SA/Documentation/Optional/GrinchTrainerSA.asi.disabled` para quien quiera activarlo manualmente (puede provocar el mismo fallo). El resto de herramientas del pack permanece activo.
 La configuración de combate, físicas y movimientos de Delirium se conserva.
 
 El asistente te deja elegir los modelos de personajes: los originales del juego, con codos
