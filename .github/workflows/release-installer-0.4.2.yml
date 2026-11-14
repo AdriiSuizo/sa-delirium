@@ -68,7 +68,7 @@ jobs:
           $toolsHash = (Get-FileHash -LiteralPath 'portable-tools.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($toolsHash -ne $spec.tools_sha256) { throw 'Embedded tools ZIP fingerprint does not match release manifest' }
           $json = [IO.File]::ReadAllText((Resolve-Path 'portable-manifest.json').Path)
-          $updated = [regex]::Replace($json, '"version"\s*:\s*"0\.4\.0"', '"version": "0.4.2"')
+          $updated = [regex]::Replace($json, '"version"\s*:\s*"0\.4\.1"', '"version": "0.4.2"')
           if ($updated -eq $json) { throw 'Could not safely update version in manifest' }
           [IO.File]::WriteAllText((Join-Path (Get-Location) 'portable-manifest.json'), $updated, [Text.UTF8Encoding]::new($false))
           Write-Host 'Previous public resources extracted and verified'
