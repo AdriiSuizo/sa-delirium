@@ -70,6 +70,78 @@ static class PortablePackageTests {
         var data=new byte[length];var random=new Random(seed.Length*7919+seed[0]);random.NextBytes(data);
         var text=Encoding.ASCII.GetBytes(seed);Array.Copy(text,data,Math.Min(text.Length,length));return data;
     }
+    // Urbanize is optional. An invalid delta after its first file was copied
+    // must omit the whole component, not abort the game install or leave debris.
+    static void OptionalUrbanizeDeltaFailure(string root,List<string> results) {
+        foreach(bool optional in new[] {true,false}) {
+            var folder=Path.Combine(root,optional?"optional-urbanize-broken-delta":"required-broken-delta");
+            var game=Path.Combine(folder,"game");Directory.CreateDirectory(game);
+            var exe=Path.Combine(game,"gta_sa.exe");
+            File.WriteAllText(exe,"synthetic game executable");
+            var before=Engine.Hash(exe);
+            var iso=Path.Combine(folder,"synthetic.iso");
+            File.WriteAllText(iso,"unit fixture, not a real GTA IV disc");
+            var cache=Path.Combine(folder,"cache");Directory.CreateDirectory(cache);
+            var tools=Path.Combine(folder,"tools");Directory.CreateDirectory(tools);
+            foreach(var tool in new[] {"7z.exe","7z.dll"})
+                File.Copy(Path.Combine(@"C:\Program Files\7-Zip",tool),Path.Combine(tools,tool));
+            CopyBootstrapFixture(tools);
+            // The same test binary, under this filename, returns the viewer's
+            // exact negative DeltaTool error code from Main below.
+            File.Copy(Assembly.GetExecutingAssembly().Location,Path.Combine(tools,"DeltaTool.exe"));
+            Directory.CreateDirectory(Path.Combine(tools,"patches"));
+            File.WriteAllText(Path.Combine(tools,"patches","broken.pa30"),"unusable patch");
+            var archive=Path.Combine(folder,"urbanize.zip");
+            var dat=Bytes("Urbanize original dat",256);
+            var rootCs=Bytes("Urbanize original root cs",480);
+            using(var stream=File.Create(archive))using(var zip=new ZipArchive(stream,ZipArchiveMode.Create)) {
+                foreach(var pair in new[]{Tuple.Create("Urbanize/Urbanize.dat",dat),
+                                          Tuple.Create("Urbanize/Urbanize - Root.cs",rootCs)}) {
+                    using(var output=zip.CreateEntry(pair.Item1).Open())output.Write(pair.Item2,0,pair.Item2.Length);
+                }
+            }
+            var urbanize=new Package {id="urbanize-fixture",title="Urbanize",optional=optional,
+                filename="urbanize.zip",sha256=Engine.Hash(archive),bytes=new FileInfo(archive).Length,
+                format="zip",url="https://example.invalid/urbanize"};
+            var manifest=new Manifest {schema=1,packages=new[]{urbanize},
+                profile=new ProfileIndex {schema=1,profile="optional delta fixture",
+                    stock_steam_executable_sha256=before},
+                files=new[] {
+                    new Recipe {path="gta_sa.exe",source="gta_sa.exe",kind="steam",sha256=before,
+                        bytes=new FileInfo(exe).Length},
+                    new Recipe {path="cleo/Urbanize/Urbanize.dat",kind="package",package=urbanize.id,
+                        member="Urbanize/Urbanize.dat",sha256=Engine.Hash(dat),bytes=dat.Length},
+                    new Recipe {path="cleo/Urbanize/Urbanize - Root.cs",kind="package_delta",package=urbanize.id,
+                        member="Urbanize/Urbanize - Root.cs",source_sha256=Engine.Hash(rootCs),
+                        source_bytes=rootCs.Length,sha256=Engine.Hash(Bytes("patched output",510)),
+                        bytes=510,patch="broken.pa30"}
+                }};
+            var target=Path.Combine(cache,"downloads",urbanize.sha256);
+            Directory.CreateDirectory(target);File.Copy(archive,Path.Combine(target,"urbanize.zip"));
+            var composer=new Composer(manifest,tools,cache) {HdModels=true};
+            string prepared=null;Exception failure=null;
+            try {composer.Prepare(game,iso,out prepared);}catch(Exception e) {failure=e;}
+            Assert(Engine.Hash(exe)==before,"Original GTA SA executable must never be changed");
+            if(optional) {
+                Assert(ImportBoundary(failure),"Optional failed Urbanize delta should reach ISO import: "+failure);
+                Assert(composer.Skipped.Contains("Urbanize"),"Urbanize omitted after patch failure");
+                Assert(manifest.files.Length==1 && manifest.files[0].path=="gta_sa.exe",
+                    "All optional Urbanize outputs removed from the prepared manifest");
+                Assert(File.Exists(Path.Combine(prepared,"gta_sa.exe")) &&
+                    Engine.Hash(Path.Combine(prepared,"gta_sa.exe"))==before,"Core game output preserved");
+                Assert(!File.Exists(Path.Combine(prepared,"cleo","Urbanize","Urbanize.dat")) &&
+                    !File.Exists(Path.Combine(prepared,"cleo","Urbanize","Urbanize - Root.cs")),
+                    "Optional files already copied and failed output both removed");
+            } else {
+                Assert(failure is IOException && failure.Message.Contains("cleo/Urbanize/Urbanize - Root.cs"),
+                    "Mandatory package delta still reports its failure: "+failure);
+                Assert(failure.Data["SetupExitCode"] is int &&
+                    (int)failure.Data["SetupExitCode"] == -2147483392,
+                    "Mandatory broken delta returns exact simulated user code");
+            }
+        }
+        results.Add("urbanize-optional-failed-delta-rollback");
+    }
     static void Edition(string root,string name,Manifest manifest,string launcher,Action<string> fill,string kind,bool accepted) {
         var folder=Path.Combine(root,"editions",name);Directory.CreateDirectory(folder);fill(folder);
         var report=Editions.Identify(folder,manifest,launcher);
@@ -534,6 +606,7 @@ static class PortablePackageTests {
     static int Main(string[] args) {
         Paths.EnableLongPaths();
         var executable=Path.GetFileName(Assembly.GetExecutingAssembly().Location);
+        if(executable=="DeltaTool.exe")return -2147483392;
         if(executable=="RendererProbe.exe")return Environment.GetEnvironmentVariable("FAKE_DIRECTX_MISSING")=="1"?1:0;
         if(executable=="sa-delirium-bootstrap.exe") {
             if(args[0]=="--check-iso") {
@@ -560,6 +633,7 @@ static class PortablePackageTests {
             Case(root,"public-password-encrypted-original",false,false,false,false,false,false,true,false);results.Add("public-password-encrypted-original");
             Case(root,"wrong-public-password",false,false,false,false,false,false,true,true);results.Add("wrong-public-password");
             EditionCases(root,results);
+            OptionalUrbanizeDeltaFailure(root,results);
             ExecutableCompatibility(root,results);
             UncataloguedCopiedOriginals(root,results);
             StandaloneCases(root,results);
