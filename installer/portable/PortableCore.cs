@@ -536,16 +536,20 @@ namespace SAPortable {
             return file.path.Equals("gta_sa.exe", StringComparison.OrdinalIgnoreCase);
         }
 
-        // These are copied verbatim from the owner's game without applying a binary
-        // patch or interpreting their contents as executable code. Different retail
-        // audio/configuration editions do not need identical hashes.
-        // Keep executable, script, archive and patched inputs pinned to the manifest.
+        // Only allow varying hashes for non-executable originals copied verbatim
+        // from the owner's game. Different retail editions/localizations may
+        // include distinct audio, intro videos and .gxt language databases.
+        // Do NOT relax executable, script, model or binary-delta recipes.
         internal static bool CanCopyUnrecognizedOriginal(Recipe file) {
             if (file.kind != "steam" || String.IsNullOrEmpty(file.source)) return false;
             var path = file.source.Replace('\\', '/');
             return path.StartsWith("audio/sfx/", StringComparison.OrdinalIgnoreCase) ||
                    path.StartsWith("audio/streams/", StringComparison.OrdinalIgnoreCase) ||
-                   path.Equals("stream.ini", StringComparison.OrdinalIgnoreCase);
+                   path.Equals("stream.ini", StringComparison.OrdinalIgnoreCase) ||
+                   (path.StartsWith("movies/", StringComparison.OrdinalIgnoreCase) &&
+                    path.EndsWith(".mpg", StringComparison.OrdinalIgnoreCase)) ||
+                   (path.StartsWith("text/", StringComparison.OrdinalIgnoreCase) &&
+                    path.EndsWith(".gxt", StringComparison.OrdinalIgnoreCase));
         }
 
         static RecipeSource UnrecognizedOriginal(Recipe file, string game) {
@@ -554,8 +558,8 @@ namespace SAPortable {
             if (!File.Exists(path)) return null;
             Paths.NoLinks(path);
             var length = new FileInfo(path).Length;
-            // Reject placeholders and absurd sizes, but do not constrain normal
-            // localized or edition-specific audio banks to a single known hash.
+            // Reject missing, empty or implausibly large inputs while keeping
+            // normal localized media and game text independent of exact hashes.
             if (length <= 0 || length > 2L * 1024 * 1024 * 1024) return null;
             var sha256 = Engine.Hash(path);
             return new RecipeSource { name="Copia original no catalogada", source=file.source,
