@@ -443,6 +443,41 @@ static class PortablePackageTests {
         Assert(File.ReadAllText(Path.Combine(links,Standalone.ShortcutName))=="not a shortcut of ours","Foreign file with our shortcut name untouched");
         results.Add("standalone-install-restore");
     }
+    static void ShortcutENotImplFallback(string root,List<string> results) {
+        var folder=Path.Combine(root,"shortcut-e-notimpl");var game=Path.Combine(folder,"game");
+        var prepared=Path.Combine(folder,"prepared");var links=Path.Combine(folder,"desktop");
+        var destination=Path.Combine(folder,"SA-Delirium");
+        Directory.CreateDirectory(game);Directory.CreateDirectory(prepared);Directory.CreateDirectory(links);
+        File.WriteAllText(Path.Combine(game,"gta_sa.exe"),"owner game, read only");
+        var exe=Path.Combine(prepared,"gta_sa.exe");File.WriteAllText(exe,"prepared gta executable");
+        var bytes=new FileInfo(exe).Length;var hash=Engine.Hash(exe);
+        var index=new ProfileIndex {schema=1,profile="shortcut fallback",native_save_path_limit_bytes=0,
+            stock_steam_executable_sha256=new string('0',64),
+            files=new[]{new ProfileFile{path="gta_sa.exe",bytes=bytes,sha256=hash,components=new string[0]}},
+            total_bytes=bytes};
+        var prior=Standalone.ShortcutWriter;
+        Receipt receipt=null;
+        try {
+            Standalone.ShortcutWriter=delegate(string link,string target,string working) {
+                throw new NotImplementedException("Synthetic WScript.Shell E_NOTIMPL");
+            };
+            receipt=Standalone.Install(index,prepared,game,destination,new[]{links},delegate{},delegate{return false;});
+        } finally { Standalone.ShortcutWriter=prior; }
+        Assert(receipt!=null && receipt.State=="installed","E_NOTIMPL while creating a shortcut must not abort the installation");
+        Assert(receipt.FallbackLaunchers!=null && receipt.FallbackLaunchers.Length==1,"Fallback launcher is recorded in receipt");
+        var launcher=receipt.FallbackLaunchers[0];
+        Assert(File.Exists(launcher) && Path.GetFileName(launcher)==Standalone.FallbackLauncherName,
+            "Fallback command launcher is created in the selected shortcut folder");
+        var script=File.ReadAllText(launcher);
+        Assert(script.Contains("cd /d \""+Path.Combine(destination,"SA")+"\"") &&
+            script.Contains("start \"\" \"gta_sa.exe\""),"Fallback launcher uses the prepared profile as working directory");
+        var restored=Standalone.Restore(destination);
+        Assert(restored.State=="restored" && !File.Exists(launcher),
+            "Restore removes only the recorded fallback launcher");
+        Assert(File.Exists(Path.Combine(restored.RetainedProfile,"gta_sa.exe")),
+            "Restore retains the installed game profile");
+        results.Add("standalone-shortcut-e-notimpl-fallback");
+    }
     // Full preparation with test doubles for the ISO importer and probe:
     // the profile index must record the edition actually used, and a
     // missing DirectX runtime must stop an unattended install clearly.
@@ -637,6 +672,7 @@ static class PortablePackageTests {
             ExecutableCompatibility(root,results);
             UncataloguedCopiedOriginals(root,results);
             StandaloneCases(root,results);
+            ShortcutENotImplFallback(root,results);
             SoloCases(root,results);
             TrainerCompatibility(root,results);
             SavesCarry(root,results);

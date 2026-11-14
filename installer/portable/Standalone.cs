@@ -42,6 +42,24 @@ namespace SAPortable {
     }
     public static class Standalone {
         public const string ShortcutName = "SA Delirium.lnk";
+        public const string FallbackLauncherName = "SA Delirium.cmd";
+        // Test seam for reproducing an unavailable Windows shortcut COM server.
+        internal static Action<string,string,string> ShortcutWriter = CreateShortcut;
+        static bool IsShortcutNotImplemented(Exception error) {
+            for(var current=error;current!=null;current=current.InnerException)
+                if(current is NotImplementedException || unchecked((uint)current.HResult)==0x80004001u)return true;
+            return false;
+        }
+        static string FallbackLauncherScript(string profile) {
+            return "@echo off\r\ncd /d \"" + profile + "\"\r\nstart \"\" \"gta_sa.exe\"\r\n";
+        }
+        static string CreateFallbackLauncher(string folder,string profile) {
+            if(String.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))return null;
+            var path=Path.Combine(folder,FallbackLauncherName);
+            if(File.Exists(path) || Directory.Exists(path))return null; // Never overwrite a user's file.
+            File.WriteAllText(path,FallbackLauncherScript(profile),new UTF8Encoding(false));
+            return path;
+        }
         public static string DefaultDestination {
             get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SA-Delirium", "Juego"); }
         }
@@ -119,13 +137,29 @@ namespace SAPortable {
                 var exe = Path.Combine(profile, "gta_sa.exe");
                 if (!File.Exists(exe)) throw new IOException("Falta el ejecutable preparado.");
                 var created = new System.Collections.Generic.List<string>();
+                var fallbackLaunchers = new System.Collections.Generic.List<string>();
                 foreach (var folder in shortcutFolders ?? new string[0]) {
                     if (String.IsNullOrEmpty(folder) || !Directory.Exists(folder)) continue;
                     var link = Path.Combine(folder, ShortcutName);
                     // Never overwrite a shortcut that is not ours.
                     if (File.Exists(link) && !String.Equals(ShortcutTarget(link), exe, StringComparison.OrdinalIgnoreCase)) continue;
-                    CreateShortcut(link, exe, profile); created.Add(link);
-                    receipt.Shortcuts = created.ToArray(); Save(receipt);
+                    var existedBefore = File.Exists(link);
+                    try {
+                        ShortcutWriter(link, exe, profile);
+                        if(File.Exists(link))created.Add(link);
+                    } catch(Exception error) {
+                        if(!IsShortcutNotImplemented(error))throw;
+                        // Shortcut generation is optional; never roll back a completed game profile.
+                        if(!existedBefore && File.Exists(link))created.Add(link);
+                        var fallback=CreateFallbackLauncher(folder,profile);
+                        if(fallback!=null)fallbackLaunchers.Add(fallback);
+                        progress(0,0,fallback==null
+                            ? "Windows no permitió crear el acceso directo; el juego ya está instalado en "+profile
+                            : "Acceso directo COM no disponible; se creó "+FallbackLauncherName);
+                    }
+                    receipt.Shortcuts = created.ToArray();
+                    receipt.FallbackLaunchers = fallbackLaunchers.ToArray();
+                    Save(receipt);
                 }
                 receipt.State = "installed"; Save(receipt);
                 return receipt;
@@ -153,6 +187,10 @@ namespace SAPortable {
                 if (Path.GetFileName(link).Equals(ShortcutName, StringComparison.OrdinalIgnoreCase) && File.Exists(link) &&
                     String.Equals(ShortcutTarget(link), exe, StringComparison.OrdinalIgnoreCase))
                     File.Delete(link);
+            foreach (var launcher in receipt.FallbackLaunchers ?? new string[0]) {
+                if(!Path.GetFileName(launcher).Equals(FallbackLauncherName,StringComparison.OrdinalIgnoreCase) || !File.Exists(launcher))continue;
+                if(File.ReadAllText(launcher,Encoding.UTF8)==FallbackLauncherScript(profile))File.Delete(launcher);
+            }
             Directory.CreateDirectory(backup);
             if (Directory.Exists(retained) && (Directory.Exists(profile) || Directory.Exists(stage)))
                 throw new IOException("Ya hay un perfil conservado; revisa el respaldo.");

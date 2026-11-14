@@ -50,6 +50,8 @@ namespace SASetup {
         // Absent for Steam installs. "standalone": own folder, game only read.
         public string Mode;
         public string[] Shortcuts;
+        // Optional command-script launchers created when Windows Shell COM is unavailable.
+        public string[] FallbackLaunchers;
         public ProfileFile[] OwnedFiles;
     }
     public static class Paths {
