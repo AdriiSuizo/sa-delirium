@@ -855,6 +855,15 @@ namespace SAPortable {
             var message = Regex.Split((error.Data["SetupDetail"] as string) ?? error.Message, @"\r?\n\s*Registro:", RegexOptions.IgnoreCase)[0].Trim();
             var safeMessage = Sanitize(message, paths);
             report.AppendLine().AppendLine(Limit(safeMessage, 600));
+            // Include the actual managed call site so an HRESULT such as E_NOTIMPL
+            // can be attributed to the failing operation without asking for more tests.
+            var chain = new List<string>();
+            for(var current=error;current!=null && chain.Count<4;current=current.InnerException) {
+                var header=current.GetType().Name+" (0x"+current.HResult.ToString("X8")+")";
+                if(current.StackTrace!=null)header+="\r\n"+current.StackTrace;
+                chain.Add(header);
+            }
+            if(chain.Count>0)report.AppendLine().AppendLine("Detalle técnico:").Append(Limit(Sanitize(String.Join("\r\n--- Inner exception ---\r\n",chain),paths),1800));
             var log = error.Data["SetupLog"] as string;
             if (log != null) {
                 try {
