@@ -87,6 +87,34 @@ namespace SAPortable {
                 if (File.Exists(path) || Directory.Exists(path))
                     throw new IOException("Hay un archivo que este modo conservará: " + f.path + ". Usa una copia aparte o restaura su instalación anterior.");
             }
+            // Fail before downloading/importing resources if Windows cannot create
+            // the same kind of temporary directory used by Solo.Install.
+            CheckWriteAccess(game);
+        }
+
+        internal static void CheckWriteAccess(string game) {
+            var probe = Paths.Inside(game, ".SA-Solo-access-" + Guid.NewGuid().ToString("N"));
+            var marker = Paths.Inside(probe, "write.test");
+            try {
+                Directory.CreateDirectory(probe);
+                using (var file = new FileStream(marker, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    file.WriteByte(1);
+                File.Delete(marker);
+                Directory.Delete(probe);
+            } catch (UnauthorizedAccessException error) {
+                throw new UnauthorizedAccessException(
+                    "Windows no permite crear archivos temporales de Solo Delirium en la carpeta de GTA San Andreas. " +
+                    "Cierra el juego, comprueba los permisos de escritura o ejecuta el instalador como administrador.",
+                    error);
+            } finally {
+                // Only touch the uniquely named probe, never any existing game files.
+                try { if (File.Exists(marker)) File.Delete(marker); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+                try { if (Directory.Exists(probe)) Directory.Delete(probe); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
         }
 
         static bool KnownPath(string path) {
@@ -113,11 +141,11 @@ namespace SAPortable {
                 if (File.Exists(target) || Directory.Exists(target))
                     throw new IOException("Delirium necesita una ruta ya ocupada: " + file.path);
             }
-            Directory.CreateDirectory(stage);
             long completed = 0;
             // Stage every file before touching active game paths. Recovery
             // begins when the journal exists and works from the staged files.
             try {
+                Directory.CreateDirectory(stage);
                 foreach (var file in index.files)
                     Standalone.CopyChecked(Paths.Inside(prepared, file.path), Paths.Inside(stage, file.path),
                         file.sha256, file.bytes, cancelled, delegate (long count) {
@@ -136,7 +164,12 @@ namespace SAPortable {
                 receipt.State = "installed";
                 Json.Write(journal, receipt);
                 return receipt;
-            } catch {
+            } catch (Exception error) {
+                if (error is UnauthorizedAccessException)
+                    error.Data["SetupDetail"] =
+                        "Acceso denegado al instalar Solo Delirium dentro de la carpeta de GTA San Andreas. " +
+                        "Cierra el juego, comprueba que puedes crear carpetas y archivos allí y, si hace falta, " +
+                        "ejecuta el instalador como administrador. No se han desactivado las comprobaciones de archivos.";
                 if (File.Exists(journal)) {
                     try { Restore(game); } catch (IOException) { }
                 }
