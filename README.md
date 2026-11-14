@@ -92,12 +92,14 @@ locales verificados. Se instalan sus readmes/licencia y se acredita a
 
 ## Compatibilidad de instalaciones existentes (corrección candidata)
 
-El instalador acepta archivos de audio en `audio/sfx/` y `audio/streams/`,
-y `stream.ini`, de diferentes ediciones del juego cuando la receta **solo
-los copia**: registra y comprueba su hash real durante la preparación. Un
-archivo ausente o vacío sigue bloqueando la instalación. Los ejecutables,
+El instalador admite variantes existentes de archivos de audio en
+`audio/sfx/` y `audio/streams/`, vídeos introductorios `movies/*.mpg`,
+idiomas `text/*.gxt` y `stream.ini` cuando la receta **solo los copia**:
+registra y comprueba su hash real durante la preparación. Un archivo ausente,
+vacío o excesivamente grande sigue bloqueando la instalación. Los ejecutables,
 DLL del paquete, scripts, modelos y recursos que necesitan un parche binario
-siguen utilizando las comprobaciones estrictas.
+siguen utilizando las comprobaciones estrictas. El cambio no recupera archivos
+que falten ni garantiza que una traducción o un vídeo modificado funcione en el juego.
 
 **Solo Delirium** conserva los posibles cargadores ASI que ya existen en
 `vorbisFile.dll`, `winmm.dll` o `dinput8.dll` cuando no coinciden con
