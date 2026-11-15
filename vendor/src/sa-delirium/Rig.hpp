@@ -136,6 +136,14 @@ struct Rig {
             hierarchyParent=i;
             if(h->nodes[i].flags&1){if(stack.empty())throw std::runtime_error("invalid HAnim parent stack");hierarchyParent=stack.back();stack.pop_back();}
         }
+        // On CJ (player.dff + torso.dff), bones 301/302 share the exact bind
+        // socket and axes of R/L UpperArm (22/32) and weight the upper half of
+        // the biceps/deltoids. Attach them to 22/32 as authored in torso.dff's
+        // FrameList so chest/breast tracks never crease CJ's upper arms in half.
+        for(size_t i=0;i<ids.size();i++)if(ids[i]==301||ids[i]==302){
+            const int arm=index(ids[i]==301?22:32);
+            if(arm>=0&&arm<int(i)&&length(bind[i].p-bind[arm].p)<.02f)parents[i]=arm;
+        }
         constexpr int boneIDs[21]={saBone::pelvis,41,42,43,51,52,53,saBone::spine,-1,saBone::chest,-1,saBone::neck,saBone::head,31,32,33,34,21,22,23,24};
         for(int i=0;i<21;i++){node[i]=boneIDs[i]<0?-1:index(boneIDs[i]);if(boneIDs[i]>=0&&node[i]<0)throw std::runtime_error("required SA bone missing "+std::to_string(boneIDs[i]));}
         anatomy=bind;restLocal.resize(bind.size());straightened=bentAtWaist()&&!restPoseDisabled();

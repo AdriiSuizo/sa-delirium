@@ -1,9 +1,10 @@
 # Historial / Changelog
 
-## 0.4.6 · cobertura, cámara, motor e instalador / cover, camera, engine & installer
+## 0.4.6 · cobertura, cámara, anatomía de CJ, motor e instalador / cover, camera, CJ anatomy, engine & installer
 
 ### Español
 
+- **Anatomía de hombros y brazos de CJ (`torso.dff` / `sa-combat` / `Rig`)**: en las mallas de ropa y torso de CJ (`player.img`), los huesos `301` y `302` pesan la mitad superior del bíceps y deltoides y comparten el *socket* de `UpperArm` (`22`/`32`), mientras que en `ped.ifp` contienen una rotación estática pectoral de NPC girada 96° hacia delante que partía el brazo de CJ en zig-zag. Ahora `301`/`302` se enlazan directamente al brazo superior (`22`/`32`) tal como se exportaron en `torso.dff`, se incluyen en las máscaras de mezcla de tren superior, dejan de sobrescribirse con la pista pectoral de `ped.ifp` y omiten la sobre-elevación de reposo en las clavículas (`21`/`31`).
 - **Cámara en cobertura independiente del apuntado en vehículo**: desactivar el apuntado desde vehículos (`DriveByShoulderAim=0`) ya no apaga la corrección de cámara al cubrirse a pie.
 - **Encuadre al cambiar de hombro en cobertura**: al apuntar por el hombro contrario (esquina alta izquierda), se recupera el punto nativo de cámara previo al recorte de colisión de San Andreas y se aplica el barrido del lado activo. CJ ya no queda fuera del encuadre.
 - **Continuidad en paredes bajas y cajas**: CJ puede desplazarse y cambiar de dirección a lo largo de coberturas bajas con esferas de colisión redondeadas (`woodenbox1224`) sin atascarse a mitad del recorrido, manteniendo las comprobaciones de bordes, huecos y objetos móviles.
@@ -15,6 +16,7 @@
 
 ### English
 
+- **CJ shoulder & upper-arm anatomy (`torso.dff` / `sa-combat` / `Rig`)**: on CJ's clothing and body meshes (`player.img`), bones `301` and `302` weight the upper half of the bicep/deltoid and share the exact bind socket of `UpperArm` (`22`/`32`), whereas `ped.ifp` drives them with a static NPC breast track rotated 96° forward that bent CJ's upper arms into a Z-zig-zag crease. `301`/`302` now attach to `UpperArm` (`22`/`32`) as authored in `torso.dff`'s `FrameList`, participate in upper-body blend masks, are no longer overwritten by `ped.ifp`'s chest track, and skip rest-pose elevation correction on the neck-rooted clavicles (`21`/`31`).
 - **Foot cover camera independent from vehicle drive-by aim**: disabling vehicle shoulder aiming (`DriveByShoulderAim=0`) no longer disables the foot cover camera callback.
 - **Opposite-shoulder cover framing**: aiming over the opposite shoulder (high-left corner) recovers the pre-collision native camera anchor before running the active cover sweep, keeping CJ properly framed instead of clipped out of view.
 - **Low-wall cover continuity**: CJ can slide and reverse direction across low cover obstacles whose rounded COL spheres slightly protrude (`woodenbox1224`), while preserving strict edge, gap, and moving-obstacle checks.

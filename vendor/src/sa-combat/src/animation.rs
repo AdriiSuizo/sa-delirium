@@ -135,6 +135,7 @@ impl Bank {
         self.retarget_source(rig,&Self::globals(&self.bones,&local))
     }
     fn correction(&self,rig:&Rig,i:usize,s:usize)->Quat{
+        if matches!(rig.ids[i],21|31){return Quat::IDENTITY;}
         rig.ids.iter().enumerate().find_map(|(child,&id)|{
             if rig.parents[child]!=Some(i){return None}
             let next=iv_bone(id).and_then(|id|self.bones.iter().position(|b|b.id==id))?;
@@ -189,6 +190,13 @@ pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36
                 let local=pose[head].inverse().mul(pose[i]);
                 assert!(local.p.distance(rig.local[i].p)<1e-5);assert!(local.q.dot(rig.local[i].q).abs()>0.99999);
             }
+            for (helper,arm) in [(301,22),(302,32)]{
+                let h=rig.ids.iter().position(|&x|x==helper).unwrap();
+                let a=rig.ids.iter().position(|&x|x==arm).unwrap();
+                assert_eq!(rig.parents[h],Some(a));
+                assert!(pose[h].p.distance(pose[a].p)<1e-4);
+                assert!(pose[h].q.dot(pose[a].q).abs()>0.9999);
+            }
         }}
         assert_eq!(iv_bone(5),Some(0x4b5));assert_eq!(iv_bone(4),Some(0x4b4));
     }
@@ -203,9 +211,21 @@ impl Rig {
     }
     pub fn new(ids:&[u32],parents:&[u32],bind:&[f32])->Result<Self,String>{
         if ids.len()<20||ids.len()>128||parents.len()!=ids.len()||bind.len()!=ids.len()*7||bind.iter().any(|x|!x.is_finite()){return Err("invalid SA rig".into())}
-        let parents:Vec<_>=parents.iter().enumerate().map(|(i,&p)|if p==u32::MAX{Ok(None)}else if (p as usize)<i{Ok(Some(p as usize))}else{Err("non-topological SA rig")}).collect::<Result<_,_>>()?;
+        let mut parents:Vec<_>=parents.iter().enumerate().map(|(i,&p)|if p==u32::MAX{Ok(None)}else if (p as usize)<i{Ok(Some(p as usize))}else{Err("non-topological SA rig")}).collect::<Result<_,_>>()?;
         if bind.chunks_exact(7).any(|b|(b[3..7].iter().map(|x|x*x).sum::<f32>()-1.).abs()>0.01){return Err("invalid SA quaternion".into())}
         let bind:Vec<_>=bind.chunks_exact(7).map(Pose::read).collect();
+        // On CJ (player.dff + torso.dff), bones 301/302 share the exact bind
+        // socket and axes of R/L UpperArm (22/32) and weight the upper half of
+        // the biceps/deltoids. Attach them to 22/32 as authored in torso.dff's
+        // FrameList so chest/breast tracks never crease CJ's upper arms in half.
+        for i in 0..ids.len(){
+            if matches!(ids[i],301|302){
+                let arm=if ids[i]==301{22}else{32};
+                if let Some(a)=ids[..i].iter().position(|&id|id==arm){
+                    if bind[i].p.distance(bind[a].p)<0.02{parents[i]=Some(a);}
+                }
+            }
+        }
         let local=bind.iter().enumerate().map(|(i,&b)|parents[i].map_or(b,|p|bind[p].inverse().mul(b))).collect();
         Ok(Self{ids:ids.to_vec(),parents,bind,local,parts:vec![]})
     }
@@ -215,7 +235,7 @@ impl Rig {
     }
     pub fn blend(&self,a:&[Pose],b:&[Pose],weight:f32,flags:u32)->Vec<Pose>{
         let mut out:Vec<Pose>=vec![];
-        for i in 0..self.ids.len(){let sa=self.ids[i];let selected=if flags==0x208001{sa>=2&&sa<9||sa>=21&&sa<=36}else if flags==0x8008{sa>=4&&sa<=8||sa>=21&&sa<=36}else{true};let w=if selected{weight}else{0.};
+        for i in 0..self.ids.len(){let sa=self.ids[i];let selected=if flags==0x208001{sa>=2&&sa<9||sa>=21&&sa<=36||sa==301||sa==302}else if flags==0x8008{sa>=4&&sa<=8||sa>=21&&sa<=36||sa==301||sa==302}else{true};let w=if selected{weight}else{0.};
             let t=if let Some(p)=self.parents[i]{let aa=a[p].inverse().mul(a[i]);let bb=b[p].inverse().mul(b[i]);let mut local=aa.mix(bb,w);local.p=self.local[i].p;out[p].mul(local)}else{a[i].mix(b[i],w)};out.push(t);
         }out
     }

@@ -2,7 +2,7 @@
 #include "Math.hpp"
 #include "SABones.hpp"
 // All values use metres, seconds and kg*m/s, never SA's animation launch kicks.
-inline bool articulatedHelper(int id){return saBone::face(id)||id==35||id==36||id==25||id==26||id==44||id==54||id>=200;}
+inline bool articulatedHelper(int id){return saBone::face(id)||id==35||id==36||id==25||id==26||id==44||id==54||id==201;}
 inline V inheritedVelocity(V linear,V angular,V point,V centre){return linear+cross(angular,point-centre);}
 inline bool movingExit(float speed,float thresholdKmh){return std::isfinite(speed)&&speed>=thresholdKmh/3.6f;}
 inline float lateralExitClearance(float x,float minX,float maxX,int side,float radius){return side>0?x-maxX-radius:minX-x-radius;}

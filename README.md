@@ -51,6 +51,7 @@ Microsoft incluido; su instalador puede pedir permisos de administrador.
 
 Esta versión unifica las correcciones del motor, cobertura y cámara sobre la base **0.4.0** con todas las mejoras de compatibilidad del instalador introducidas entre **0.4.1** y **0.4.5**:
 
+- **Anatomía de brazos y hombros de CJ**: en `torso.dff` y las prendas de `player.img`, los huesos `301` y `302` forman la mitad superior del bíceps/deltoides en el mismo *socket* que `UpperArm` (`22`/`32`). Se enlazan ahora a `22`/`32` sin sobrescribirse con la pista pectoral de `ped.ifp` (que giraba la mitad superior del brazo 96° hacia el pecho creando un pliegue en zig-zag) y se evita encoger las clavículas (`21`/`31`) hacia el cuello.
 - **Cobertura y cámara**: la cámara al cubrirse a pie ya funciona aunque se desactive el apuntado desde vehículos (`DriveByShoulderAim=0`). Al apuntar por el hombro contrario (esquina alta izquierda), se recupera el punto nativo de cámara previo al recorte de colisión de San Andreas para que CJ no desaparezca del encuadre. Además, CJ puede avanzar y cambiar de sentido a lo largo de coberturas bajas con uniones redondeadas (`woodenbox1224`) sin atascarse.
 - **Motor y parches nativos**: `FrozenThreads` verifica que todos los hilos relevantes se hayan abierto y suspendido antes de escribir parches de código nativo (reanudando los hilos si alguno falla), y la API de transformación de vehículos del SDK actualiza el centro de colisión junto con el centro de masa.
 - **Instalador y compatibilidad (0.4.1–0.4.6)**:
@@ -231,6 +232,8 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ### What's New in 0.4.6 (Unified 0.4.0 Deep Fixes + 0.4.1–0.4.5 Installer Updates)
 
+- **CJ Upper-Arm & Shoulder Anatomy**:
+  - On CJ's torso and clothing meshes (`player.img`), bones `301` and `302` weight the upper bicep and deltoid at the `UpperArm` (`22`/`32`) socket. They now follow `UpperArm` (`22`/`32`) as authored in `torso.dff` instead of being overwritten by `ped.ifp`'s 96°-rotated NPC breast track (eliminating the Z-zig-zag crease in CJ's arms), and neck-rooted clavicles (`21`/`31`) keep their natural rest slope without shrugging upward.
 - **Cover Camera & Low-Wall Continuity**:
   - Foot cover camera framing now works even when vehicle drive-by shoulder aiming is disabled (`DriveByShoulderAim=0`).
   - Aiming over the opposite shoulder in cover (such as high-left corners) recovers the pre-collision native camera anchor before running the active cover sweep, preventing CJ from disappearing out of frame.

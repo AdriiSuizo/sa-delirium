@@ -122,6 +122,8 @@ static void nikoRender(void*p){
                 // the weapon hand and its arm even in that group.
                 if(parent>=0&&parent<int(i)&&((armedUpper&&id>=3&&id<41)||(pistol&&id>=21&&id<=26)))
                     bones[i]=mul(bones[parent],mul(inverse(native[parent]),native[i]));
+                else if(parent>=0&&parent<int(i)&&(id==301||id==302))
+                    bones[i]=mul(bones[parent],nikoRig->bindLocal[i]);
             }
         }
     }
