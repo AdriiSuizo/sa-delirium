@@ -3,7 +3,6 @@
 // Included inside drive_by_controls. CCamera supplies the ordinary driving
 // pose every frame; the aim pose is applied before native view derivation.
 static constexpr uintptr_t mainCamera=0xB6F028;
-static void(__thiscall* nativeDerivedCamera)(void*,bool,bool)=nullptr;
 static void(__thiscall* nativeDriveBy)(void*)=nullptr;
 static void(__thiscall* nativeCarBullet)(void*,V,V,void*,void*)=nullptr;
 static void(__cdecl* nativeCrosshair)()=nullptr;
@@ -121,15 +120,6 @@ static void applyAimView(void*camera){
 static bool hasAimView(void*car){
     return car&&view.ready&&view.vehicle==vehicleRef(car)&&
         *reinterpret_cast<unsigned*>(0xB7CB4C)-view.frame<=2;
-}
-
-static void __fastcall deriveCamera(void*camera,void*,bool mirror,bool oriented){
-    if(reinterpret_cast<uintptr_t>(camera)==mainCamera&&
-       reinterpret_cast<uintptr_t>(_ReturnAddress())==0x52C988){
-        applyAimView(camera);
-        player_cover::applyCamera(camera);
-    }
-    nativeDerivedCamera(camera,mirror,oriented);
 }
 
 static void __fastcall driveBy(void*car,void*){

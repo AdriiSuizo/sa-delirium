@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.4.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.4.6-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -47,7 +47,20 @@ SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
 
-## Cambios en 0.4.0
+## Novedades y correcciones en 0.4.6
+
+Esta versión unifica las correcciones del motor, cobertura y cámara sobre la base **0.4.0** con todas las mejoras de compatibilidad del instalador introducidas entre **0.4.1** y **0.4.5**:
+
+- **Cobertura y cámara**: la cámara al cubrirse a pie ya funciona aunque se desactive el apuntado desde vehículos (`DriveByShoulderAim=0`). Al apuntar por el hombro contrario (esquina alta izquierda), se recupera el punto nativo de cámara previo al recorte de colisión de San Andreas para que CJ no desaparezca del encuadre. Además, CJ puede avanzar y cambiar de sentido a lo largo de coberturas bajas con uniones redondeadas (`woodenbox1224`) sin atascarse.
+- **Motor y parches nativos**: `FrozenThreads` verifica que todos los hilos relevantes se hayan abierto y suspendido antes de escribir parches de código nativo (reanudando los hilos si alguno falla), y la API de transformación de vehículos del SDK actualiza el centro de colisión junto con el centro de masa.
+- **Instalador y compatibilidad (0.4.1–0.4.6)**:
+  - Si un paquete en caché está incompleto o dañado, el asistente lo aparta como `.invalid-<id>` y vuelve a obtener una copia verificada sin bloquear reintentos.
+  - Comprobación anticipada de permisos de escritura en *Solo Delirium* antes de extraer la ISO y restauración segura sobre la carpeta correcta del juego.
+  - Si el componente COM de Windows devuelve `E_NOTIMPL` al crear accesos directos `.lnk` en modo standalone, crea un lanzador `SA Delirium.cmd` de respaldo.
+  - Si falla el parche opcional sobre `Root.cs` de *Urbanize*, el instalador limpia los archivos parciales de ese extra y termina la instalación de Delirium.
+  - Admite variantes copiadas de textos de idioma (`text/*.gxt`), vídeos (`movies/*.mpg`), sonidos (`audio/*`) y `stream.ini`, conserva cargadores ASI existentes en *Solo Delirium*, identifica el ejecutable original de disco retail 1.0 US y deja *Grinch Trainer* desactivado por defecto en el pack completo para evitar cierres al cargar partida.
+
+## Funciones de 0.4.0
 
 En **Pausa → Opciones** puedes cambiar entre Delirium GTA IV y Clásico retocado
 en partida. La instalación completa también ofrece Izzy 1.6, que se aplica
@@ -90,7 +103,7 @@ modpacks desde octubre2026. El asistente obtiene su original y aplica los ajuste
 locales verificados. Se instalan sus readmes/licencia y se acredita a
 [Junior_Djjr](https://www.mixmods.com.br/2026/02/urbanize/).
 
-## Compatibilidad de instalaciones existentes (corrección candidata)
+## Compatibilidad de instalaciones existentes
 
 El instalador admite variantes existentes de archivos de audio en
 `audio/sfx/` y `audio/streams/`, vídeos introductorios `movies/*.mpg`,
@@ -112,9 +125,7 @@ Para una instalación reproducible, utiliza una copia limpia verificada.
 El comando `--verify-source` añade al informe
 `copied_without_catalogued_hash`, separado de `missing_or_changed`.
 Esto ayuda a distinguir una edición distinta de un archivo que realmente
-falta. Son cambios en el **código fuente**, no en el instalador publicado:
-hasta compilar y probar un nuevo ejecutable no afectan a la versión 0.4.0
-descargable.
+falta.
 
 **Si el juego se cierra al iniciar una partida:** comprueba si ocurre también
 con una partida nueva y sin otros mods, guarda los registros de
@@ -182,7 +193,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.4.0-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.4.6-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -211,3 +222,37 @@ Desarrollo asistido por OpenAI Codex (familiaGPT-6).
 La entrega histórica `v0.2.0-dev-import.1` necesitaba una copia de desarrollo y
 no sirve como instalador para otro PC. El port experimental R2 queda conservado
 en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
+
+---
+
+## English — SA Delirium 0.4.6
+
+**SA Delirium** brings GTA IV-inspired character physics (Euphoria/NaturalMotion reimplementation), melee and firearm combat, cover mechanics, and vehicle handling/deformation to classic PC **GTA San Andreas** (Steam AppID 12120 or PC 1.0 US).
+
+### What's New in 0.4.6 (Unified 0.4.0 Deep Fixes + 0.4.1–0.4.5 Installer Updates)
+
+- **Cover Camera & Low-Wall Continuity**:
+  - Foot cover camera framing now works even when vehicle drive-by shoulder aiming is disabled (`DriveByShoulderAim=0`).
+  - Aiming over the opposite shoulder in cover (such as high-left corners) recovers the pre-collision native camera anchor before running the active cover sweep, preventing CJ from disappearing out of frame.
+  - CJ can move and reverse direction smoothly along low cover obstacles with rounded COL spheres (`woodenbox1224`) without getting stuck midway, while keeping strict edge, gap, and moving-obstacle checks.
+- **Engine & Native Patch Safety**:
+  - `FrozenThreads` verifies that all target threads are opened and suspended before writing any native instruction patch, resuming already-paused threads if any step fails.
+  - The SDK vehicle box transform API now updates the local collision-center offset alongside the center of mass in `room_clear`.
+- **Installer & Compatibility (0.4.1–0.4.6)**:
+  - **Corrupted cache recovery**: damaged or incomplete cached archives are renamed to `.invalid-<id>` and re-acquired/verified instead of blocking retries.
+  - **Solo Delirium write-access preflight & restore**: checks folder write permissions before extracting the GTA IV ISO and ensures **Restore** targets the Solo game folder accurately.
+  - **Standalone shortcut fallback (0.4.5)**: if Windows COM returns `E_NOTIMPL` (`0x80004001`) while creating `.lnk` shortcuts, the installer completes and writes a tracked `SA Delirium.cmd` launcher fallback.
+  - **Optional Urbanize fallback (0.4.4)**: if patching *Urbanize*'s `Root.cs` fails, partial files are cleaned up and installation finishes without aborting the full modpack.
+  - **Broadened source & loader tolerance (0.4.1–0.4.3)**: accepts copy-only localized `text/*.gxt`, `movies/*.mpg`, `audio/*`, and `stream.ini` variants, preserves existing third-party ASI loaders in **Solo Delirium**, identifies the unpatched retail-disc 1.0 US executable (`8c609f10...`), and keeps *Grinch Trainer* disabled by default (`SA/Documentation/Optional/GrinchTrainerSA.asi.disabled`) to prevent load-time crashes.
+
+### Highlights from 0.4.0
+
+- **Driving & Damage**: Switch live in **Pause → Options** between **Delirium GTA IV** (per-model wheel, transmission, and suspension simulation at 130%) and **Touched-up Classic** (San Andreas handling with visual pitch/roll synchronized with headlights and deferred parts), or select **Izzy 1.6** (applies on restart). Use **L1** to aim and **R1** to shoot from vehicles. Localized panel deformation and pedestrian weight loading on suspension work across modes.
+- **Physics, Combat & Movement**: Transient vehicle collision geometry is recycled during long sessions. Hold **L3 + R3** for 0.6s to toggle reduced gravity (50% for CJ and his driven vehicle, 1% for ambient peds and traffic). CJ and police use cover with shoulder-swapping and blind fire.
+
+### Installation & Restore
+
+1. Download **[SA-Delirium-0.4.6-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
+3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
+4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.

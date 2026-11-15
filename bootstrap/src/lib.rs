@@ -506,7 +506,7 @@ mod tests {
 
     #[test]
     #[ignore = "requires a cache generated locally from a supported owned disc"]
-    fn reduced_gravity_preserves_the_player_ragdoll() {
+    fn reduced_gravity_uses_separate_npc_and_player_scales() {
         let root = PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
         assert_eq!(prepare(&root).unwrap(), "cache_ready");
         let body = sdk_file(&root.join(CACHE).join(BODY)).unwrap();
@@ -542,8 +542,8 @@ mod tests {
             sdk::nm_build_destroy(build);
             assert!(normal > baseline);
             println!("ragdoll_fall_speed baseline={baseline} normal={normal} npc={npc} cj={cj}");
-            assert!(((npc - baseline) / (normal - baseline) - 0.1).abs() < 0.01);
-            assert!((cj - normal).abs() < 0.00001);
+            assert!(((npc - baseline) / (normal - baseline) - 0.01).abs() < 0.00001);
+            assert!(((cj - baseline) / (normal - baseline) - 0.5).abs() < 0.00001);
         }
     }
 

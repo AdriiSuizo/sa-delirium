@@ -1,4 +1,51 @@
-# Historial
+# Historial / Changelog
+
+## 0.4.6 · cobertura, cámara, motor e instalador / cover, camera, engine & installer
+
+### Español
+
+- **Cámara en cobertura independiente del apuntado en vehículo**: desactivar el apuntado desde vehículos (`DriveByShoulderAim=0`) ya no apaga la corrección de cámara al cubrirse a pie.
+- **Encuadre al cambiar de hombro en cobertura**: al apuntar por el hombro contrario (esquina alta izquierda), se recupera el punto nativo de cámara previo al recorte de colisión de San Andreas y se aplica el barrido del lado activo. CJ ya no queda fuera del encuadre.
+- **Continuidad en paredes bajas y cajas**: CJ puede desplazarse y cambiar de dirección a lo largo de coberturas bajas con esferas de colisión redondeadas (`woodenbox1224`) sin atascarse a mitad del recorrido, manteniendo las comprobaciones de bordes, huecos y objetos móviles.
+- **Seguridad al parchear memoria (`FrozenThreads`)**: ningún parche de código nativo se escribe si falla la enumeración o suspensión de algún hilo; los hilos ya detenidos se reanudan de forma segura ante cualquier fallo.
+- **Centro de colisión de vehículos en el SDK (`delirium-sdk`)**: transformar la caja de un vehículo actualiza también el offset local de su centro de colisión en `room_clear`.
+- **Recuperación automática de caché en el instalador**: si un paquete descargado o en caché está incompleto o dañado, el asistente lo aparta como `.invalid-<id>` y vuelve a obtener y verificar el componente original en lugar de bloquear todos los reintentos posteriores.
+- **Comprobación anticipada de permisos en Solo Delirium**: el asistente verifica que Windows permite escribir en la carpeta del juego antes de extraer la ISO, mostrando un aviso claro si faltan permisos de administrador.
+- **Unificación con las mejoras del instalador 0.4.1–0.4.5**: incluye respaldo `.cmd` cuando Windows devuelve `E_NOTIMPL` al crear accesos directos `.lnk` (0.4.5), continuación sin *Urbanize* si falla su parche opcional (0.4.4), compatibilidad con variantes copiadas de idioma `.gxt`, vídeos `.mpg` y audio (0.4.3), *Grinch Trainer* desactivado por defecto en el pack completo y restauración segura de *Solo Delirium* (0.4.2), y preservación de cargadores ASI existentes junto con detección del ejecutable original de disco retail (0.4.1).
+
+### English
+
+- **Foot cover camera independent from vehicle drive-by aim**: disabling vehicle shoulder aiming (`DriveByShoulderAim=0`) no longer disables the foot cover camera callback.
+- **Opposite-shoulder cover framing**: aiming over the opposite shoulder (high-left corner) recovers the pre-collision native camera anchor before running the active cover sweep, keeping CJ properly framed instead of clipped out of view.
+- **Low-wall cover continuity**: CJ can slide and reverse direction across low cover obstacles whose rounded COL spheres slightly protrude (`woodenbox1224`), while preserving strict edge, gap, and moving-obstacle checks.
+- **Thread-safe native code patching (`FrozenThreads`)**: native instruction patches abort cleanly and resume already-suspended threads if any thread handle or suspension call fails.
+- **Vehicle collision center transform in `delirium-sdk`**: transforming a vehicle box now updates its local collision-center offset alongside the center of mass in `room_clear`.
+- **Corrupted installer cache recovery**: damaged or incomplete cached archives are quarantined as `.invalid-<id>` and re-acquired/verified instead of permanently blocking subsequent install attempts.
+- **Early write-access preflight in Solo Delirium**: checks folder write permissions before extracting the GTA IV ISO and explains if Administrator privileges are required.
+- **Unified with 0.4.1–0.4.5 installer fixes**: includes the `.cmd` launcher fallback when Windows COM shortcuts return `E_NOTIMPL` (0.4.5), optional *Urbanize* skip on delta failure (0.4.4), copy-only localized `.gxt`/`.mpg`/audio tolerance (0.4.3), *Grinch Trainer* disabled by default in the full pack and accurate *Solo Delirium* restore target selection (0.4.2), and existing ASI loader preservation plus retail-disc executable identification (0.4.1).
+
+## 0.4.5 · compatibilidad de accesos directos en instalaciones standalone
+
+- Evita deshacer la instalación completa cuando el componente COM de accesos directos de Windows devuelve `NotImplementedException` / `E_NOTIMPL` (`0x80004001`), creando un lanzador `SA Delirium.cmd` de respaldo que se verifica y limpia al restaurar.
+- Los informes de error incluyen la pila de llamadas gestionada y las excepciones internas para facilitar el diagnóstico.
+
+## 0.4.4 · respaldo opcional de Urbanize
+
+- Si falla el parche local sobre `Root.cs` de *Urbanize*, el instalador limpia sus archivos parciales y completa la instalación de SA Delirium sin ese extra opcional.
+
+## 0.4.3 · variantes de idioma e introducción
+
+- El instalador acepta bases de datos de texto `text/*.gxt` y vídeos `movies/*.mpg` de distintas ediciones o traducciones cuando la receta solo los copia desde el GTA San Andreas del usuario.
+
+## 0.4.2 · Grinch Trainer desactivado por defecto y restauración Solo Delirium
+
+- *Grinch Trainer* se entrega desactivado por defecto en `SA/Documentation/Optional/GrinchTrainerSA.asi.disabled` para evitar cierres al cargar partida combinándolo con el motor de físicas.
+- Corregida la selección de carpeta al restaurar una instalación de *Solo Delirium*.
+
+## 0.4.1 · cargadores ASI existentes y detección de ejecutable de disco
+
+- *Solo Delirium* conserva cargadores ASI ya existentes en `vorbisFile.dll`, `winmm.dll` o `dinput8.dll` y tolera archivos de audio y `stream.ini` copiados sin parche binario.
+- Identificación explícita del ejecutable original de disco retail 1.0 US (`8c609f10...`), indicando que requiere el parche 1.0 verificado.
 
 ## 0.4.0
 

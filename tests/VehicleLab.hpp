@@ -2,6 +2,8 @@
 #include "VehicleNitro.hpp"
 #include "GravityControl.hpp"
 #include "DriveByControls.hpp"
+#include "CameraPoseHooks.hpp"
+#include "CoverNativeCamera.hpp"
 #include "ClassicBodyMotion.hpp"
 #include "VehicleDeformation.hpp"
 
@@ -348,7 +350,10 @@ static bool install(HMODULE engine) {
     adaptNpcDriving = GetPrivateProfileIntW(L"VehicleLab", L"AdaptNpcDriving", 1, ini.c_str()) != 0;
     if(test&&GetEnvironmentVariableA("GTASA_VEHICLE_NATIVE_AI",nullptr,0))adaptNpcDriving=false;
     if (!vehicle_nitro::install(ini))event("vehicle_nitro_binding_refused");
-    if (!drive_by_controls::install(ini))event("vehicle_drive_by_binding_refused");
+    const bool cameraReady = camera_pose_hooks::install();
+    if (!cameraReady) event("cover_camera_hook_unavailable");
+    if (cameraReady && !cover_native_camera::install()) event("cover_native_camera_capture_unavailable");
+    if (!cameraReady || !drive_by_controls::install(ini))event("vehicle_drive_by_binding_refused");
     else if(drive_by_controls::installed)event("vehicle_drive_by_controls_enabled");
     if (!fixture && !traffic && !canToggle) return true;
     if (canToggle && vehicle_menu::active == vehicle_menu::Mode::Izzy) {

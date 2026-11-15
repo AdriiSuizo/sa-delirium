@@ -3,6 +3,7 @@ import argparse
 import configparser
 import io
 import json
+import re
 from pathlib import Path
 import zipfile
 import hashlib
@@ -86,10 +87,15 @@ def main():
     manifest.update(unified=True, version=args.version, files=list(files.values()),
                     tools_sha256=digest(bundle.read_bytes()))
     profile = manifest["profile"]
-    profile["profile"] = "sa-delirium-unified" if args.version == "0.4.0" else "sa-delirium-unified-private"
+    public_version = re.fullmatch(r"\d+\.\d+\.\d+", args.version) is not None
+    profile["profile"] = "sa-delirium-unified" if public_version else "sa-delirium-unified-private"
     profile["files"] = [{key: file[key] for key in ("path", "bytes", "sha256", "components")} for file in manifest["files"]]
     profile["total_bytes"] = sum(file["bytes"] for file in manifest["files"])
-    routing.update(status="private_unified_candidate", files=len(profile["files"]), bytes=profile["total_bytes"])
+    for component in profile["components"]:
+        owned = [file for file in profile["files"] if component["id"] in file.get("components", [])]
+        component.update(files=len(owned), bytes=sum(file["bytes"] for file in owned))
+    routing.update(status="unified_candidate" if public_version else "private_unified_candidate",
+                   files=len(profile["files"]), bytes=profile["total_bytes"])
     (args.output / "portable-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     (args.output / "routing-report.json").write_text(json.dumps(routing, ensure_ascii=False), encoding="utf-8")
 

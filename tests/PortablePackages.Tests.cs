@@ -601,6 +601,12 @@ static class PortablePackageTests {
             "Solo mode must never restore a different full-pack profile");
         Assert(Program.SelectRestoreTarget(false,game,otherProfile)==otherProfile,
             "Full mode can restore its separate destination");
+        // Permission preflight must not touch the game or leave probe folders.
+        Solo.CheckLocations(game,new Recipe[0]);
+        Assert(!Directory.GetDirectories(game,".SA-Solo-access-*").Any(),
+            "Solo write-permission probe cleans up its temporary directory");
+        Assert(File.ReadAllText(existing)=="existing mod",
+            "Solo preflight does not modify existing mods");
         var receipt=Solo.Install(index,prepared,game,delegate{},delegate{return false;});
         Assert(receipt.Mode=="solo" && receipt.State=="installed","Solo install committed");
         Assert(Program.SelectRestoreTarget(true,game,otherProfile)==game,

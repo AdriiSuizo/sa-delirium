@@ -34,6 +34,7 @@ a.await_state(lambda s: s.get('current_area') == 0 and
 
 from PIL import Image
 segments=[]
+capture_mode='disabled' if '--no-captures' in sys.argv else 'synchronous_bridge'
 def sequence(label, buttons=0, seconds=3.0, **axes):
     start=a.current()['frame_counter']
     ammo=reaction(442)
@@ -43,14 +44,14 @@ def sequence(label, buttons=0, seconds=3.0, **axes):
     for index, moment in enumerate((.15,.45,.8,1.4,2.2)):
         if moment>=seconds:break
         time.sleep(max(0,begin+moment-time.monotonic()))
-        if a.send('probe_visual_frame')=='visual_frame_ok':
+        if capture_mode!='disabled' and a.send('probe_visual_frame')=='visual_frame_ok':
             target=a.RUN/f'{label}-{index}.jpg'
             with Image.open(a.bridge/f'visual-frame-{a.PID}.bmp') as im:
                 im.thumbnail((960,540));im.convert('RGB').save(target,quality=88)
             shots.append(target.name)
     time.sleep(max(0,begin+seconds-time.monotonic()))
     end=a.current()['frame_counter']
-    segments.append(dict(label=label,start=start,end=end,ammo_before=ammo,ammo_after=reaction(442),shots=shots))
+    segments.append(dict(label=label,start=start,end=end,ammo_before=ammo,ammo_after=reaction(442),shots=shots,capture_mode=capture_mode))
     a.pad(0,100)
     time.sleep(.5)
 

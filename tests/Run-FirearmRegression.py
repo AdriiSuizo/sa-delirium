@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(sys.argv[1]).resolve()))
 import audit as a
 
 
-def command(action, **fields):
+def command(action, _reply=False, **fields):
     identity = time.time_ns() // 1_000_000
     data = dict(pid=a.PID, id=identity, action=action, **fields)
     request = a.bridge / "command.json"
@@ -25,7 +25,7 @@ def command(action, **fields):
         try:
             reply = json.loads((a.bridge / "state.json").read_text(encoding="ascii"))
             if reply.get("pid") == a.PID and reply.get("command_id") == identity:
-                return reply["result"]
+                return reply if _reply else reply["result"]
         except (OSError, ValueError):
             pass
         time.sleep(.05)
@@ -49,6 +49,80 @@ def check(name, actual, expected):
     print(f"{name}: {actual} (expected {expected})", flush=True)
     if actual != expected:
         failures.append(name)
+
+
+def cover_controller_stroke(stick, press, duration_ms):
+    """Observe a native QA timed hold without command traffic during movement."""
+    def sample():
+        reply = command("probe_vehicle_reaction", mode=439, _reply=True)
+        return {"game_time_ms": reply["game_time_ms"], "frame": reply["frame"],
+                "tangent_cm": int(reply["result"].removeprefix("vehicle_reaction_result_"))}
+
+    before = sample()
+    depth = [reaction(444)]
+    telemetry_fields = ("pad_game_start_ms", "pad_game_end_ms", "pad_game_stopped_ms",
+                        "pad_game_requested_ms", "pad_game_active", "pad_game_pending",
+                        "pad_game_stop_reason", "pad_game_start_frame", "pad_game_stop_frame")
+    snapshots = []
+    wall_start = time.monotonic()
+    native = None
+    # The bridge starts/ends game_ms in isolatedUpdatePads, on the game frame
+    # that applies the real sampled controls. ms remains the hard wall-clock
+    # safety TTL. Do not infer duration from delayed command acknowledgements.
+    try:
+        acknowledged = command("audit_pad", buttons=0, ms=8000, game_ms=duration_ms,
+                               _reply=True, **{stick: press})
+        if not all(key in acknowledged for key in telemetry_fields):
+            raise RuntimeError("QA bridge lacks native timed-pad telemetry; rebuild the fixture bridge")
+        current = acknowledged
+        while time.monotonic() - wall_start < 9.5:
+            if current.get("pid") != a.PID or current.get("command_id") != acknowledged["command_id"]:
+                raise RuntimeError("Timed controller stroke lost bridge/command ownership")
+            if current.get("pad_game_requested_ms") != duration_ms:
+                raise RuntimeError("Timed controller stroke was replaced")
+            native = {key: current[key] for key in telemetry_fields}
+            if not snapshots or snapshots[-1] != native:
+                snapshots.append(native)
+            if not native["pad_game_pending"] and not native["pad_game_active"] and native["pad_game_stop_reason"]:
+                break
+            time.sleep(.025)
+            try:
+                current = json.loads((a.bridge / "state.json").read_text(encoding="ascii"))
+            except (OSError, ValueError):
+                continue
+    finally:
+        # Snapshot native completion first: this command clears the telemetry.
+        command("audit_pad", buttons=0, ms=60)
+    held_ms = ((native["pad_game_stopped_ms"]-native["pad_game_start_ms"]) & 0xFFFFFFFF
+               if native and native["pad_game_stopped_ms"] else 0)
+    held_wall = time.monotonic() - wall_start
+    # By now both the explicit neutral command and position probe have been
+    # consumed. Record the resulting position; neither command writes a pose.
+    after = sample()
+    depth.append(reaction(444))
+    complete = bool(native and native["pad_game_stop_reason"] == "simulation_deadline" and
+                    not native["pad_game_pending"] and not native["pad_game_active"] and
+                    duration_ms <= held_ms <= duration_ms + 250)
+    frames = []
+    if native and native["pad_game_start_frame"]:
+        for row in events():
+            if row["event"] != "cover_animation_frame":
+                continue
+            frame = dict(part.split("=") for part in row["detail"].split())
+            if native["pad_game_start_frame"] <= int(frame["frame"]) <= native["pad_game_stop_frame"]:
+                frames.append({key: frame[key] for key in ("frame", "ms", "root", "velocity", "tangent", "normal", "pose")})
+        depth.extend(round(float(frame["normal"])*1000) for frame in frames)
+    poses = list(dict.fromkeys(frame["pose"] for frame in frames))
+    # No trace means the rendered movement/turn has not been observed. Keep
+    # that inconclusive instead of making intrusive probes during the hold.
+    complete = complete and bool(frames)
+    return {"status": "complete" if complete else "inconclusive",
+            "stick": stick, "press": press, "requested_simulation_ms": duration_ms,
+            "held_simulation_ms": held_ms, "observation_wall_seconds": held_wall,
+            "timing_source": "native_isolatedUpdatePads",
+            "before": before, "native_hold": native, "native_snapshots": snapshots,
+            "after": after, "displacement_cm": after["tangent_cm"]-before["tangent_cm"],
+            "frames": frames, "poses": poses, "depth_mm": depth}
 
 
 def review_cover_frames(rows):
@@ -106,32 +180,29 @@ if "--cover-only" in sys.argv:
         if state == expected and command("probe_visual_frame") == "visual_frame_ok":
             (a.RUN / f"cover-{scene}.bmp").write_bytes((a.bridge / f"visual-frame-{a.PID}.bmp").read_bytes())
         if scene in (425, 443):
-            start = reaction(439)
-            depth = [reaction(444)]
             axis = reaction(440)
             stick = "sx" if abs(axis) == 1 else "sy"
             press = 82 if axis > 0 else -82
-            command("audit_pad", buttons=0, ms=850, **{stick: press})
-            steps = []
-            for _ in range(4):
-                time.sleep(.08)
-                steps.append(reaction(441))
-            check(f"Half stick moves along cover with a rendered gait ({steps})", any(state & 5 == 5 for state in steps), True)
-            depth.append(reaction(444))
-            time.sleep(.42)
-            moved = reaction(439)
-            check("Half stick actually displaced CJ along cover", abs(moved-start)>15, True)
-            command("audit_pad", buttons=0, ms=1150, **{stick: -press})
-            turns = []
-            for _ in range(5):
-                time.sleep(.10)
-                turns.append(reaction(441))
-                depth.append(reaction(444))
-            check("Reversing plays the cover turn", any(state & 2 for state in turns), True)
-            time.sleep(.60)
-            reversed_to = reaction(439)
-            check("CJ walked back after reversing", abs(reversed_to-start)<abs(moved-start), True)
-            depth.append(reaction(444))
+            forward = cover_controller_stroke(stick, press, 850)
+            reverse = cover_controller_stroke(stick, -press, 1150)
+            (a.RUN / f"cover-motion-{scene}.json").write_text(json.dumps(
+                {"fixture": scene, "axis": axis, "forward": forward, "reverse": reverse}, indent=2), encoding="utf-8")
+            for label, stroke in (("forward", forward), ("reverse", reverse)):
+                print(f"Cover {scene} {label}: {stroke['held_simulation_ms']} ms simulation, "
+                      f"{stroke['displacement_cm']} cm, {stroke['status']}", flush=True)
+                if stroke["status"] != "complete":
+                    failures.append(f"INCONCLUSIVE: cover {scene} {label} controller interval not observed within bounds")
+            steps, turns = forward["poses"], reverse["poses"]
+            check(f"Half stick moves along cover with a rendered gait ({steps})", "walk" in steps, True)
+            if forward["status"] == "complete":
+                check("Half stick actually displaced CJ along cover", abs(forward["displacement_cm"])>15, True)
+            check("Reversing plays the cover turn", "turn" in turns, True)
+            if forward["status"] == reverse["status"] == "complete":
+                # Crossing the original position is valid reverse travel. Final
+                # distance to the origin incorrectly rejected a good overshoot.
+                check("CJ walked back after reversing", abs(reverse["displacement_cm"])>15 and
+                      reverse["displacement_cm"]*forward["displacement_cm"]<0, True)
+            depth = forward["depth_mm"] + reverse["depth_mm"]
             check(f"Cover {scene} depth stays within 7 cm ({depth})", max(depth)-min(depth)<=70, True)
         if scene == 426:
             check("Cover exposure and return use the IV clip", reaction(436), 3)

@@ -14,6 +14,7 @@ def reaction(mode):
     return int(result.removeprefix('vehicle_reaction_result_'))
 
 
+camera_windows = []
 deadline = time.monotonic() + 40
 while time.monotonic() < deadline:
     s = a.observer.observe(a.PID)
@@ -50,7 +51,11 @@ for scene in (426, 1905):
         for n in range(3):
             time.sleep(.2)
             assert reaction(1900) == 15, 'Must aim and expose the edge without holding fire'
+            if n == 0:
+                camera_start = a.current()['frame_counter']
             a.shot(f'{scene}-{edge}-aim-{n}')
+        camera_windows.append(dict(scene=scene, edge=edge, start=camera_start,
+                                   end=a.current()['frame_counter']))
         a.pad(0, 100)
         time.sleep(1.4)
         assert reaction(1900) == 5, 'Must return to the same corner'
@@ -63,11 +68,19 @@ assert reaction(1904) >= 2, 'Both native death weapons must land'
 a.shot('death-weapons')
 rows = [row for line in (a.ROOT / 'SA/DeliriumSA-local-v3/events.jsonl').read_text().splitlines()
         if (row := json.loads(line))['pid'] == a.PID]
+initializations = [i for i, row in enumerate(rows) if row['event'] == 'initialized']
+assert initializations, 'Missing current runtime initialization'
+rows = rows[initializations[-1]:]
 assert sum(r['event'] == 'death_weapon_dropped' and r['ref'] == victim for r in rows) == 2
 assert not any(r['event'] == 'engine_error' for r in rows)
 frames = [dict(kv.split('=') for kv in r['detail'].split()) for r in rows if r['event'] == 'cover_animation_frame']
+for window in camera_windows:
+    aimed = [r for r in frames if window['start'] <= int(r['frame']) <= window['end'] and r['aiming'] == '1']
+    assert aimed, f'Missing camera trace for {window}; enable GTASA_COVER_FRAME_TRACE=1'
+    assert all(r.get('camera_seeded') == '1' for r in aimed), f'Cover camera not applied: {window}'
 (a.RUN / 'aim-frames.json').write_text(json.dumps(frames, indent=2))
 (a.RUN / 'aim-and-pickups-result.json').write_text(json.dumps(dict(
     status='passed', frames=len(frames), victim=victim, death_pickups=2,
+    cover_camera_windows=camera_windows,
     cases=['low-left', 'low-right', 'high-left', 'high-right', 'native-fatal-shot']), indent=2))
 print(str(a.RUN), flush=True)

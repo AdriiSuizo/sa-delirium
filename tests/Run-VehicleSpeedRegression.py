@@ -96,8 +96,10 @@ def turning(rows, top, handbrake):
     if any(before - after > 4 for before, after in zip(speeds, speeds[1:])):
         raise InterruptedTurn('Speed fell more than 4 m/s between consecutive samples')
     if args.native_pad:
+        if not any(row['from_native_pad'] for row in rows):
+            raise ValueError('Native pad path was never active; check GTASA_VEHICLE_NATIVE_PAD and driver ownership before retrying')
         if not all(row['from_native_pad'] for row in samples):
-            raise InterruptedTurn('CJ left the test car during the turn')
+            raise InterruptedTurn('Native pad path stopped being active during the turn; inspect driver ownership')
         assert max(abs(row['raw_steer']) for row in samples) > .4
         assert any(row['handbrake'] for row in samples) == handbrake
     iv_steps = int(end['iv_steps'] - entry['iv_steps'])

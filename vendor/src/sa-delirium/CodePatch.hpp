@@ -44,10 +44,18 @@ private:
             if(e.th32OwnerProcessID!=pid||e.th32ThreadID==self)continue;
             if(count_>=MaxThreads){complete=false;break;}
             HANDLE h=OpenThread(THREAD_SUSPEND_RESUME|THREAD_GET_CONTEXT|THREAD_QUERY_INFORMATION,FALSE,e.th32ThreadID);
-            if(!h)continue; // thread already exited
-            if(SuspendThread(h)==DWORD(-1)){CloseHandle(h);continue;}
+            if(!h){
+                // An exited thread has no valid ID. Access denied (or any
+                // other failure) is not evidence of exit: it may still be
+                // executing the instructions we are about to replace.
+                if(GetLastError()==ERROR_INVALID_PARAMETER)continue;
+                complete=false;break;
+            }
+            if(SuspendThread(h)==DWORD(-1)){CloseHandle(h);complete=false;break;}
             handles_[count_++]=h;
         }
+        // A failed enumeration must not be mistaken for the end of the list.
+        if(complete&&GetLastError()!=ERROR_NO_MORE_FILES)complete=false;
         CloseHandle(snap);return complete;
     }
     bool anyInside(const CodeRange*ranges,size_t n){

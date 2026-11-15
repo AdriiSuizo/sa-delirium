@@ -31,6 +31,22 @@ static void traceFrame(void* ped){
     };
     const auto xyz=[](V v){return std::to_string(v.x)+","+std::to_string(v.y)+","+std::to_string(v.z);};
     const auto* cam=activeCamera();
+    // QA reads only: distinguish a valid skeleton outside/behind the camera
+    // from a pose failure. The production sweep fraction is a local variable,
+    // so do not invent it from the shoulder offset or alter camera placement.
+    const bool cameraApplied=cam&&viewState.cam==cam;
+    const V cameraSource=cam?at<V>(const_cast<void*>(cam),0x19C):V{};
+    const V cameraFront=cam?at<V>(const_cast<void*>(cam),0x190):V{};
+    const V cameraUp=cam?at<V>(const_cast<void*>(cam),0x1B4):V{};
+    const V cameraLeft=normalized(cross(cameraUp,cameraFront));
+    const V pivot=root+V{0,0,.55f};
+    const V headFromCamera=root+bone(saBone::head)-cameraSource;
+    // This is the native CCam snapshot saved by applyCamera, not a claim
+    // about the pre-sweep render matrix. Valid only when cameraApplied is 1.
+    const V nativeCameraSource=cameraApplied?viewState.nativeSource:V{};
+    const auto& collision=native_cover_camera_probe::sample;
+    const unsigned collisionAge=*reinterpret_cast<const unsigned*>(0xB7CB4C)-collision.frame;
+    const bool collisionValid=collision.valid&&collision.cam==cam&&collision.ref==cover.ref&&collisionAge<=1;
     V barrel{};
     for(int n=0;n<h->num;++n)if(h->nodes[n].id==24)barrel=normalized(h->matrices[n].right);
     V aimRay{};
@@ -57,7 +73,27 @@ static void traceFrame(void* ped){
         " aiming="+std::to_string(cover.aiming)+" corner="+std::to_string(cover.corner)+
         " peeking="+std::to_string(cover.peeking)+" side="+std::to_string(cover.side)+
         " shoulder_m="+std::to_string(viewState.shoulder)+
-        " cam="+xyz(cam?at<V>(const_cast<void*>(cam),0x190):V{})+
+        " camera_seeded="+std::to_string(viewState.seeded)+
+        " cam="+xyz(cameraFront)+
+        " camera_applied="+std::to_string(cameraApplied)+
+        " camera_unoccluded_source="+std::to_string(cameraApplied&&viewState.unoccludedSource)+
+        " cam_source="+xyz(cameraSource)+" cam_pivot="+xyz(pivot)+
+        " cam_pivot_distance="+std::to_string(cam?length(cameraSource-pivot):-1.f)+
+        " cam_native_source="+xyz(nativeCameraSource)+
+        " cam_native_pivot_distance="+std::to_string(cameraApplied?length(nativeCameraSource-pivot):-1.f)+
+        " cam_root_depth="+std::to_string(cam?dot(root-cameraSource,cameraFront):0.f)+
+        " cam_head_depth="+std::to_string(cam?dot(headFromCamera,cameraFront):0.f)+
+        " cam_head_lateral="+std::to_string(cam?dot(headFromCamera,cameraLeft):0.f)+
+        " cam_head_vertical="+std::to_string(cam?dot(headFromCamera,cameraUp):0.f)+
+        " collision_probe_installed="+std::to_string(native_cover_camera_probe::installed)+
+        " collision_sample_valid="+std::to_string(collisionValid)+
+        " collision_frame="+std::to_string(collision.frame)+" collision_frame_age="+std::to_string(collisionAge)+
+        " collision_ref="+std::to_string(collision.ref)+
+        " collision_pre_source="+xyz(collision.beforeSource)+" collision_pre_target="+xyz(collision.beforeTarget)+
+        " collision_post_source="+xyz(collision.afterSource)+" collision_post_target="+xyz(collision.afterTarget)+
+        " collision_pre_distance="+std::to_string(collisionValid?length(collision.beforeSource-collision.beforeTarget):-1.f)+
+        " collision_post_distance="+std::to_string(collisionValid?length(collision.afterSource-collision.afterTarget):-1.f)+
+        " collision_source_shift="+std::to_string(collisionValid?length(collision.afterSource-collision.beforeSource):-1.f)+
         " barrel="+xyz(barrel)+
         " aim_ray="+xyz(aimRay)+
         " chest="+xyz(bone(saBone::chest))+" shoulder="+xyz(bone(22))+" elbow="+xyz(bone(23))+

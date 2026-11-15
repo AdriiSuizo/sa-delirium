@@ -126,7 +126,6 @@ static bool install(const std::filesystem::path&ini){
         {0x53FC50,reinterpret_cast<void*>(&vehicleAxisX),reinterpret_cast<void**>(&nativeVehicleAxisX)},
         {0x53FC10,reinterpret_cast<void*>(&vehicleAxisY),reinterpret_cast<void**>(&nativeVehicleAxisY)},
         {0x6A07A0,reinterpret_cast<void*>(&hydraulics),reinterpret_cast<void**>(&nativeHydraulics),6,{0x83,0xec,0x60,0x55,0x8b,0xe9}},
-        {0x5150E0,reinterpret_cast<void*>(&deriveCamera),reinterpret_cast<void**>(&nativeDerivedCamera),8,{0x6a,0xff,0x68,0x78,0xc7,0x83,0,0x64}},
         {0x741FD0,reinterpret_cast<void*>(&driveBy),reinterpret_cast<void**>(&nativeDriveBy),8,{0x83,0xec,0x24,0x56,0x57,0x8b,0xf9,0x90}},
         {0x73CBA0,reinterpret_cast<void*>(&carBullet),reinterpret_cast<void**>(&nativeCarBullet),8,{0x6a,0xff,0x68,0x68,0x8e,0x84,0,0x64}},
         {0x58E020,reinterpret_cast<void*>(&crosshair),reinterpret_cast<void**>(&nativeCrosshair),8,{0x83,0xec,0x30,0x0f,0xb6,0x05,0x74,0xcd}},

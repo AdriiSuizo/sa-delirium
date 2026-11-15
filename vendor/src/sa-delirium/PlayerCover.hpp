@@ -1,5 +1,6 @@
 #pragma once
 #include <xinput.h>
+#include "CoverNativeCamera.hpp"
 
 namespace player_cover {
 struct Wall {
@@ -60,7 +61,7 @@ struct CoverView {
     V nativeFront{},nativeSource{},nativeUp{},previousFront{};
     Q offset{};
     float shoulder=0.f;
-    bool seeded=false;
+    bool seeded=false,unoccludedSource=false;
 };
 static CoverView viewState;
 
@@ -178,6 +179,18 @@ static void applyCamera(void* camera){
     const V left=normalized(cross(V{0,0,1},front)),up=cross(front,left);
     const V pivot=position(ped)+V{0,0,.55f};
     V source=pivot+rotate(viewState.offset,pose.pos-pivot);
+    viewState.unoccludedSource=false;
+    // Native collision was tested on SA's original shoulder. On the opposite
+    // side, start with its verified unoccluded point and sweep that side below.
+    // Reject stale captures or a pose changed by another camera adjustment.
+    if(dot(source-pivot,left)*float(cover.fireSide)<0.f){
+        V unoccluded{};
+        if(cover_native_camera::unoccludedSource(cam,reference(ped),
+            *reinterpret_cast<const unsigned*>(0xB7CB4C),at<V>(cam,0x19C),pose.pos,unoccluded)){
+            source=pivot+rotate(viewState.offset,unoccluded-pivot);
+            viewState.unoccludedSource=true;
+        }
+    }
     // SA has one native shoulder. Mirror its lateral displacement for the
     // opposite cover side while preserving aim direction and camera pitch.
     const float nativeShoulder=dot(source-pivot,left);
@@ -212,11 +225,53 @@ static bool wallRay(V from,V direction,float reach,Wall& wall){
     wall={vehicle,hit.point,normal,false};
     return true;
 }
-static bool traceWall(V root,V normal,Wall& hit){
+#include "CoverWallContinuity.hpp"
+static bool traceWall(V root,const Wall& expected,Wall& hit){
     float height;
-    if(!ground(root,height))return false;
+    if(!finite(root)||!cover_wall_continuity::validPlane(expected.point,expected.normal)||
+       !ground(root,height)||!std::isfinite(height))return false;
     root.z=height+.60f;
-    return wallRay(root+normal*.12f,normal*-1.f,.95f,hit);
+    const V from=root+expected.normal*.12f,to=from-expected.normal*.95f;
+    ColPoint contact{};void* entity=nullptr;
+    if(!ray(from,to,contact,entity)||!entity||!finite(contact.point)||!finite(contact.normal))return false;
+    // Preserve the original nominal waist-ray predicates, including vehicles.
+    // Empty rays never reach the fallback or query a different collider.
+    if(std::abs(contact.normal.z)<=.4f){
+        const V normal=flat(contact.normal);
+        if(dot(normal,expected.normal)<.55f)return false;
+        const int vehicle=vehicleRef(entity);
+        if(vehicle>=0&&length(at<V>(entity,0x44))*50.f>2.f)return false;
+        hit={vehicle,contact.point,normal,false};return true;
+    }
+    if(!cover_wall_continuity::retryRounded(expected.low,expected.vehicle,contact.point,contact.normal,
+                                           expected.point,expected.normal))return false;
+    const unsigned type=at<unsigned char>(entity,0x36)&7;
+    if(!cover_wall_continuity::eligibleType(type)||!(at<unsigned char>(entity,0x1C)&1))return false;
+    // Only CObject owns these physical fields. Never read them from a building,
+    // dummy, pedestrian, vehicle, or an unrecognized entity type.
+    if(type==4&&!cover_wall_continuity::stationary(type,(at<unsigned char>(entity,0x1C)&4)!=0,
+                                                  at<V>(entity,0x44),at<V>(entity,0x50)))return false;
+    auto* col=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(entity);
+    if(!col||!col->data)return false;
+    M frame{};
+    if(auto* current=matrix(entity))frame=*current;
+    else reinterpret_cast<void(__thiscall*)(void*,M*)>(0x54EF40)(static_cast<unsigned char*>(entity)+4,&frame);
+    if(!finite(frame.pos)||!finite(frame.right)||!finite(frame.up)||!finite(frame.at))return false;
+    const float determinant=dot(frame.right,cross(frame.up,frame.at));
+    if(!std::isfinite(determinant)||std::abs(determinant)<1.e-6f)return false;
+    struct Line {V from;float fromSize;V to;float toSize;};
+    static_assert(sizeof(Line)==0x20);
+    for(float offset:cover_wall_continuity::probeOffsets){
+        const Line line{from+V{0,0,offset},0,to+V{0,0,offset},0};
+        ColPoint recovered{};float fraction=1.f;
+        // Same verified CCollision ABI as probeVehicleSurface. This targets
+        // the freshly hit collider without changing CWorld ignore/collision state.
+        if(!reinterpret_cast<bool(__cdecl*)(const Line&,const M&,ColModel&,ColPoint&,float&,bool,bool)>(0x417950)
+                (line,frame,*col,recovered,fraction,false,false)||!std::isfinite(fraction)||fraction<0.f||fraction>1.f)continue;
+        if(!cover_wall_continuity::recovered(recovered.point,recovered.normal,expected.point,expected.normal))continue;
+        hit={-1,recovered.point,flat(recovered.normal),false};return true;
+    }
+    return false;
 }
 static bool matches(const Wall& found,const Wall& wall){
     return dot(found.normal,wall.normal)>.82f&&
@@ -224,7 +279,7 @@ static bool matches(const Wall& found,const Wall& wall){
 }
 static bool sameWall(V root,const Wall& wall){
     Wall found;
-    return traceWall(root,wall.normal,found)&&matches(found,wall);
+    return traceWall(root,wall,found)&&matches(found,wall);
 }
 static void refreshCorner(V root,bool aim){
     const V along=tangent(cover.wall.normal);
@@ -395,7 +450,7 @@ static bool move(void* ped){
     if(!cover.approaching){
         const V support=cover.peeking?cover.peekBase:current;
         Wall wall;
-        if(!traceWall(support,cover.wall.normal,wall)||!matches(wall,cover.wall)){leave("cover_lost");return false;}
+        if(!traceWall(support,cover.wall,wall)||!matches(wall,cover.wall)){leave("cover_lost");return false;}
         auto* pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
         const float x=std::clamp(reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,-1.f,1.f);
         const float y=std::clamp(-reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f,-1.f,1.f);

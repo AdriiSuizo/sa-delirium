@@ -329,7 +329,58 @@ pub unsafe extern "C" fn nm_world_set_vehicle_transform(w:*mut NmWorld,index:i32
     let p=unsafe{v3(pos)};let q=unsafe{Quat::from_xyzw(*rot,*rot.add(1),*rot.add(2),*rot.add(3))};
     if !p.is_finite()||!q.is_finite()||q.length_squared()<1e-8{return fail(NM_E_ARG,"invalid vehicle transform")}
     let Some(ob)=w.1.get_mut(index as usize)else{return fail(NM_E_ARG,"missing vehicle")};
-    let local=ob.rot.inverse()*(ob.com-ob.at);ob.at=p;ob.rot=q.normalize();ob.com=p+ob.rot*local;0
+    let inverse=ob.rot.inverse();
+    let local_com=inverse*(ob.com-ob.at);
+    let local_centre=inverse*(ob.centre-ob.at);
+    ob.at=p;ob.rot=q.normalize();
+    ob.com=p+ob.rot*local_com;
+    ob.centre=p+ob.rot*local_centre;
+    0
+}
+
+#[cfg(test)]
+#[test]
+fn transformed_vehicle_keeps_collision_bounds_with_its_pose() {
+    let assets = std::path::PathBuf::from(std::env::var_os("NM_TEST_ASSETS").unwrap());
+    let character = std::ffi::CString::new(assets.join("fred.xrt").to_str().unwrap()).unwrap();
+    assert!(matches!(unsafe { nm_init(character.as_ptr()) }, 0 | 1));
+    let mut world = NmWorld(Collision::default(), vec![], vec![]);
+    let row = [10., 0., 1., 0., 0., 0., 1., 1., 1., 1., 2., 3., 4.];
+    assert_eq!(unsafe { nm_world_set_boxes(&mut world, row.as_ptr(), 1) }, 0);
+    let position = Vec3::Z;
+    assert!(original_animated_owner::room_clear(&world.0, &world.1, position, 1));
+    assert_eq!(unsafe {
+        nm_world_set_vehicle_transform(&mut world, 0, position.to_array().as_ptr(), Quat::IDENTITY.to_array().as_ptr())
+    }, 0);
+    assert!(!original_animated_owner::room_clear(&world.0, &world.1, position, 1),
+        "the moved vehicle still collides at its old centre");
+    assert!(original_animated_owner::room_clear(&world.0, &world.1, Vec3::new(10., 0., 1.), 1));
+
+    // A rotated compound keeps distinct local broadphase and COM offsets.
+    let old = world.1[0].clone();
+    world.1[0].centre += Vec3::X;
+    world.1[0].com += Vec3::Y;
+    world.1[0].last = Some((old.at, old.rot));
+    let rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
+    let moved = Vec3::new(5., 6., 7.);
+    assert_eq!(unsafe {
+        nm_world_set_vehicle_transform(&mut world, 0, moved.to_array().as_ptr(), rotation.to_array().as_ptr())
+    }, 0);
+    let obstacle = &world.1[0];
+    assert!(obstacle.centre.distance(moved + Vec3::Y) < 1e-5);
+    assert!(obstacle.com.distance(moved - Vec3::X) < 1e-5);
+    assert_eq!(obstacle.half, old.half);
+    assert_eq!(obstacle.vel, old.vel);
+    assert_eq!(obstacle.spin, old.spin);
+    assert_eq!(obstacle.last, Some((old.at, old.rot)));
+    let before = obstacle.clone();
+    assert_eq!(unsafe {
+        nm_world_set_vehicle_transform(&mut world, 0, moved.to_array().as_ptr(), [0.; 4].as_ptr())
+    }, NM_E_ARG);
+    assert_eq!(world.1[0].at, before.at);
+    assert_eq!(world.1[0].rot, before.rot);
+    assert_eq!(world.1[0].centre, before.centre);
+    assert_eq!(world.1[0].com, before.com);
 }
 
 #[unsafe(no_mangle)]

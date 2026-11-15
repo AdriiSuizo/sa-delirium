@@ -30,6 +30,7 @@ shutil.copyfile(here / "VehicleNitro.hpp", args.out / "VehicleNitro.hpp")
 shutil.copyfile(here / "GravityControl.hpp", args.out / "GravityControl.hpp")
 shutil.copyfile(here / "DriveByControls.hpp", args.out / "DriveByControls.hpp")
 shutil.copyfile(here / "DriveByAim.hpp", args.out / "DriveByAim.hpp")
+shutil.copyfile(here / "CameraPoseHooks.hpp", args.out / "CameraPoseHooks.hpp")
 shutil.copyfile(here / "TrafficDriving.hpp", args.out / "TrafficDriving.hpp")
 if not args.shipping:
     shutil.copyfile(here / "VehicleSpeedProbe.hpp", args.out / "VehicleSpeedProbe.hpp")
@@ -192,13 +193,14 @@ owner_path.write_text(owner, encoding="utf-8", newline="\n")
 source = replace_once(source, '#include "ExpansionProbe.hpp"',
                       '#include "ExpansionProbe.hpp"\n#include "VehicleEntryLab.hpp"')
 if not args.shipping:
+    shutil.copyfile(here / "NativeCoverCameraProbe.hpp", args.out / "NativeCoverCameraProbe.hpp")
     shutil.copyfile(here / "CoverFrameProbe.hpp", args.out / "CoverFrameProbe.hpp")
     shutil.copyfile(here / "VehicleDeformationProbe.hpp", args.out / "VehicleDeformationProbe.hpp")
     shutil.copyfile(here / "GameplayRegressionProbe.hpp", args.out / "GameplayRegressionProbe.hpp")
     source = replace_once(source, 'namespace player_cover {',
                           'namespace player_cover {\n    static void traceFrame(void*);')
     source = replace_once(source, '#include "PoliceCover.hpp"',
-                          '#include "PoliceCover.hpp"\n#include "CoverFrameProbe.hpp"')
+                          '#include "PoliceCover.hpp"\n#include "NativeCoverCameraProbe.hpp"\n#include "CoverFrameProbe.hpp"')
     source = replace_once(source, '    applyWalkingSupport(p);',
                           '    applyWalkingSupport(p);\n    player_cover::traceFrame(p);')
     source = replace_once(source, '#include "VehicleEntryLab.hpp"',

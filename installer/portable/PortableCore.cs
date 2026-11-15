@@ -207,7 +207,17 @@ namespace SAPortable {
             var directory=Paths.Inside(cache,"downloads/"+identity);
             Directory.CreateDirectory(directory);
             var path=Paths.Inside(directory,p.filename);
-            if(File.Exists(path))VerifyArchive(path,p);
+            // A broken previous download is not an installation prerequisite.
+            // Keep it for diagnosis, then obtain and verify the original again.
+            // Read/permission/link failures still stop here rather than being
+            // mistaken for corrupt bytes that are safe to replace.
+            bool cached=File.Exists(path);
+            if(cached && !ArchiveMatches(path,p)) {
+                File.Move(Paths.Long(path),Paths.Long(path+".invalid-"+Guid.NewGuid().ToString("N")));
+                cached=false;
+                Progress(0,0,"El componente guardado está incompleto; preparándolo de nuevo…");
+            }
+            if(cached) { /* ArchiveMatches already checked this cache. */ }
             else if(p.resolver=="bundled") {
                 var asset=Paths.Inside(tools,"packages/"+p.sha256+"/"+p.filename);
                 Verify(asset,p.sha256,p.bytes);File.Copy(asset,path);
@@ -282,13 +292,17 @@ namespace SAPortable {
             Run(installer,"/silent /install",log,"la instalación de WebView2",true);
             if(!BrowserRuntimePresent())throw new IOException("No se ha podido preparar el componente de descargas de Microsoft. Registro: "+log);
         }
-        void VerifyArchive(string path,Package p) {
-            if(!String.IsNullOrEmpty(p.sha256)){Verify(path,p.sha256,p.bytes);return;}
+        bool ArchiveMatches(string path,Package p) {
             Paths.NoLinks(path);
-            if(!p.member_pins_only || !File.Exists(path) || new FileInfo(path).Length<=0 || new FileInfo(path).Length>p.max_bytes)
-                throw new IOException("Archivo original fuera de los límites previstos.");
+            if(!File.Exists(path))return false;
+            var bytes=new FileInfo(path).Length;
+            if(!String.IsNullOrEmpty(p.sha256))return bytes==p.bytes && Engine.Hash(path)==p.sha256;
             // This is only an acquired container. Every selected input below
             // must still match its immutable SHA256 before any DLL is installed.
+            return p.member_pins_only && bytes>0 && bytes<=p.max_bytes;
+        }
+        void VerifyArchive(string path,Package p) {
+            if(!ArchiveMatches(path,p))throw new IOException("El archivo no coincide con su versión verificada: "+Path.GetFileName(path));
         }
         sealed class ArchiveMember {public string path;public long bytes;public bool link;}
         string PasswordArgument(string archive) {

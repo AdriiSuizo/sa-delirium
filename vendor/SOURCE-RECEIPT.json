@@ -562,6 +562,9 @@
     "Snapshot does not contain the full visual modpack"
   ],
   "intentional_modifications_sha256": {
+    "src/sa-delirium/CoverWallContinuity.hpp": "f6f303dc210386b2d27d1a72b99937092a10fb37b84b247a8847c5be6f60b585",
+    "src/sa-delirium/CoverNativeCamera.hpp": "2d16d6c9c666eba7ac88719b978e01c5f4f67a33d7ac30901f080f8ccffb300f",
+    "src/sa-delirium/CodePatch.hpp": "887cbed2180970c20ccc7f48257c7233da7db4fad202cbc272b355483d6ef218",
     "src/lsc4-combat/npc-decision-source.json": "ef7051bb7ec6d874c8d0e74fe488a59d642b4f3724885b16302274765cf26147",
     "src/lsc4-combat/upstream.json": "b4ed90279336258e0e20343887a6beeaf5707354ca6cd788fe03347f7fc5041d",
     "src/delirium-physics/crates/delirium-sdk/src/animated_contacts.rs": "3207dfc59975c38e3617b6dcd63d8b6a7db91438864362bd96518f323392d0a1",
@@ -610,11 +613,11 @@
     "src/sa-delirium/HitDetection.hpp": "9c6da7232235c2aa306141b4e53eb7f2331d2732b201e74f538928dab71e1d1b",
     "src/sa-combat/src/animation.rs": "f6526207f1160159759ad8d3458a7729dcfe63f70462a5c95ed59435bc7c8789",
     "src/delirium-physics/crates/delirium-sdk/src/locomotion.rs": "aa84aac2a354a3bb88e97383012e3350fac76a4e6fb6fa7eaa43409e8b74c110",
-    "src/sa-delirium/PlayerCover.hpp": "40067b61f0378760ca9d9c583f007f3b9d4ce12f3caedd1dedd37afbc44e8739",
+    "src/sa-delirium/PlayerCover.hpp": "20a9be6f14fb1f1a2b4c0988c4bfad578728c47bcdd8f40e1a66b2bae3ada3fa",
     "src/sa-delirium/DroppedWeapons.hpp": "0ca7856a8aae647c41df2515c710ee44a436f9b9a0a53003eb5e0f1fc1433872",
     "src/sa-delirium/Aiming.hpp": "a01f1c79bfc5cc9df0cd2f44b76296a68a80a8d2dc25d2686c496fb590f3b39d",
     "src/sa-delirium/FirearmBridge.hpp": "3a121617dd8d3856a970ae0e72ac00acb000cbf419a13446abd164ea8183a6d3",
-    "src/delirium-physics/crates/delirium-sdk/src/lib.rs": "2c741429d5c30da26b476ccdc80779b2cfe32903351d818ca2f6a89683405827",
+    "src/delirium-physics/crates/delirium-sdk/src/lib.rs": "dd784485dff185b05f3b20387b8d2d44ef6aba87d86081c860272162441cdee5",
     "src/sa-delirium/PoliceCover.hpp": "f9a0cb3a1a4f2af8a2c13715e1d1f5244ece31f2b51254536f483f62c67b610a",
     "src/sa-delirium/BikeImpactCapture.hpp": "c181a1e0d98567e6e28b64ea155b1f282dd325d5780ca0da4ae4493ad80d6f6f",
     "src/delirium-physics/crates/delirium/src/nm.rs": "18d80d43f462fec56ccb0a16d760121ba9a841e733c6898181df98cf1414ff03",
