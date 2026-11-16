@@ -24,6 +24,7 @@ static void startReaction(Active& a,const Request& request){
     a.roadReaction=0;a.roadRelaxLogged=false;a.roadBraceLocal.reset();
     a.stableFor=0;
     const bool feedShot=request.kind==Reaction::Shot&&a.shotRunning;a.shotRunning=false;
+    if(request.kind!=Reaction::Shot)a.shotAttacker=-1;
     a.kind=request.kind;a.vehicle=request.vehicle;a.preview=request.kind==Reaction::Brace;
     ok(nm_agent_host_foot_support(a.agent,a.kind==Reaction::Melee||a.kind==Reaction::Bump||a.kind==Reaction::Impact));
     if(request.vehicle>=0&&inVehicle(player())&&vehicleRef(at<void*>(player(),0x58C))==request.vehicle)a.runOverByPlayer=true;
@@ -72,6 +73,7 @@ static void startReaction(Active& a,const Request& request){
         V threat=hit-request.direction*2.f;
         ok(nm_agent_task_flinch(a.agent,a.mountedWorld,"*",&threat.x));
     }else if(request.kind==Reaction::Shot){
+        a.shotAttacker=request.attackerRef;
         // A body already down takes the bullet where it lies: a new hit task raised it and replayed the reaction (07/11).
         // So does one still falling from the last bullet: a new task restarted the fall at every round of an Uzi (07/11).
         const bool falling=gameTime()-a.lastShotAt<1500&&nm_agent_is_balancing(a.agent)!=1;

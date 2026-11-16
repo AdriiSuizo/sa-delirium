@@ -108,8 +108,8 @@ static void playerImpactDamage(Active&a,float dt){
     f.impulse=out[0];f.dt=dt;f.invMass=out[3];f.health=ivHealth(a.ped);f.component=int(out[1]);f.other=kind;f.playerCut=true;
     const auto r=original_impact_damage::calculate(f);
     if(!r.valid||!(r.amountIV>0))return;
-    // CJ's visible range is 200..100 in IV. SA's calculator still applies its .33 player factor.
-    a.impactDamageCarry+=combat_health::nativeDamage(r.amountIV,true)/.33f;
+    // CJ's visible range is 200..100 in IV. SA's calculator still applies its .33 player factor; ragdoll impact scaled to 1/4.
+    a.impactDamageCarry+=(combat_health::nativeDamage(r.amountIV,true)/.33f)*.25f;
     if(a.impactDamageCarry<3.f)return;
     const float amount=a.impactDamageCarry;a.impactDamageCarry=0;
     DamageEvent hit{};

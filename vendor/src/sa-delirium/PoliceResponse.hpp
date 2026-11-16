@@ -10,13 +10,29 @@
 // the player stays with SA's wanted system, cop on cop is untouched.
 // Not ported: the 1700 communicate to nearby cops (IV's intelligence +0xE8 count / +0xEC range defaults are not known here).
 static bool ivPoliceResponse=true;
+static bool copHasFirearm(void*ped){
+    if(!ped)return false;
+    for(unsigned s=0;s<13;++s){
+        const unsigned base=0x5A0+s*0x1C;
+        const int t=at<int>(ped,base);
+        if(t>=22&&t<=34&&(at<unsigned>(ped,base+8)>0||at<unsigned>(ped,base+0xC)>0))return true;
+    }
+    const int delayed=at<int>(ped,0x710);
+    return !pedWasDisarmed(ped)&&delayed>=22&&delayed<=34;
+}
 // 0x4BC3E0 is __cdecl in the exe (ped1 [esp+4], ped2 [esp+8], plain ret), not the member gta-reversed shows.
 static bool(__cdecl*originalKillTaskAppropriate)(void*,void*,const void*)=nullptr;
 static bool __cdecl killTaskAppropriate(void*ped,void*source,const void*e){
+    const bool cop=ped&&at<int>(ped,0x598)==6&&at<unsigned char>(ped,0x484)!=2;
+    const int srcWep=source?combatWeapon(source):-1;
+    if(ivPoliceResponse&&cop&&source&&at<int>(source,0x598)!=6){
+        if(pedWasDisarmed(ped)||(!copHasFirearm(ped)&&(combatWeapon(ped)<=1||(srcWep>=22&&srcWep<=38))))
+            return false;
+    }
     const bool native=originalKillTaskAppropriate(ped,source,e);
-    if(native||!ivPoliceResponse||!ped||!source||source==player())return native;
+    if(native||!ivPoliceResponse||!cop||!source||source==player())return native;
     // +0x598 ped type (6 cop), +0x484 created by (2 mission).
-    if(at<int>(ped,0x598)!=6||at<int>(source,0x598)==6||at<unsigned char>(ped,0x484)==2)return native;
-    event("iv_police_response",reference(ped),at<short>(ped,0x22),"source="+std::to_string(reference(source))+" source_weapon="+std::to_string(combatWeapon(source))+" cop_weapon="+std::to_string(combatWeapon(ped))+" native_flee=1 combat=1");
+    if(!copHasFirearm(ped)||pedWasDisarmed(ped))return false;
+    event("iv_police_response",reference(ped),at<short>(ped,0x22),"source="+std::to_string(reference(source))+" source_weapon="+std::to_string(srcWep)+" cop_weapon="+std::to_string(combatWeapon(ped))+" native_flee=1 combat=1");
     return true;
 }

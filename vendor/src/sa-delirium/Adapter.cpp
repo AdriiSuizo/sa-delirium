@@ -156,6 +156,7 @@ struct Active {
     unsigned probeRecoveryNotBefore=0; // Set only by the explicit ground-hit fixture.
     unsigned lastVehicleContactReport=0;
     bool runOverByPlayer=false,corpseResting=false,shotRunning=false;
+    int shotAttacker=-1;
     MeleeResponse melee=MeleeResponse::Flinch;
     bool physicalAnimation=false;int animationDriveStatus=-1;unsigned entryDamageReport=0;float impactDamageCarry=0;unsigned impactDamageReport=0;
     unsigned impactSoundAt=0,flightVoiceAttemptAt=0;bool flightScream=false;
@@ -232,6 +233,7 @@ namespace player_cover {
     static void cameraBegin();
     static void applyCamera(void*);
     static bool holdsFire(void*);
+    static bool blocksBullet(void*);
     static bool owns(void*);
     static bool move(void*);
     static bool draw(void*);
@@ -247,6 +249,9 @@ namespace police_cover {
     static bool draw(void*);
     static void clear();
 }
+static float ivTargetFov=0.f,ivFovBlend=0.f;
+static void(*onBeforeCameraProcess)(void*)=nullptr;
+static void(*onAfterCameraProcess)(void*)=nullptr;
 static void captureRoadPoseSeeds();
 static void clearPhysicalDeaths();
 static void forgetPhysicalDeath(int);
@@ -254,6 +259,7 @@ static bool replacePhysicalDeathAnimation(DamageEvent*,void*);
 #include "NativeIdlePose.hpp"
 #include "FirearmBridge.hpp"
 #include "DroppedWeapons.hpp"
+#include "BloodDecals.hpp"
 #include "VehicleReactions.hpp"
 static void releaseRecoveryTask(Active& a);
 static void answerRunOver(Active& a);
@@ -730,6 +736,7 @@ static void finishPlayerHighFall(Active&,V,const float*);
 #include "NikoMovement.hpp"
 #include "PlayerCover.hpp"
 #include "PoliceCover.hpp"
+#include "RagdollFire.hpp"
 #include "PlayerShove.hpp"
 #include "PlayerDive.hpp"
 #include "PlayerHighFall.hpp"
@@ -753,6 +760,8 @@ static void shotOutOfHand(void*p,void*source,int piece,const firearm::Contact& c
     const unsigned ammo=std::clamp(at<unsigned>(p,0x5A0+slot*0x1C+0xC),1u,90u);
     if(!dropped_weapons::spawn(p,*hand,type,ammo))return;
     reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E62B0)(p,type); // CPed::ClearWeapon
+    at<int>(p,0x710)=0;
+    markPedDisarmed(p,source);
     event("shot_out_of_hand",reference(p),at<short>(p,0x22),"weapon="+std::to_string(type)+" ammo="+std::to_string(ammo));
 }
 static void acceptedDamage(DamageEvent* hitEvent,void*p){
@@ -854,32 +863,42 @@ static void rejectSolverLaunch(Active&a){
 // one-sided ground nothing held him and he fell to z -43 until the game was closed (08/11). The trunk may never
 // cross an upward surface of the physics world going down: that step is undone, keeping only upward motion.
 // Should a body still end up under the map (no SA ground below it, ground above), it is put back on that ground.
-static void rejectGroundTunnel(Active&a,const std::array<T,21>&before){
-    if(!collision||!collision->world)return;
-    for(int k:{0,10,12}){
-        const V from=before[k].p+V{0,0,.05f},to=a.current[k].p,d=to-from;const float len=length(d);
-        if(!finite(from)||!finite(to)||len<1e-4f||d.z>=0)continue;
+static bool rejectGroundTunnel(Active&a,const std::array<T,21>&before){
+    if(!collision||!collision->world)return false;
+    for(int k:{0,8,9,10,12}){
+        const V pre=before[k].p,to=a.current[k].p;
+        if(!finite(pre)||!finite(to))continue;
+        float ceilingHit=0;V ceilingNormal{};
+        const V upDir{0,0,.25f};
+        const bool hasLowCeiling=nm_world_raycast(collision->world,&pre.x,&upDir.x,.25f,&ceilingHit,&ceilingNormal.x)==1;
+        const float startOffset=hasLowCeiling?std::min(.05f,std::max(.005f,ceilingHit*.5f)):.25f;
+        const V from=pre+V{0,0,startOffset},d=to-from;const float len=length(d);
+        if(len<1e-4f||d.z>=0)continue;
         float hit=0;V normal{};
         if(nm_world_raycast(collision->world,&from.x,&d.x,len,&hit,&normal.x)!=1||normal.z<.5f)continue;
-        const float surface=from.z+d.z*(hit/len);if(surface-to.z<.15f)continue;
+        const float surface=from.z+d.z*(hit/len);if(surface-to.z<.05f)continue;
+        const float liftZ=before[k].p.z<surface+.03f?std::min(.35f,surface+.05f-before[k].p.z):0.f;
+        const V lift{0,0,liftZ};
         for(int j=0;j<21;j++){V linear=a.stepLinear[j];linear.z=std::max(linear.z,0.f);
-            ok(nm_agent_set_part_state(a.agent,j,&before[j].p.x,&before[j].q.x,&linear.x,&a.stepSpin[j].x));}
-        a.current=before;
-        event("ground_tunnel_rejected",a.ref,a.model,"part="+std::to_string(k)+" surface_z="+std::to_string(surface)+" solved_z="+std::to_string(to.z)+" normal_z="+std::to_string(normal.z));
-        return;
+            const V p=before[j].p+lift;
+            ok(nm_agent_set_part_state(a.agent,j,&p.x,&before[j].q.x,&linear.x,&a.stepSpin[j].x));
+            a.current[j]=before[j];a.current[j].p=p;}
+        event("ground_tunnel_rejected",a.ref,a.model,"part="+std::to_string(k)+" surface_z="+std::to_string(surface)+" solved_z="+std::to_string(to.z)+" lift_z="+std::to_string(liftZ)+" normal_z="+std::to_string(normal.z));
+        return true;
     }
     V linear{},spin{};nm_agent_get_part_velocity(a.agent,0,&linear.x,&spin.x);
-    if(!(linear.z<-3.f))return;
+    if(linear.z>.5f)return false;
     const V pelvis=a.current[0].p;bool below=false,above=false;
-    reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(0x5696C0)(pelvis.x,pelvis.y,pelvis.z,&below,nullptr);
-    if(below)return;
+    reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(0x5696C0)(pelvis.x,pelvis.y,pelvis.z+.05f,&below,nullptr);
+    if(below)return false;
     const float top=reinterpret_cast<float(__cdecl*)(float,float,float,bool*,void**)>(0x5696C0)(pelvis.x,pelvis.y,1000.f,&above,nullptr);
-    if(!above||top<pelvis.z+1.f)return;
+    if(!above||top<pelvis.z+.15f)return false;
     float lowest=pelvis.z;for(const auto&t:a.current)lowest=std::min(lowest,t.p.z);
     const V lift{0,0,top+.3f-lowest};
     for(int j=0;j<21;j++){const V p=a.current[j].p+lift;const V zero{};
         ok(nm_agent_set_part_state(a.agent,j,&p.x,&a.current[j].q.x,&zero.x,&zero.x));a.current[j].p=p;}
     event("under_map_body_restored",a.ref,a.model,"pelvis_z="+std::to_string(pelvis.z)+" ground_z="+std::to_string(top));
+    return true;
 }
 // A get-up is an animation on SA's capsule: a car reaching it threw the ped up 1.35 m at 30 m/s and the clip
 // played on over the ambulance (07/11). The body goes back to physics before the car arrives.
@@ -1007,10 +1026,24 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
         for(auto*entry:live){auto&a=*entry;if(bad(a.ref))continue;
                 if(a.physicalAnimation){const int status=nm_agent_animation_pose_status(a.agent);if(status!=a.animationDriveStatus){event("combat_physical_animation",a.ref,a.model,"motor_status="+std::to_string(status)+" body_pose_not_overwritten=1");a.animationDriveStatus=status;}}
                 for(auto h=a.vehicleHistory.begin();h!=a.vehicleHistory.end();)if(!collision->findIdentity(h->first))h=a.vehicleHistory.erase(h);else ++h;
-                if(!a.mounted){selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);playerImpactDamage(a,stepSeconds);}
                 const auto poseBeforeStep=a.current;
                 if(!readPose(a,a.current)){invalid.push_back(a.ref);continue;}steps++;noteSolverGapAudit(a,now);
-                if(!a.mounted&&!a.preview){rejectSolverLaunch(a);rejectGroundTunnel(a,poseBeforeStep);}
+                bool stepRejected=false;
+                if(!a.mounted&&!a.preview){
+                    V preVel0{},preVel10{},preSpin{};
+                    nm_agent_get_part_velocity(a.agent,0,&preVel0.x,&preSpin.x);
+                    nm_agent_get_part_velocity(a.agent,10,&preVel10.x,&preSpin.x);
+                    rejectSolverLaunch(a);
+                    V postVel0{},postVel10{};
+                    nm_agent_get_part_velocity(a.agent,0,&postVel0.x,&preSpin.x);
+                    nm_agent_get_part_velocity(a.agent,10,&postVel10.x,&preSpin.x);
+                    stepRejected=length(postVel0-preVel0)>1e-2f||length(postVel10-preVel10)>1e-2f;
+                    if(rejectGroundTunnel(a,poseBeforeStep))stepRejected=true;
+                }
+                if(!a.mounted){
+                    if(stepRejected){float discard[4]{};nm_agent_take_impact(a.agent,discard);}
+                    else{selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);playerImpactDamage(a,stepSeconds);}
+                }
                 if(a.kind==Reaction::DoorEntry&&!a.mounted&&!a.preview)observeVehicleEntrySolvedStep(a,stepSeconds);
                 if(a.kind==Reaction::Melee&&a.meleeMotionSample<4){
                     static constexpr unsigned times[]={100,250,500,1000};
@@ -1410,7 +1443,7 @@ static void aimTestDrive(void*p){
 static void faceCameraOnAim(){
     static bool facing=false;void*p=player();
     aimTestDrive(p);
-    if(!p||!playing()||cutscene()||inVehicle(p)||agents.contains(reference(p))||pending.contains(reference(p))){facing=false;return;}
+    if(!p||!playing()||cutscene()||inVehicle(p)||player_cover::owns(p)||agents.contains(reference(p))||pending.contains(reference(p))){facing=false;return;}
     const int weapon=combatWeapon(p);if(weapon<22||weapon>38){facing=false;return;}
     auto*manager=taskManager(p);
     const bool target=reinterpret_cast<bool(__thiscall*)(void*)>(0x540670)(reinterpret_cast<void*>(0xB73458)); // CPad::GetTarget, pad 0
@@ -1467,7 +1500,7 @@ static void __cdecl process(){
         physicsFrame.reset();simulatePhysicsFrame();return;
     }
     processStandingContacts(combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C)));
-    combatFinish();combatDrawLockTarget();dropped_weapons::tick(gameTime());maintainRecoverySupport();cost.lap(3);
+    combatFinish();combatDrawLockTarget();dropped_weapons::tick(gameTime());ragdoll_fire::tick(gameTime());maintainRecoverySupport();cost.lap(3);
     const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
     evaluatedPeds.clear();evaluatedPedFrame=frame;
     physicsFrame.begin(frame,gameTime());
@@ -1754,6 +1787,7 @@ static DWORD WINAPI setup(void*){
         {0x4BC3E0,reinterpret_cast<void*>(&killTaskAppropriate),reinterpret_cast<void**>(&originalKillTaskAppropriate)},
         {0x6302D0,reinterpret_cast<void*>(&physicalDieFirst),reinterpret_cast<void**>(&originalPhysicalDieFirst)},
         {0x540770,reinterpret_cast<void*>(&combatJumpJustDown),reinterpret_cast<void**>(&originalCombatJumpJustDown)},
+        {0x540670,reinterpret_cast<void*>(&combatGetTarget),reinterpret_cast<void**>(&originalCombatGetTarget)},
         {0x5400D0,reinterpret_cast<void*>(&combatExitVehicle),reinterpret_cast<void**>(&originalCombatExitVehicle)},
         {0x540120,reinterpret_cast<void*>(&combatExitVehicleJustDown),reinterpret_cast<void**>(&originalCombatExitVehicleJustDown)},
         {0x5E1B10,reinterpret_cast<void*>(&combatUpdatePosition),reinterpret_cast<void**>(&originalCombatUpdatePosition)},
@@ -1779,6 +1813,7 @@ static DWORD WINAPI setup(void*){
     event("crash_guard",-1,-1,crash_guard::install());
     event(firearm::install()?"native_firearm_hooks_installed":"native_firearm_hooks_unavailable");
     event(dropped_weapons::install()?"native_dropped_weapon_effect_installed":"native_dropped_weapon_effect_unavailable");
+    event(blood_decals::install()?"blood_decals_installed":"blood_decals_unavailable");
     if(MH_ApplyQueued()!=MH_OK){status="hook_enable_failed";event(status);return 0;}
     status="real_engine_ready";ready=true;event("initialized",-1,-1,applyBones?"bone_application_enabled":"shadow_validation_only");report();return 0;
 }

@@ -9,6 +9,27 @@
 // Diagnostics (every refusal and the swap's read-back): GTASA_DISARM_TRACE.
 inline bool meleeDisarmable(int weapon){return weapon>=2&&weapon<=9;}
 static int meleeHeldWeapon(void*p,unsigned&slot){slot=at<unsigned char>(p,0x718);return slot<13?at<int>(p,0x5A0+slot*0x1C):-1;}
+struct DisarmedPed { unsigned at=0; int threat=-1; };
+static std::map<int,DisarmedPed> disarmedPeds;
+static void markPedDisarmed(void*victim,void*threat=nullptr){
+    const int ref=victim?reference(victim):-1;
+    if(ref>=0)disarmedPeds[ref]={gameTime(),threat?reference(threat):-1};
+}
+static bool pedWasDisarmed(void*ped){
+    const int ref=ped?reference(ped):-1;
+    if(ref<0)return false;
+    const auto it=disarmedPeds.find(ref);
+    if(it==disarmedPeds.end())return false;
+    if(gameTime()-it->second.at>20000u){disarmedPeds.erase(it);return false;}
+    return true;
+}
+static int pedDisarmedThreat(void*ped){
+    const int ref=ped?reference(ped):-1;
+    if(ref<0)return -1;
+    const auto it=disarmedPeds.find(ref);
+    if(it==disarmedPeds.end()||gameTime()-it->second.at>20000u)return -1;
+    return it->second.threat;
+}
 static bool meleeDisarm(void*by,void*victim){
     const bool trace=GetEnvironmentVariableA("GTASA_DISARM_TRACE",nullptr,0)!=0;
     unsigned vs=0,bs=0;const int type=by&&victim?meleeHeldWeapon(victim,vs):-1,mine=by&&victim?meleeHeldWeapon(by,bs):-1;
@@ -23,6 +44,10 @@ static bool meleeDisarm(void*by,void*victim){
     reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E6280)(by,type);                           // CPed::SetCurrentWeapon(type): selected, model attached
     reinterpret_cast<void(__thiscall*)(void*,int)>(0x5E62B0)(victim,type);                       // CPed::ClearWeapon(type): slot emptied, model dropped
     unsigned s1=0,s2=0;const int taker=meleeHeldWeapon(by,s1),foe=meleeHeldWeapon(victim,s2);
+    if(taker==type&&foe!=type){
+        at<int>(victim,0x710)=0;
+        if(at<int>(victim,0x598)==6)markPedDisarmed(victim,by);
+    }
     event("combat_disarm",reference(victim),at<short>(victim,0x22),"taker="+std::to_string(reference(by))+" weapon="+std::to_string(type)+" ammo="+std::to_string(ammo)+
           " taker_now="+std::to_string(taker)+" foe_now="+std::to_string(foe)+" foe_slot_total="+std::to_string(at<unsigned>(victim,0x5A0+vs*0x1C+0xC))+" original=meleetask.rs:1246,weapons.rs:5359");
     return taker==type&&foe!=type;

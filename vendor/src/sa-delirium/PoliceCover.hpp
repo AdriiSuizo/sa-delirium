@@ -6,19 +6,47 @@ enum class Phase { Approach, Enter, Hidden, Expose, Fire, Return };
 struct Officer {
     Wall wall{};
     V hide{},fire{};
-    int threat=-1,side=1;
+    int threat=-1,side=1,poseWeapon=22;
     void* duck=nullptr;
     void* gun=nullptr;
     Entry entry{}, facing{};
     unsigned since=0;
     float exposeSeconds=0.f, returnSeconds=0.f;
     Phase phase=Phase::Approach;
+    bool unarmed=false;
     PoseReader pose;
     PoseTransition transition;
 };
 static std::map<int,Officer> officers;
 static std::map<int,unsigned> gunfire;
 static unsigned nextSearch=0;
+static bool copUnarmedFlee(void* ped){
+    return ped&&(pedWasDisarmed(ped)||(!copHasFirearm(ped)&&combatWeapon(ped)<=1));
+}
+static bool hot(int ref,unsigned now);
+static void* nearestHotThreat(void* ped,unsigned now){
+    void* best=nullptr;float bestDist=24.f;
+    const V pos=position(ped);
+    for(const auto&[ref,atTime]:gunfire){
+        if(!hot(ref,now))continue;
+        auto* shooter=pedFromRef(ref);
+        if(!shooter||shooter==ped||at<int>(shooter,0x598)==6)continue;
+        const float d=length(position(shooter)-pos);
+        if(d<bestDist){bestDist=d;best=shooter;}
+    }
+    return best;
+}
+static void assignCopFlee(void* ped,void* enemy){
+    if(!ped||!enemy||inVehicle(ped)||at<float>(ped,0x540)<=0.f)return;
+    if(const auto intent=combatReadNativeIntent(ped);
+       intent.type==TASK_COMPLEX_SMART_FLEE_ENTITY&&intent.source==enemy)return;
+    auto* manager=taskManager(ped);if(!manager)return;
+    void* task=reinterpret_cast<void*(__cdecl*)(unsigned)>(0x61A5A0)(0x40);if(!task)return;
+    reinterpret_cast<void*(__thiscall*)(void*,void*,bool,float,int,int,float)>(0x65C430)
+        (task,enemy,false,40.f,15000,1000,1.f);
+    reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(manager,task,1,true);
+    reinterpret_cast<void(__thiscall*)(void*,void*,int)>(0x681B60)(manager,nullptr,0);
+}
 static void fired(void* shooter){
     const int ref=reference(shooter);
     if(ref>=0)gunfire[ref]=gameTime();
@@ -38,17 +66,24 @@ static void clear(){
         setDuck(ped,officer.duck,false);
         releaseGun(ped,officer);
     }
-    officers.clear();gunfire.clear();nextSearch=0;
+    officers.clear();gunfire.clear();disarmedPeds.clear();nextSearch=0;
 }
 static void* target(void* ped){
     auto* manager=taskManager(ped);
     auto* task=manager?reinterpret_cast<void*(__thiscall*)(void*)>(0x681720)(manager):nullptr;
+    const bool unarmed=copUnarmedFlee(ped);
     for(int depth=0;task&&depth<12;++depth){
         auto** vtable=at<void**>(task,0);
         const int type=reinterpret_cast<int(__thiscall*)(void*)>(vtable[4])(task);
         if(type==TASK_COMPLEX_KILL_PED_ON_FOOT_ARMED)return at<void*>(task,0xC);
         if(type==TASK_COMPLEX_KILL_PED_ON_FOOT)return at<void*>(task,0x10);
+        if(unarmed&&(type==TASK_COMPLEX_SMART_FLEE_ENTITY||type==TASK_COMPLEX_KILL_PED_ON_FOOT_MELEE))
+            return at<void*>(task,0xC);
         task=reinterpret_cast<void*(__thiscall*)(void*)>(vtable[2])(task);
+    }
+    if(unarmed){
+        if(auto* p=pedFromRef(pedDisarmedThreat(ped)))return p;
+        if(auto* shooter=nearestHotThreat(ped,gameTime()))return shooter;
     }
     return nullptr;
 }
@@ -56,7 +91,8 @@ static bool available(void* ped){
     if(!ped||at<int>(ped,0x598)!=6||at<unsigned char>(ped,0x484)==2||
        !validPed(ped)||!nativeOnFootControl(at<unsigned char>(ped,0x46D)))return false;
     const int ref=reference(ped),weapon=combatWeapon(ped);
-    return weapon>=22&&weapon<=34&&ivHealth(ped)>=combat_health::injured&&
+    const bool armed=weapon>=22&&weapon<=34&&!pedWasDisarmed(ped);
+    return (armed||copUnarmedFlee(ped))&&ivHealth(ped)>=combat_health::injured&&
         !agents.contains(ref)&&!pending.contains(ref);
 }
 static bool hot(int ref,unsigned now){
@@ -74,7 +110,16 @@ static bool screen(V root,void* enemy,float height){
 static bool find(void* ped,void* enemy,Wall& wall,V& hide,V& fire,int& side){
     const V root=position(ped);
     const V ahead=flat(position(enemy)-root);
-    if(!findWall(ped,ahead,5.f,wall,hide)||!screen(hide,enemy,.6f))return false;
+    const float reach=copUnarmedFlee(ped)?8.f:6.5f;
+    bool found=findWall(ped,ahead,reach,wall,hide);
+    if(!found){
+        for(float a:{.65f,-.65f,1.15f,-1.15f}){
+            const float c=std::cos(a),s=std::sin(a);
+            const V dir{ahead.x*c-ahead.y*s,ahead.x*s+ahead.y*c,0.f};
+            if(findWall(ped,dir,reach,wall,hide)){found=true;break;}
+        }
+    }
+    if(!found||!screen(hide,enemy,.6f))return false;
     const V along=tangent(wall.normal);
     side=dot(along,matrix(ped)->right)>=0.f?1:-1;
     fire=hide;
@@ -128,14 +173,22 @@ static void tick(){
         auto* ped=pedFromRef(it->first);
         auto& officer=it->second;
         auto* enemy=pedFromRef(officer.threat);
-        if(!available(ped)||!enemy||target(ped)!=enemy||(!hot(officer.threat,now)&&officer.phase==Phase::Hidden)||
-           length(position(ped)-position(enemy))<4.f||!sameWall(officer.hide,officer.wall)){
+        const unsigned elapsed=now-officer.since;
+        const bool unarmedNow=copUnarmedFlee(ped);
+        const bool expired=!hot(officer.threat,now)&&!(officer.unarmed&&pedWasDisarmed(ped));
+        const bool tooClose=enemy&&length(position(ped)-position(enemy))<(officer.unarmed?6.5f:4.f);
+        const bool badState=unarmedNow!=officer.unarmed||(officer.phase==Phase::Hidden&&expired)||
+            (officer.unarmed&&officer.phase==Phase::Hidden&&(elapsed>5500u||!screen(officer.hide,enemy,.6f)));
+        void* seenTarget=target(ped);
+        const bool targetLost=!validPed(enemy,true,false,enemy==player())||
+            (officer.phase==Phase::Approach?seenTarget!=enemy:(seenTarget!=nullptr&&seenTarget!=enemy));
+        if(!available(ped)||!enemy||targetLost||tooClose||badState||!sameWall(officer.hide,officer.wall)){
             setDuck(ped,officer.duck,false);
             releaseGun(ped,officer);
+            if((officer.unarmed||unarmedNow)&&ped&&enemy&&available(ped))assignCopFlee(ped,enemy);
             event("police_cover_left",it->first,-1);
             it=officers.erase(it);continue;
         }
-        const unsigned elapsed=now-officer.since;
         const V pos=position(ped);
         const auto arrived=[&](V at){const V d=pos-at;return std::hypot(d.x,d.y)<.16f;};
         switch(officer.phase){
@@ -144,14 +197,14 @@ static void tick(){
                     officer.entry=startEntry(ped,now,.38f);
                     setPhase(it->first,officer,Phase::Enter,now);
                 }
-                else if(elapsed>1750){setDuck(ped,officer.duck,false);it=officers.erase(it);continue;}
+                else if(elapsed>1750){setDuck(ped,officer.duck,false);if(officer.unarmed)assignCopFlee(ped,enemy);it=officers.erase(it);continue;}
                 break;
             case Phase::Enter:
-                if(arrived(officer.hide)&&entryAge(officer.entry)>=officer.entry.seconds)setPhase(it->first,officer,Phase::Hidden,now);
-                else if(elapsed>1100){setDuck(ped,officer.duck,false);it=officers.erase(it);continue;}
+                if((arrived(officer.hide)||(std::hypot(pos.x-officer.hide.x,pos.y-officer.hide.y)<.24f&&sameWall(pos,officer.wall)))&&entryAge(officer.entry)>=officer.entry.seconds)setPhase(it->first,officer,Phase::Hidden,now);
+                else if(elapsed>1100){setDuck(ped,officer.duck,false);if(officer.unarmed)assignCopFlee(ped,enemy);it=officers.erase(it);continue;}
                 break;
             case Phase::Hidden:
-                if(elapsed>650u+unsigned(it->first%520))setPhase(it->first,officer,Phase::Expose,now);
+                if(!officer.unarmed&&elapsed>650u+unsigned(it->first%520))setPhase(it->first,officer,Phase::Expose,now);
                 break;
             case Phase::Expose:
                 // TU8 0x824A8960 tests completion of the subtask. In SA
@@ -175,28 +228,50 @@ static void tick(){
     if(now<nextSearch)return;
     nextSearch=now+210;
     std::erase_if(gunfire,[&](const auto& row){return !hot(row.first,now)||!pedFromRef(row.first);});
-    if(gunfire.empty()||officers.size()>=3)return;
+    std::erase_if(disarmedPeds,[&](const auto& row){return now-row.second.at>20000u||!pedFromRef(row.first);});
+    if(gunfire.empty()&&disarmedPeds.empty())return;
     auto* pool=pedPool();
-    for(int n=0;pool&&n<pool->size&&officers.size()<3;++n)if(!(pool->flags[n]&128)){
+    for(int n=0;pool&&n<pool->size;++n)if(!(pool->flags[n]&128)){
         auto* ped=pool->objects+n*0x7C4;
-        if(!available(ped)||length(position(ped)-position(player()))>26.f)continue;
+        if(!available(ped))continue;
+        const bool unarmed=copUnarmedFlee(ped);
+        if(length(position(ped)-position(player()))>(unarmed?28.f:26.f))continue;
         const int ref=reference(ped);
         if(officers.contains(ref))continue;
         auto* enemy=target(ped);
         const int threat=reference(enemy);
-        if(threat<0||!hot(threat,now)||length(position(ped)-position(enemy))<7.f)continue;
+        if(!enemy||threat<0)continue;
+        const bool disarmed=unarmed&&pedWasDisarmed(ped);
+        if(!unarmed&&(officers.size()>=3||!hot(threat,now)))continue;
+        if(unarmed&&!hot(threat,now)&&!disarmed)continue;
+        const float dist=length(position(ped)-position(enemy));
+        if(dist<7.f){if(unarmed)assignCopFlee(ped,enemy);continue;}
         Wall wall;
         V hide,fire;
         int side=1;
-        if(!find(ped,enemy,wall,hide,fire,side))continue;
-        if(std::any_of(officers.begin(),officers.end(),[&](const auto& item){return length(item.second.hide-hide)<.85f;}))continue;
+        if(officers.size()>=3||!find(ped,enemy,wall,hide,fire,side)||
+           std::any_of(officers.begin(),officers.end(),[&](const auto& item){return length(item.second.hide-hide)<.85f;})){
+            if(unarmed)assignCopFlee(ped,enemy);
+            continue;
+        }
         auto& officer=officers.try_emplace(ref).first->second;
         officer.wall=wall;officer.hide=hide;officer.fire=fire;officer.threat=threat;officer.side=side;
+        officer.unarmed=unarmed;
         const int weapon=combatWeapon(ped);
-        const bool corner=length(hide-fire)>.1f;
-        officer.exposeSeconds=clipMeta(officer.pose,ped,animationKey(wall.low,corner,side,weapon,"_normal_fire_intro")).duration;
-        officer.returnSeconds=clipMeta(officer.pose,ped,animationKey(wall.low,corner,side,weapon,"_normal_fire_outro")).duration;
-        if(!(officer.exposeSeconds>0.f&&officer.returnSeconds>0.f)){officers.erase(ref);continue;}
+        if(unarmed){
+            officer.poseWeapon=clipMeta(officer.pose,ped,animationKey(wall.low,false,side,0,"_idle")).duration>0.f?0:22;
+            if(!(clipMeta(officer.pose,ped,animationKey(wall.low,false,side,officer.poseWeapon,"_idle")).duration>0.f)){
+                officers.erase(ref);
+                assignCopFlee(ped,enemy);
+                continue;
+            }
+        }else{
+            officer.poseWeapon=weapon;
+            const bool corner=length(hide-fire)>.1f;
+            officer.exposeSeconds=clipMeta(officer.pose,ped,animationKey(wall.low,corner,side,weapon,"_normal_fire_intro")).duration;
+            officer.returnSeconds=clipMeta(officer.pose,ped,animationKey(wall.low,corner,side,weapon,"_normal_fire_outro")).duration;
+            if(!(officer.exposeSeconds>0.f&&officer.returnSeconds>0.f)){officers.erase(ref);continue;}
+        }
         setPhase(ref,officer,Phase::Approach,now);
     }
 }
@@ -223,10 +298,24 @@ static bool move(void* ped){
     const V velocity=dt>0.f&&distance>.03f?delta*(std::min(speed,distance*7.f)/distance):V{};
     at<float>(ped,0x550)=velocity.x*.02f;at<float>(ped,0x554)=velocity.y*.02f;
     if(!expose&&officer.phase!=Phase::Approach){
-        const V direction=tangent(officer.wall.normal)*float(officer.side);
+        const V direction=officer.phase==Phase::Return
+            ?V{-officer.wall.normal.x,-officer.wall.normal.y,0.f}
+            :tangent(officer.wall.normal)*float(officer.side);
         face(ped,direction,entering?&officer.entry:officer.phase==Phase::Return?&officer.facing:nullptr);
     }else if(officer.phase==Phase::Expose){
-        if(auto* enemy=pedFromRef(officer.threat))face(ped,flat(position(enemy)-position(ped)),&officer.facing);
+        const V sideDir=tangent(officer.wall.normal)*float(officer.side);
+        V rootTarget=sideDir;
+        if(auto* enemy=pedFromRef(officer.threat)){
+            const float normalOutYaw=std::atan2(officer.wall.normal.x,-officer.wall.normal.y);
+            const V enemyDir=flat(position(enemy)-position(ped));
+            const float aimYaw=std::atan2(-enemyDir.x,enemyDir.y);
+            const float sideYaw=std::atan2(-sideDir.x,sideDir.y);
+            const float targetRootYaw=sideYaw+std::remainder(aimYaw-normalOutYaw,6.2831853f);
+            rootTarget={-std::sin(targetRootYaw),std::cos(targetRootYaw),0.f};
+        }
+        face(ped,rootTarget,&officer.facing);
+    }else if(officer.phase==Phase::Fire){
+        if(auto* enemy=pedFromRef(officer.threat))face(ped,flat(position(enemy)-position(ped)));
     }
     return true;
 }
@@ -236,7 +325,7 @@ static bool draw(void* ped){
     if(found==officers.end()||!available(ped))return false;
     auto& officer=found->second;
     const float elapsed=float(gameTime()-officer.since)*.001f;
-    const int weapon=combatWeapon(ped);
+    const int weapon=officer.unarmed?officer.poseWeapon:combatWeapon(ped);
     const bool corner=length(officer.hide-officer.fire)>.1f;
     Motion motion=Motion::Rest;
     bool authored=false;

@@ -210,14 +210,15 @@ static void castPellets(void* weapon,Round& fired,const Profile& spec){
     event("shotgun_iv_ray_cast",reference(fired.shooter),-1,"weapon="+std::to_string(fired.weapon)+
           " rays="+std::to_string(budget)+" entities="+std::to_string(hits.size()));
 }
+static thread_local bool ragdollFiring=false;
 static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,void* target,V* end,V* alt){
     const int id=at<int>(weapon,0);
     if(!ready||!firearmDamage(id)||!playing()||cutscene()||(protectMissions&&scriptMissionActive()))
         return originalFire(weapon,shooter,start,muzzle,target,end,alt);
-    if(player_cover::holdsFire(shooter)||!player_cover::blindReady(shooter)||police_cover::holdsFire(shooter))return false;
+    if(!ragdollFiring&&(player_cover::blocksBullet(shooter)||!player_cover::blindReady(shooter)||police_cover::holdsFire(shooter)))return false;
     const auto& spec=profile(id);
     V exposedStart{},exposedMuzzle{},exposedEnd{};
-    const bool blind=player_cover::blindShot(shooter,exposedStart,exposedEnd,
+    const bool blind=!ragdollFiring&&player_cover::blindShot(shooter,exposedStart,exposedEnd,
         spec.reach>=3.f&&spec.reach<=150.f?spec.reach:35.f);
     if(blind){
         exposedMuzzle=exposedStart;
@@ -231,11 +232,11 @@ static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,
     const unsigned now=gameTime();
     // SA owns ammo, reloads, animation contact frames and weapon skill.
     // Enforce the imported spacing only after a successful native shot.
-    const bool paced=spec.interval&&reference(shooter)>=0&&!inVehicle(shooter);
+    const bool paced=!ragdollFiring&&spec.interval&&reference(shooter)>=0&&!inVehicle(shooter);
     if(paced&&at<int>(weapon,4)==1&&int(next-now)>0)return false;
     Round fired{shooter,id,{}};
     fired.blind=blind;
-    fired.replacePellets=paced&&detectImpacts&&spec.shotgun&&std::isfinite(spec.accuracy)&&spec.accuracy>0.f&&spec.accuracy<=1.f;
+    fired.replacePellets=(paced||ragdollFiring)&&detectImpacts&&spec.shotgun&&std::isfinite(spec.accuracy)&&spec.accuracy>0.f&&spec.accuracy<=1.f;
     if(fired.replacePellets){
         fired.explicitFrom=muzzle?*muzzle:start?*start:position(shooter)+V{0,0,.45f};
         if(end)fired.explicitEnd=*end;
@@ -246,8 +247,11 @@ static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,
             if(index<3)fired.explicitEnd=fired.explicitFrom+at<V>(camera,0x174+index*0x238+0x190)*25.f;
         }
     }
-    auto* previous=round;round=isShotgun(id)||blind?&fired:nullptr;
+    auto* previous=round;round=(isShotgun(id)||blind||ragdollFiring)?&fired:nullptr;
+    const unsigned char prevIkFlags=shooter?at<unsigned char>(shooter,0x528):0;
+    if(ragdollFiring&&shooter)at<unsigned char>(shooter,0x528)=prevIkFlags|1u;
     const bool result=originalFire(weapon,shooter,start,muzzle,target,end,alt);
+    if(ragdollFiring&&shooter)at<unsigned char>(shooter,0x528)=prevIkFlags;
     if(result){
         police_cover::fired(shooter);
         if(blind){

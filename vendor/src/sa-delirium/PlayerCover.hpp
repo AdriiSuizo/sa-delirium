@@ -16,14 +16,15 @@ struct Entry {
 struct State {
     int ref=-1;
     Wall wall{};
-    V destination{},peekBase{};
+    V destination{},peekBase{},peekTarget{},lastSafe{};
     void* duck=nullptr;
-    Entry entry{},turn{};
+    Entry entry{},turn{},aimFacing{},returnFacing{};
     int side=1,fireSide=1;
     bool fireCorner=false;
-    unsigned entered=0,exposed=0,returning=0,peekStarted=0,blindStarted=0,blindShotAt=0,blindReleased=0;
-    float diveSeconds=0,slideSpeed=0,slideTime=0,standOff=.44f;
-    bool shortDive=false;
+    unsigned entered=0,exposed=0,returning=0,peekStarted=0,blindStarted=0,blindShotAt=0,blindReleased=0,stalledSince=0;
+    float diveSeconds=0,slideSpeed=0,slideTime=0,standOff=.46f,walkTime=0.f;
+    V stallPos{};
+    bool shortDive=false,runningEntry=false;
     bool approaching=false,aiming=false,peeking=false,corner=false,blind=false;
 };
 struct ClipMeta { float duration=0,moverSpeed=0; };
@@ -60,7 +61,7 @@ struct CoverView {
     void* cam=nullptr;
     V nativeFront{},nativeSource{},nativeUp{},previousFront{};
     Q offset{};
-    float shoulder=0.f;
+    float shoulder=0.f,pivotZ=.55f;
     bool seeded=false,unoccludedSource=false;
 };
 static CoverView viewState;
@@ -101,9 +102,39 @@ static bool owns(void* ped){return ped&&ped==player()&&cover.ref>=0&&pedFromRef(
 static bool holdsFire(void* ped){
     return owns(ped)&&(cover.approaching||cover.turn.started||(!cover.wall.low&&!cover.corner&&!cover.peeking));
 }
+static bool blocksBullet(void* ped){
+    if(holdsFire(ped))return true;
+    if(!owns(ped)||!cover.aiming)return false;
+    if(cover.aimFacing.seconds>0.f&&cover.exposed&&float(gameTime()-cover.exposed)*.001f<cover.aimFacing.seconds*.50f)return true;
+    if(cover.fireCorner&&!cover.wall.low&&matrix(ped)){
+        const V d=cover.destination-matrix(ped)->pos;
+        if(std::hypot(d.x,d.y)>.28f)return true;
+    }
+    return false;
+}
+static Entry startEntry(void*,unsigned,float);
+static ClipMeta clipMeta(PoseReader&,void*,const std::string&);
+static std::string animationKey(bool,bool,int,int,const char*);
 static void updateAim(bool aim,unsigned now){
-    if(aim&&!cover.aiming){cover.exposed=now;cover.returning=0;cover.fireSide=cover.side;cover.fireCorner=cover.corner;}
-    if(!aim&&cover.aiming)cover.returning=now;
+    auto* ped=player();
+    if(aim&&!cover.aiming){
+        cover.exposed=now;cover.returning=0;cover.returnFacing={};cover.fireSide=cover.side;cover.fireCorner=cover.corner;
+        float dur=.25f;
+        if(ped&&(cover.wall.low||cover.fireCorner)){
+            const float d=clipMeta(poseReader,ped,animationKey(cover.wall.low,cover.fireCorner,cover.fireSide,combatWeapon(ped),"_normal_fire_intro")).duration;
+            if(d>0.f)dur=d;
+        }
+        cover.aimFacing=ped?startEntry(ped,now,dur):Entry{{},0.f,dur,now};
+    }
+    if(!aim&&cover.aiming){
+        cover.returning=now;
+        float dur=.30f;
+        if(ped&&(cover.wall.low||cover.fireCorner)){
+            const float d=clipMeta(poseReader,ped,animationKey(cover.wall.low,cover.fireCorner,cover.fireSide,combatWeapon(ped),"_normal_fire_outro")).duration;
+            if(d>0.f)dur=d;
+        }
+        cover.returnFacing=ped?startEntry(ped,now,dur):Entry{{},0.f,dur,now};
+    }
     cover.aiming=aim;
 }
 static bool available(void* ped){
@@ -116,7 +147,9 @@ static bool available(void* ped){
     return type==TASK_SIMPLE_PLAYER_ON_FOOT;
 }
 static bool aimInput(void* pad){
-    return reinterpret_cast<bool(__thiscall*)(void*)>(0x540670)(pad);
+    if(!pad)return false;
+    return originalCombatGetTarget?originalCombatGetTarget(pad):
+        reinterpret_cast<bool(__thiscall*)(void*)>(0x540670)(pad);
 }
 static Entry startEntry(void* ped,unsigned now,float seconds){
     return {position(ped),at<float>(ped,0x558),seconds,now};
@@ -129,14 +162,54 @@ static float smooth(float fraction){
 static V entryGoal(const Entry& entry,V end,float step){
     return entry.from+(end-entry.from)*smooth((entryAge(entry)+step)/entry.seconds);
 }
-static void face(void* ped,V direction,const Entry* entry=nullptr){
+static void face(void* ped,V direction,const Entry* entry=nullptr,const V* outwardNormal=nullptr){
     float yaw=std::atan2(-direction.x,direction.y);
-    if(entry)yaw=entry->yaw+std::remainder(yaw-entry->yaw,6.2831853f)*smooth(entryAge(*entry)/entry->seconds);
+    if(entry){
+        float dYaw=std::remainder(yaw-entry->yaw,6.2831853f);
+        if(outwardNormal){
+            const V startDir{-std::sin(entry->yaw),std::cos(entry->yaw),0};
+            const float crossZ=startDir.x*outwardNormal->y-startDir.y*outwardNormal->x;
+            dYaw=std::copysign(std::abs(dYaw),crossZ>=0.f?1.f:-1.f);
+        }
+        yaw=entry->yaw+dYaw*smooth(entryAge(*entry)/entry->seconds);
+    }
     at<float>(ped,0x558)=at<float>(ped,0x55C)=yaw;
     reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(ped,yaw);
 }
 static V flat(V v){v.z=0;return normalized(v);}
+static float dist2d(V a,V b){return std::hypot(a.x-b.x,a.y-b.y);}
 static V tangent(V normal){return {-normal.y,normal.x,0};}
+static void applyAimFacing(void* ped,V view,void* cam,bool syncRw){
+    if(!ped||!finite(view)||std::hypot(view.x,view.y)<.01f)return;
+    const bool introTurn=(cover.wall.low||cover.fireCorner)&&!cover.returning&&
+        cover.aimFacing.seconds>0.f&&entryAge(cover.aimFacing)<cover.aimFacing.seconds;
+    if(introTurn){
+        const V along=tangent(cover.wall.normal);
+        const float normalOutYaw=std::atan2(cover.wall.normal.x,-cover.wall.normal.y);
+        const float viewYaw=std::atan2(-view.x,view.y);
+        const V sideDir=along*float(cover.fireSide);
+        const float sideYaw=std::atan2(-sideDir.x,sideDir.y);
+        const float targetRootYaw=sideYaw+std::remainder(viewYaw-normalOutYaw,6.2831853f);
+        face(ped,{-std::sin(targetRootYaw),std::cos(targetRootYaw),0.f},&cover.aimFacing);
+    }else{
+        const int weapon=combatWeapon(ped);
+        const int skill=reinterpret_cast<int(__thiscall*)(void*)>(0x5E6580)(ped);
+        auto* info=weapon>=0?reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(weapon,skill):nullptr;
+        const bool armAim=info&&(at<unsigned>(info,0x18)&2u)!=0&&(at<unsigned>(ped,0x46C)&0x04000000u)==0;
+        if(!armAim&&cam){
+            const float fov=at<float>(cam,0xB4);
+            const float cx=*reinterpret_cast<const float*>(0xB6EC14);
+            const float hAngle=(std::isfinite(fov)&&fov>1.f&&fov<179.f&&std::isfinite(cx)&&cx>=0.f&&cx<=1.f)
+                ?std::atan((cx-.5f)*2.f*std::tan(fov*.5f*.0174532925f)):0.f;
+            const float bodyYaw=std::atan2(-view.x,view.y)-hAngle;
+            at<float>(ped,0x558)=at<float>(ped,0x55C)=bodyYaw-.05f;
+            reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(ped,bodyYaw);
+        }else{
+            face(ped,view,nullptr);
+        }
+    }
+    if(syncRw)reinterpret_cast<void(__thiscall*)(void*)>(0x446F90)(ped);
+}
 static bool ground(V origin,float& height){
     ColPoint hit{};void* floor=nullptr;
     V from=origin+V{0,0,.35f};
@@ -151,14 +224,17 @@ static bool ray(V from,V to,ColPoint& hit,void*& entity){
 static void cameraBegin(){
     auto* cam=activeCamera();
     const V previous=cam?at<V>(cam,0x190):V{};
+    const bool aiming=owns(player())&&cover.aiming;
     if(viewState.cam){
-        at<V>(viewState.cam,0x190)=viewState.nativeFront;
-        at<V>(viewState.cam,0x19C)=viewState.nativeSource;
-        at<V>(viewState.cam,0x1B4)=viewState.nativeUp;
+        if(aiming){
+            at<V>(viewState.cam,0x190)=viewState.nativeFront;
+            at<V>(viewState.cam,0x19C)=viewState.nativeSource;
+            at<V>(viewState.cam,0x1B4)=viewState.nativeUp;
+        }
         viewState.cam=nullptr;
     }
     viewState.previousFront=previous;
-    if(!owns(player())||!cover.aiming)viewState.seeded=false;
+    if(!aiming)viewState.seeded=false;
 }
 static void applyCamera(void* camera){
     auto* ped=player();auto* cam=activeCamera();
@@ -172,18 +248,29 @@ static void applyCamera(void* camera){
     const bool enteringAim=!viewState.seeded;
     if(enteringAim){
         const V seed=viewState.previousFront;
-        viewState.offset=finite(seed)&&length(seed)>.9f?turnBetween(pose.up,seed):Q{};
+        const float seedHoriz=std::hypot(seed.x,seed.y),nativeHoriz=std::hypot(pose.up.x,pose.up.y);
+        if(finite(seed)&&seedHoriz>.2f&&nativeHoriz>.2f){
+            const V a=flat(pose.up),b=flat(seed);
+            const float c=std::clamp(dot(a,b),-1.f,1.f);
+            viewState.offset=c<-.9999f?Q{0.f,0.f,1.f,0.f}:unit({0.f,0.f,a.x*b.y-a.y*b.x,1.f+c});
+        }else{
+            viewState.offset=Q{};
+        }
         viewState.seeded=true;
     }
     const V front=normalized(rotate(viewState.offset,pose.up));
     const V left=normalized(cross(V{0,0,1},front)),up=cross(front,left);
-    const V pivot=position(ped)+V{0,0,.55f};
+    const float dt=combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C));
+    const float wantPivotZ=((at<unsigned>(ped,0x46C)&0x04000000u)!=0||(cover.wall.low&&cover.fireCorner))?.24f:.55f;
+    if(enteringAim)viewState.pivotZ=wantPivotZ;
+    else viewState.pivotZ+=(wantPivotZ-viewState.pivotZ)*(1.f-std::exp(-dt*12.f));
+    const V pivot=position(ped)+V{0,0,viewState.pivotZ};
     V source=pivot+rotate(viewState.offset,pose.pos-pivot);
     viewState.unoccludedSource=false;
-    // Native collision was tested on SA's original shoulder. On the opposite
-    // side, start with its verified unoccluded point and sweep that side below.
-    // Reject stale captures or a pose changed by another camera adjustment.
-    if(dot(source-pivot,left)*float(cover.fireSide)<0.f){
+    {
+        // Native Process_AimWeapon runs wall collision along its pre-rotated heading
+        // (up to 90 deg off). Always consume the pre-collision source when available
+        // before running our 5-ray sweep along the true aimed camera vector.
         V unoccluded{};
         if(cover_native_camera::unoccludedSource(cam,reference(ped),
             *reinterpret_cast<const unsigned*>(0xB7CB4C),at<V>(cam,0x19C),pose.pos,unoccluded)){
@@ -191,12 +278,14 @@ static void applyCamera(void* camera){
             viewState.unoccludedSource=true;
         }
     }
-    // SA has one native shoulder. Mirror its lateral displacement for the
-    // opposite cover side while preserving aim direction and camera pitch.
+    const float openSign=cover.fireCorner
+        ?(dot(tangent(cover.wall.normal)*float(cover.fireSide),left)>=0.f?1.f:-1.f)
+        :(dot(source-pivot,left)>=0.f?1.f:-1.f);
+    // Keep SA's native right shoulder for right corners and centre walls; mirror
+    // onto the left shoulder when exposing a left corner so cover blocks nothing.
     const float nativeShoulder=dot(source-pivot,left);
     if(enteringAim)viewState.shoulder=nativeShoulder;
-    const float wantedShoulder=std::copysign(std::abs(nativeShoulder),float(cover.fireSide));
-    const float dt=combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C));
+    const float wantedShoulder=std::copysign(std::abs(nativeShoulder),openSign);
     viewState.shoulder+=(wantedShoulder-viewState.shoulder)*(1.f-std::exp(-dt*16.f));
     source=source+left*(viewState.shoulder-nativeShoulder);
     // Native right-shoulder placement may be inside the wall on a left edge.
@@ -214,6 +303,9 @@ static void applyCamera(void* camera){
     viewState.cam=cam;viewState.nativeFront=at<V>(cam,0x190);
     viewState.nativeSource=at<V>(cam,0x19C);viewState.nativeUp=at<V>(cam,0x1B4);
     at<V>(cam,0x190)=front;at<V>(cam,0x19C)=source;at<V>(cam,0x1B4)=up;
+    // CCam::Process_AimWeapon writes CJ's heading/RW matrix from nativeFront before applyCamera
+    // rotates the camera (for two-handed guns and crouched cover), so re-apply aimed facing here.
+    applyAimFacing(ped,flat(front),cam,true);
 }
 static bool wallRay(V from,V direction,float reach,Wall& wall){
     ColPoint hit{};void* entity=nullptr;
@@ -277,9 +369,38 @@ static bool matches(const Wall& found,const Wall& wall){
     return dot(found.normal,wall.normal)>.82f&&
         (wall.vehicle<0?found.vehicle<0:found.vehicle==wall.vehicle);
 }
+static bool retainMatches(const Wall& found,const Wall& wall){
+    return dot(found.normal,wall.normal)>.68f&&
+        (wall.vehicle<0?found.vehicle<0:found.vehicle==wall.vehicle);
+}
+static bool supportWall(V root,const Wall& expected,Wall& hit){
+    if(traceWall(root,expected,hit))return true;
+    float height;
+    if(!finite(root)||!cover_wall_continuity::validPlane(expected.point,expected.normal)||
+       !ground(root,height)||!std::isfinite(height))return false;
+    const bool lowOrVeh=expected.vehicle>=0||expected.low;
+    const std::array<float,4> zProbes=lowOrVeh?std::array<float,4>{-.24f,-.12f,0.f,.14f}:
+        std::array<float,4>{0.f,-.20f,.24f,.35f};
+    const float maxDepth=lowOrVeh?.38f:.28f;
+    for(float dz:zProbes){
+        const V from=V{root.x,root.y,height+.60f+dz}+expected.normal*.22f;
+        const V to=from-expected.normal*1.20f;
+        ColPoint contact{};void* entity=nullptr;
+        if(!ray(from,to,contact,entity)||!entity||!finite(contact.point)||!finite(contact.normal))continue;
+        if(std::abs(contact.normal.z)>.45f)continue;
+        const V normal=flat(contact.normal);
+        if(dot(normal,expected.normal)<.55f)continue;
+        if(std::abs(dot(contact.point-expected.point,expected.normal))>maxDepth)continue;
+        const int vehicle=vehicleRef(entity);
+        if(expected.vehicle>=0?vehicle!=expected.vehicle:vehicle>=0)continue;
+        if(vehicle>=0&&length(at<V>(entity,0x44))*50.f>2.f)continue;
+        hit={vehicle,contact.point,normal,false};return true;
+    }
+    return false;
+}
 static bool sameWall(V root,const Wall& wall){
     Wall found;
-    return traceWall(root,wall,found)&&matches(found,wall);
+    return supportWall(root,wall,found)&&retainMatches(found,wall);
 }
 static void refreshCorner(V root,bool aim){
     const V along=tangent(cover.wall.normal);
@@ -295,30 +416,82 @@ static void refreshCorner(V root,bool aim){
     if(aim&&!open&&other){cover.side=-cover.side;cover.turn={};}
     cover.corner=open||(aim&&other);
 }
-static V cornerGoal(V root){
-    const V along=tangent(cover.wall.normal)*float(cover.side);
-    // Find the actual end of the obstacle. A fixed 42 cm step can leave the
-    // muzzle behind the very corner which allowed aiming in the first place.
+static V cornerGoal(V root,int side){
+    const V along=tangent(cover.wall.normal)*float(side);
+    const float extra=side<0?.34f:.26f;
+    // Find the actual end of the obstacle; left corners need extra clearance so SA's right-handed gun clears the wall.
     float edge=.06f;
     while(edge<.66f&&sameWall(root+along*edge,cover.wall))edge+=.06f;
-    return root+along*(edge+.26f);
+    V goal=root+along*(edge+extra);
+    ColPoint block{};void* ent=nullptr;
+    if(ray(root+V{0,0,.65f},goal+V{0,0,.65f},block,ent)&&finite(block.point)){
+        const float clearDist=dot(block.point-root,along)-.28f;
+        if(clearDist>.04f&&clearDist<edge+extra)goal=root+along*clearDist;
+    }
+    float rootFloor=0.f,goalFloor=0.f;
+    if(ground(root,rootFloor)&&(!ground(goal,goalFloor)||std::abs(goalFloor-rootFloor)>.28f)){
+        for(float step=dot(goal-root,along)-.06f;step>=.06f;step-=.06f){
+            const V candidate=root+along*step;
+            if(ground(candidate,goalFloor)&&std::abs(goalFloor-rootFloor)<=.28f){goal=candidate;break;}
+        }
+    }
+    return goal;
 }
 static bool findWall(void* ped,V ahead,float reach,Wall& picked,V& destination){
     const V root=position(ped);
     float height;
     if(!ground(root,height))return false;
     const V waist{root.x,root.y,height+.60f};
+    const V lowWaist{root.x,root.y,height+.40f};
     const V right=tangent(ahead);
     float best=reach+1.f;
-    for(float side:{0.f,-.38f,.38f,-.8f,.8f}){
+    for(float side:{0.f,-.24f,.24f,-.48f,.48f}){
         const V direction=flat(ahead+right*side);
         Wall wall;
-        if(!wallRay(waist,direction,reach,wall))continue;
-        V stand=wall.point+wall.normal*.55f;
+        if(!wallRay(waist,direction,reach,wall)&&!wallRay(lowWaist,direction,reach,wall))continue;
+        if(dot(wall.normal,ahead)>-.45f||dot(wall.normal,direction)>-.55f)continue;
+        V stand=wall.point+wall.normal*.46f;
         stand.z=root.z;
         float groundHeight;
         if(!ground(stand,groundHeight)||std::abs(groundHeight-height)>.28f)continue;
-        const float cost=length(stand-root)+std::abs(side)*.18f;
+        const V travel2d{stand.x-root.x,stand.y-root.y,0};
+        const float travelLen=length(travel2d);
+        if(travelLen>.28f){
+            const V travelDir=travel2d*(1.f/travelLen);
+            const V sideAxis=tangent(travelDir);
+            float midHeight=0.f;
+            const V mid{(root.x+stand.x)*.5f,(root.y+stand.y)*.5f,root.z};
+            if(!ground(mid,midHeight)||std::abs(midHeight-height)>.28f||std::abs(midHeight-groundHeight)>.24f)continue;
+            const float clearDist=travelLen-.14f;
+            bool blocked=false;
+            if(clearDist>.12f)for(float lane:{0.f,-.20f,.20f}){
+                for(float zOff:{.42f,1.05f}){
+                    const V p0{root.x+sideAxis.x*lane,root.y+sideAxis.y*lane,height+zOff};
+                    const V p1=p0+travelDir*clearDist;
+                    ColPoint block{};void* blockEntity=nullptr;
+                    if(ray(p0,p1,block,blockEntity)&&
+                       (!finite(block.point)||dist2d(block.point,wall.point)>.50f||std::abs(dot(block.point-wall.point,wall.normal))>.18f)){
+                        blocked=true;break;
+                    }
+                }
+                if(blocked)break;
+            }
+            if(blocked)continue;
+        }
+        Wall backing{};
+        if(!supportWall(stand,wall,backing)||!matches(backing,wall))continue;
+        const V along=tangent(wall.normal);
+        const bool wide=(sameWall(stand+along*.14f,wall)&&sameWall(stand-along*.14f,wall))||
+            sameWall(stand+along*.28f,wall)||sameWall(stand-along*.28f,wall);
+        if(!wide)continue;
+        const V standWaist{stand.x,stand.y,groundHeight+.65f};
+        bool tight=false;
+        for(const V& probe:{along*.24f,along*-.24f,wall.normal*.24f}){
+            ColPoint c{};void* e=nullptr;
+            if(ray(standWaist,standWaist+probe,c,e)){tight=true;break;}
+        }
+        if(tight)continue;
+        const float cost=length(stand-root)+std::abs(side)*.95f;
         if(cost>=best)continue;
         ColPoint upper{};void* top=nullptr;
         const V upperFrom=V{stand.x,stand.y,height+1.4f};
@@ -333,7 +506,7 @@ static const char* weaponPose(int weapon){
     return weapon>=25&&weapon!=28&&weapon!=32?"rifle":weapon>=22?"pistol":"unarmed";
 }
 static std::string keyFor(bool low,bool corner,int side,const char* name){
-    return std::string("cover_")+(side>0?"l_":"r_")+(low?"low_":"high_")+
+    return std::string("cover_")+(side>0?"r_":"l_")+(low?"low_":"high_")+
         (corner?"corner/":"centre/")+name;
 }
 static const char* blindClip(int weapon){
@@ -349,7 +522,7 @@ static std::string animationKey(bool low,bool corner,int side,int weapon,const c
 static std::string diveKey(void* ped){
     const char* held=weaponPose(combatWeapon(ped));
     return std::string("cover_dive/")+(cover.wall.low?"low_":"high_")+
-        (cover.side>0?"l_":"r_")+(held[0]=='r'?"rifle":"pistol")+(cover.shortDive?"_short":"");
+        (cover.side>0?"r_":"l_")+(held[0]=='r'?"rifle":"pistol")+(cover.shortDive?"_short":"");
 }
 static unsigned coverKey(){
     static const unsigned key=[](){
@@ -389,21 +562,44 @@ static void tick(bool down){
     if(pressed&&owns(ped)){leave("button");return;}
     if(pressed){
         departedAt=0;
-        V ahead=flat(matrix(ped)->up);
-        Wall wall;V destination;
+        const float px=std::clamp(reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,-1.f,1.f);
+        const float py=std::clamp(-reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f,-1.f,1.f);
+        auto* camera=activeCamera();
+        const V camView=camera?flat(at<V>(camera,0x190)):flat(matrix(ped)->up);
+        const V wish=V{camView.y,-camView.x,0}*px+camView*py;
+        const V bodyAhead=flat(matrix(ped)->up);
         const int gait=at<int>(ped,0x534);
-        if(!findWall(ped,ahead,gait==6||gait==7?6.8f:1.8f,wall,destination))return;
+        const V rawVel=at<V>(ped,0x44);
+        const float moveSpeed=std::hypot(rawVel.x,rawVel.y)*50.f;
+        const bool walkingOnly=nikoActive&&nikoState[3]>.05f&&nikoState[3]<1.35f;
+        const bool running=!walkingOnly&&(gait==7||(gait==6&&(moveSpeed>=2.0f||!nikoActive||nikoState[3]==0.f)));
+        const float reach=running?6.0f:2.2f;
+        Wall wall;V destination;
+        bool found=false;
+        if(length(wish)>.25f){
+            found=findWall(ped,flat(wish),reach,wall,destination);
+            if(!found)found=findWall(ped,bodyAhead,std::min(reach,2.2f),wall,destination);
+            if(!found)found=findWall(ped,camView,std::min(reach,2.2f),wall,destination);
+        }else{
+            found=findWall(ped,camView,reach,wall,destination);
+            if(!found)found=findWall(ped,bodyAhead,reach,wall,destination);
+        }
+        if(!found)return;
         cover.ref=reference(ped);
         cover.wall=wall;
         cover.destination=destination;
-        auto* camera=activeCamera();
-        const V view=camera?flat(at<V>(camera,0x190)):flat(matrix(ped)->up);
+        cover.lastSafe=destination;
+        const V view=camView;
         cover.side=dot(tangent(wall.normal),V{view.y,-view.x,0})>=0.f?1:-1;
         cover.entered=gameTime();
-        cover.entry=startEntry(ped,cover.entered,combatWeapon(ped)>=22&&aimInput(pad)?.38f:.30f);
+        cover.runningEntry=running;
+        cover.walkTime=0.f;
+        cover.stallPos=position(ped);
+        cover.stalledSince=cover.entered;
+        const float distance=dist2d(destination,position(ped));
+        cover.entry=startEntry(ped,cover.entered,std::clamp(distance/(running?4.0f:1.85f),.18f,1.80f));
         cover.approaching=true;
-        const float distance=length(destination-position(ped));
-        if(distance>1.5f){
+        if(running&&distance>1.5f){
             cover.shortDive=distance<4.f;
             float meta[2]{};
             if(!preparePose(poseReader,ped)||nm_locomotion_clip_pose(combat,poseReader.reader,diveKey(ped).c_str(),0,
@@ -422,7 +618,7 @@ static void tick(bool down){
         if(!vehicle||length(at<V>(vehicle,0x44))*50.f>2.f){leave("vehicle_moved");return;}
     }
     const int weapon=combatWeapon(ped);
-    const bool requested=weapon>=22&&aimInput(pad);
+    const bool requested=weapon>=22&&weapon<=34&&aimInput(pad);
     if(!cover.approaching&&!cover.peeking)refreshCorner(position(ped),requested);
     const bool aim=requested&&!holdsFire(ped);
     const bool blind=!aim&&!cover.approaching&&!cover.turn.started&&(cover.wall.low||cover.corner)&&blindClip(weapon)&&
@@ -431,7 +627,7 @@ static void tick(bool down){
     if(blind&&!cover.blind){cover.blindStarted=gameTime();cover.blindReleased=0;cover.blindShotAt=0;}
     if(!blind&&cover.blind)cover.blindReleased=gameTime();
     cover.blind=blind;
-    setDuck(ped,cover.duck,cover.wall.low&&!aim&&!cover.approaching);
+    setDuck(ped,cover.duck,cover.wall.low&&(!aim||cover.fireCorner)&&!cover.approaching);
 }
 static void sample(){
     auto* pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
@@ -448,44 +644,87 @@ static bool move(void* ped){
     V delta=cover.destination-current;delta.z=0;
     V wallVelocity{};
     if(cover.approaching){
-        if(length(delta)<.12f&&entryAge(cover.entry)>=cover.entry.seconds){
+        Wall arrivedWall{};
+        const float normalGap=dot(current-cover.wall.point,cover.wall.normal);
+        const float alongGap=std::abs(dot(current-cover.destination,along));
+        const bool hasSup=supportWall(current,cover.wall,arrivedWall)&&retainMatches(arrivedWall,cover.wall);
+        const bool arrived=cover.diveSeconds<=0.f
+            ?(hasSup&&(length(delta)<.11f||(normalGap>=.32f&&normalGap<=.58f&&alongGap<.16f)))
+            :((length(delta)<.11f&&hasSup)||(entryAge(cover.entry)>=cover.diveSeconds*.85f&&normalGap>=.30f&&normalGap<=.62f&&alongGap<.22f&&hasSup));
+        if(arrived){
             cover.approaching=false;
-            cover.standOff=std::clamp(dot(current-cover.wall.point,cover.wall.normal),.55f,.65f);
-        }
-        else if(gameTime()-cover.entered>std::max(950u,unsigned(cover.diveSeconds*1000.f)+400)){
-            leave("approach_blocked");return false;
-        }
-        if(cover.approaching&&cover.diveSeconds<=0.f){
-            delta=entryGoal(cover.entry,cover.destination,dt)-current;delta.z=0;
+            cover.standOff=std::clamp(normalGap,.40f,.52f);
+            cover.lastSafe=current;
+        }else if(length(delta)<.11f&&!hasSup){
+            Wall destWall{};
+            if(supportWall(cover.destination,cover.wall,destWall)&&retainMatches(destWall,cover.wall)){
+                cover.approaching=false;
+                cover.standOff=.46f;
+                cover.lastSafe=cover.destination;
+            }else{
+                leave("approach_blocked");return false;
+            }
+        }else{
+            const unsigned now=gameTime();
+            const unsigned limit=std::max(1400u,unsigned((cover.diveSeconds>0.f?cover.diveSeconds:cover.entry.seconds)*1000.f)+600u);
+            if(dist2d(current,cover.stallPos)>=.05f){cover.stallPos=current;cover.stalledSince=now;}
+            else if(cover.diveSeconds<=0.f&&length(delta)>.35f&&now-cover.stalledSince>550u){leave("approach_blocked");return false;}
+            if(now-cover.entered>limit){leave("approach_blocked");return false;}
+            if(cover.diveSeconds<=0.f&&length(delta)>.35f){
+                ColPoint obs{};void* obsEnt=nullptr;
+                const V fwd=flat(delta);
+                const V feelFrom=current+V{0,0,.55f};
+                if(ray(feelFrom,feelFrom+fwd*.65f,obs,obsEnt)&&finite(obs.point)&&finite(obs.normal)&&
+                   obs.normal.z<.45f&&dist2d(obs.point,cover.wall.point)>.40f){
+                    V t=tangent(flat(obs.normal));
+                    if(dot(t,fwd)<0.f)t=V{}-t;
+                    const V bypass=flat(t*.85f+flat(obs.normal)*.25f);
+                    delta=bypass*length(delta);
+                }
+            }
         }
     }
     if(!cover.approaching){
         const V support=cover.peeking?cover.peekBase:current;
-        Wall wall;
-        if(!traceWall(support,cover.wall,wall)||!matches(wall,cover.wall)){leave("cover_lost");return false;}
+        Wall wall{};
+        bool hasWall=supportWall(support,cover.wall,wall)&&retainMatches(wall,cover.wall);
+        V recoverDelta{};
+        if(!hasWall&&!cover.peeking&&dist2d(current,cover.lastSafe)<.85f&&
+           supportWall(cover.lastSafe,cover.wall,wall)&&retainMatches(wall,cover.wall)){
+            hasWall=true;
+            recoverDelta=cover.lastSafe-current;recoverDelta.z=0;
+        }
+        if(!hasWall){leave("cover_lost");return false;}
+        if(!cover.peeking&&length(recoverDelta)==0.f)cover.lastSafe=current;
+        if(!cover.peeking&&!cover.aiming&&matches(wall,cover.wall)&&length(wall.point-cover.wall.point)<.45f){
+            cover.wall.point=wall.point;cover.wall.normal=wall.normal;
+        }
         auto* pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
         const float x=std::clamp(reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,-1.f,1.f);
         const float y=std::clamp(-reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f,-1.f,1.f);
         auto* camera=activeCamera();
         const V view=camera?flat(at<V>(camera,0x190)):flat(matrix(ped)->up);
-        // CPad is refreshed inside CGame::Process. The earlier sample can be
-        // one frame old here, otherwise it turns CJ sideways again just before
-        // SA creates the aim camera behind his heading.
-        const bool requested=combatWeapon(ped)>=22&&aimInput(pad);
+        const int weapon=combatWeapon(ped);
+        const bool requested=weapon>=22&&weapon<=34&&aimInput(pad);
         if(!cover.peeking)refreshCorner(current,requested);
         updateAim(requested&&!holdsFire(ped),gameTime());
-        if(requested){
-            face(ped,view);
-            setDuck(ped,cover.duck,cover.wall.low&&!cover.aiming);
-        }
+        if(!cover.peeking&&cover.returning&&cover.returnFacing.seconds>0.f&&entryAge(cover.returnFacing)>=cover.returnFacing.seconds)
+            cover.returning=0;
+        setDuck(ped,cover.duck,cover.wall.low&&(!cover.aiming||cover.fireCorner));
+        if(cover.aiming)applyAimFacing(ped,view,camera,false);
         const V wish=V{view.y,-view.x,0}*x+view*y;
-        if(dot(wish,cover.wall.normal)>.68f){leave("step_away");return false;}
+        const float wishLen=length(wish);
+        // IV main.rs:2693: step away / sprint out only when pressed to cover (not mid-aim or corner peek/return).
+        if(!cover.aiming&&!cover.peeking&&!cover.returning&&!cover.blind&&!cover.turn.started&&wishLen>.25f){
+            const bool sprintOut=pad&&reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad);
+            if(sprintOut||dot(wish,cover.wall.normal)>.70f*wishLen){leave("step_away");return false;}
+        }
         const float slide=dot(wish,along);
         if(cover.turn.started&&entryAge(cover.turn)>=cover.turn.seconds)cover.turn={};
-        const bool canSlide=!cover.aiming&&!cover.blind&&!cover.peeking;
+        const bool canSlide=!cover.aiming&&!cover.blind&&!cover.peeking&&!cover.returning;
         const int next=slide>0.f?1:-1;
         const bool sameSide=next==cover.side;
-        const bool hasRoom=std::abs(slide)>.18f&&sameWall(current+along*(.18f*next),cover.wall);
+        const bool hasRoom=std::abs(slide)>.18f&&sameWall(current+along*(.16f*next),cover.wall);
         if(canSlide&&!cover.turn.started&&!sameSide&&hasRoom&&std::abs(slide)>.24f&&std::abs(cover.slideSpeed)<.18f){
             const auto turn=animationKey(cover.wall.low,false,next,combatWeapon(ped),"_flip_180");
             const float duration=clipMeta(poseReader,ped,turn).duration;
@@ -493,11 +732,22 @@ static bool move(void* ped){
             cover.side=next;
         }
         if(cover.peeking&&!cover.aiming){
-            if(length(current-cover.peekBase)<.1f)cover.peeking=false;
+            V backDelta=cover.peekBase-current;backDelta.z=0;
+            Wall curWall{};
+            const bool backSupported=length(backDelta)<.14f||
+                (cover.returning&&gameTime()-cover.returning>450u&&supportWall(current,cover.wall,curWall)&&retainMatches(curWall,cover.wall));
+            if(backSupported||(cover.returning&&gameTime()-cover.returning>2200u))cover.peeking=false;
             else cover.destination=cover.peekBase;
         }
-        if(!cover.peeking){
-            refreshCorner(current,requested);
+        if(cover.aiming&&cover.corner){
+            if(!cover.peeking){
+                cover.peekBase=current;
+                cover.peeking=true;
+                cover.peekTarget=cornerGoal(cover.peekBase,cover.fireSide);
+            }
+            cover.destination=cover.peekTarget;
+            wallVelocity={};
+        }else if(!cover.peeking){
             const bool pushing=cover.corner&&!hasRoom&&std::abs(cover.slideSpeed)<.16f&&
                 slide*cover.side>.18f&&canSlide&&!cover.turn.started;
             if(pushing&&!cover.peekStarted)cover.peekStarted=gameTime();
@@ -506,38 +756,50 @@ static bool move(void* ped){
             const float error=cover.standOff-gap;
             const float drift=std::copysign(std::min(.28f,std::max(0.f,std::abs(error)-.045f)*4.5f),error);
             cover.destination=current;
-            wallVelocity=cover.wall.normal*drift;
-            if(cover.aiming&&cover.corner){
-                cover.peekBase=current;cover.destination=cornerGoal(current);
-                cover.peeking=true;
-                wallVelocity={};
-            }
+            wallVelocity=length(recoverDelta)>.01f?flat(recoverDelta)*std::min(2.2f,length(recoverDelta)*10.f):cover.wall.normal*drift;
         }
-        const float targetSpeed=canSlide&&!cover.turn.started&&hasRoom&&sameSide?slide*1.25f:0.f;
+        const float targetSpeed=length(recoverDelta)<=.01f&&canSlide&&!cover.turn.started&&hasRoom&&sameSide?slide*1.25f:0.f;
         cover.slideSpeed+=std::clamp(targetSpeed-cover.slideSpeed,-7.f*dt,7.f*dt);
-        if(std::abs(cover.slideSpeed)>.025f&&canSlide&&!cover.turn.started&&
-           sameWall(current+along*std::copysign(.12f,cover.slideSpeed),cover.wall)){
+        if(length(recoverDelta)<=.01f&&std::abs(cover.slideSpeed)>.025f&&canSlide&&!cover.turn.started&&
+           sameWall(current+along*std::copysign(.16f,cover.slideSpeed),cover.wall)){
             wallVelocity=wallVelocity+along*cover.slideSpeed;
             const float authoredSpeed=clipMeta(poseReader,ped,walk).moverSpeed;
             cover.slideTime+=dt*std::abs(cover.slideSpeed)/std::max(.5f,authoredSpeed);
-        }else if(!canSlide||cover.turn.started||std::abs(cover.slideSpeed)>.025f){
+        }else if(length(recoverDelta)>.01f||!canSlide||cover.turn.started||std::abs(cover.slideSpeed)>.025f){
             cover.slideSpeed=0.f;
         }
         delta=cover.destination-current;delta.z=0;
     }
     const float distance=length(delta);
-    float speed=cover.approaching?3.2f:cover.peeking?2.1f:1.45f;
+    float speed=cover.approaching?(cover.runningEntry?(distance>.65f?4.2f:2.8f):(distance>.45f?1.85f:1.55f)):cover.peeking?2.2f:1.45f;
     if(cover.approaching&&cover.diveSeconds>0.f){
-        const float remaining=cover.diveSeconds-float(gameTime()-cover.entered)*.001f;
-        speed=std::clamp(distance/std::max(.15f,remaining),2.f,8.f);
+        const float totalDistance=std::max(.5f,dist2d(cover.destination,cover.entry.from));
+        speed=std::clamp(totalDistance/std::max(.45f,cover.diveSeconds),2.4f,5.2f);
     }
-    const V velocity=wallVelocity+(distance>.012f?delta*(std::min(speed,distance*(cover.approaching?1.f/dt:5.f))/distance):V{});
+    const V velocity=wallVelocity+(distance>.015f?delta*(std::min(speed,distance*6.f)/distance):V{});
+    if(cover.approaching&&cover.diveSeconds<=0.f){
+        const char* moveClip=cover.runningEntry?"move_player/run":(cover.duck?"move_crouch/walk":"move_player/walk");
+        const float authored=clipMeta(poseReader,ped,moveClip).moverSpeed;
+        cover.walkTime+=dt*std::clamp(length(velocity)/std::max(.5f,authored),.5f,1.35f);
+    }
     at<float>(ped,0x550)=velocity.x*.02f;
     at<float>(ped,0x554)=velocity.y*.02f;
-    auto* currentPad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
-    if((!cover.aiming&&!aimInput(currentPad))||cover.turn.started){
-        const V facing=along*float(cover.side);
-        face(ped,facing,cover.approaching?&cover.entry:cover.turn.started?&cover.turn:nullptr);
+    if(!cover.aiming||cover.turn.started){
+        const V endFacing=along*float(cover.side);
+        V facing=endFacing;
+        if(cover.approaching){
+            if(cover.diveSeconds>0.f){
+                const float t=smooth((entryAge(cover.entry)/std::max(.2f,cover.diveSeconds)-.55f)/.40f);
+                facing=normalized(flat(delta)*(1.f-t)+endFacing*t);
+            }else if(distance>.30f){
+                const float t=smooth((.60f-distance)/.32f);
+                facing=normalized(flat(delta)*(1.f-t)+endFacing*t);
+            }
+        }
+        const bool returnTurn=cover.returning&&cover.returnFacing.seconds>0.f&&entryAge(cover.returnFacing)<cover.returnFacing.seconds;
+        const bool outwardFlip=cover.turn.started&&!cover.approaching;
+        if(returnTurn)facing=V{-cover.wall.normal.x,-cover.wall.normal.y,0.f};
+        face(ped,facing,cover.approaching?&cover.entry:outwardFlip?&cover.turn:returnTurn?&cover.returnFacing:nullptr,outwardFlip?&cover.wall.normal:nullptr);
     }
     return true;
 }
@@ -637,11 +899,24 @@ static bool drawPlayerPose(void* ped,Motion& motion){
     const unsigned now=gameTime();
     const auto elapsed=[&](unsigned start){return float(now-start)*.001f;};
     const auto clip=[&](const char* suffix,bool corner,unsigned started,Clip playback){
-        return drawClip(poseReader,ped,animationKey(cover.wall.low,corner,cover.side,weapon,suffix),elapsed(started),playback,1.f,0x600);
+        return drawClip(poseReader,ped,animationKey(cover.wall.low,corner,cover.side,weapon,suffix),elapsed(started),playback,1.f,0);
     };
     if(cover.approaching){
         const float age=entryAge(cover.entry);
-        if(cover.diveSeconds>0&&drawClip(poseReader,ped,diveKey(ped),age,Clip::Once,smooth(age/.10f))){motion=Motion::Dive;return true;}
+        if(cover.diveSeconds>0&&drawClip(poseReader,ped,diveKey(ped),age,Clip::Once,smooth(age/.10f),0x600)){motion=Motion::Dive;return true;}
+        auto* m=matrix(ped);
+        const float dist=m?std::hypot(cover.destination.x-m->pos.x,cover.destination.y-m->pos.y):0.f;
+        if(cover.entry.seconds>.26f&&dist>.32f){
+            const char* moveClip=cover.runningEntry?"move_player/run":
+                (cover.duck?"move_crouch/walk":"move_player/walk");
+            const float w=smooth(age/.12f);
+            const bool moving=drawClip(poseReader,ped,moveClip,cover.walkTime,Clip::Loop,w,0x600);
+            const float idleW=smooth((.48f-dist)/.32f)*w;
+            const bool idle=idleW>0.f&&drawClip(poseReader,ped,
+                animationKey(cover.wall.low,false,cover.side,weapon,"_idle"),age,Clip::Loop,idleW);
+            motion=idleW>=.5f?Motion::Entry:Motion::Walk;
+            if(moving||idle)return true;
+        }
         motion=Motion::Entry;
         return drawEntry(poseReader,ped,cover.wall,cover.side,weapon,cover.entry);
     }
@@ -657,6 +932,8 @@ static bool drawPlayerPose(void* ped,Motion& motion){
         }
     }
     if(cover.aiming){
+        // Preserve authored mover_q turn (0x600 strips only horizontal translation);
+        // aimFacing handles only any angular offset between view and -wall.normal.
         const bool intro=(cover.wall.low||cover.fireCorner)&&cover.exposed&&drawClip(poseReader,ped,
             animationKey(cover.wall.low,cover.fireCorner,cover.fireSide,weapon,"_normal_fire_intro"),elapsed(cover.exposed),Clip::Once,1.f,0x600);
         motion=intro?Motion::AimIntro:Motion::AimNative;
@@ -716,54 +993,11 @@ static bool blendCoverPose(void* ped, PoseReader& poses, PoseTransition& blend, 
     return weight<1.f;
 }
 static bool draw(void* ped){
-    std::vector<M> aimPose;
-    if(owns(ped)&&cover.aiming)if(auto* h=hierarchy(ped);h&&h->matrices&&h->num>0&&h->num<=256)
-        aimPose.assign(h->matrices,h->matrices+h->num);
     Motion motion=Motion::Rest;
     const bool authored=drawPlayerPose(ped,motion);
     if(!owns(ped)||!matrix(ped))return authored;
     auto* h=hierarchy(ped);
     if(!h||!h->matrices||h->num<=0||h->num>256)return authored;
-    // Cover clips own the rise/lean, but SA's gun task owns the aimed arms.
-    // Replacing that IK with the fixed IV intro was pointing the arm sideways
-    // while the native bullet correctly followed the reticle.
-    if(cover.aiming&&aimPose.size()==size_t(h->num)&&poseReader.rig){
-        const int chest=poseReader.rig->index(saBone::chest);
-        const int hand=poseReader.rig->index(24);
-        if(chest>=0){
-            const V shift=h->matrices[chest].pos-aimPose[chest].pos;
-            for(int n=0;n<h->num;++n){
-                int parent=n;
-                while(parent>=0&&parent!=chest)parent=poseReader.rig->parents[parent];
-                if(parent==chest){h->matrices[n]=aimPose[n];h->matrices[n].pos=h->matrices[n].pos+shift;}
-            }
-            // Retain the native elbow/wrist chain and grip. Rotate that whole
-            // upper-body chain towards SA's actual crosshair ray, whose screen
-            // offset differs from the centre of CCam::Front.
-            if(hand>=0){
-                const float gain=smooth(float(gameTime()-cover.exposed)/150.f);
-                const int skill=reinterpret_cast<int(__thiscall*)(void*)>(0x5E6580)(ped);
-                auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(combatWeapon(ped),skill);
-                if(info)for(int pass=0;pass<2;++pass){
-                    const V muzzle=point(h->matrices[hand],at<V>(info,0x24));
-                    V from{},end{};
-                    reinterpret_cast<void(__thiscall*)(void*,float,V,V&,V&)>(0x514970)
-                        (reinterpret_cast<void*>(0xB6F028),std::max(20.f,at<float>(info,8)),muzzle,from,end);
-                    const Q rotateTo=mix(Q{},turnBetween(h->matrices[hand].right,end-muzzle),gain);
-                    const V origin=h->matrices[chest].pos;
-                    for(int n=0;n<h->num;++n){
-                        int parent=n;
-                        while(parent>=0&&parent!=chest)parent=poseReader.rig->parents[parent];
-                        if(parent==chest){
-                            auto& bone=h->matrices[n];
-                            bone.right=rotate(rotateTo,bone.right);bone.up=rotate(rotateTo,bone.up);
-                            bone.at=rotate(rotateTo,bone.at);bone.pos=origin+rotate(rotateTo,bone.pos-origin);
-                        }
-                    }
-                }
-            }
-        }
-    }
     // Blind-fire clips supply the raised-arm posture, not an absolute shot
     // direction. Align the arm as a chain so the visible muzzle agrees with
     // the camera-directed native ray without rotating CJ's hidden torso.
@@ -795,7 +1029,7 @@ static bool draw(void* ped){
         motion==Motion::Turn?cover.turn.started:motion==Motion::Peek?cover.peekStarted:
         motion==Motion::Return?cover.returning:cover.exposed;
     auto& blend=transition;
-    const bool blending=blendCoverPose(ped,poseReader,blend,motion,action,motion==Motion::Blind?.18f:.30f);
+    const bool blending=blendCoverPose(ped,poseReader,blend,motion,action,motion==Motion::Blind?.18f:.14f);
     blend.blindGrip=motion==Motion::Blind;
     if(poseReader.rig){const int hand=poseReader.rig->index(24);
         if(hand>=0){blend.grip=h->matrices[hand];blend.gripAt=gameTime();}}

@@ -8,6 +8,10 @@ struct Drop {
     unsigned started;
     float yaw;
     float fall=0;
+    int weaponType=0;
+    unsigned ammo=0;
+    bool misfired=false;
+    bool accidental=false;
 };
 static std::vector<Drop> drops;
 static void(__cdecl* originalPickupEffects)(void*)=nullptr;
@@ -31,6 +35,63 @@ static std::optional<V> rightHand(void* ped){
     }
     return std::nullopt;
 }
+static int resolveWeaponType(int modelId){
+    if(modelId<=0)return 0;
+    for(int w=22;w<=34;++w){
+        if(auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(w,1)){
+            if(at<int>(info,0xC)==modelId||at<int>(info,0x10)==modelId)return w;
+        }
+    }
+    return 0;
+}
+// IV CObject::vf28 (0x823289F8 at 0x82328B18..0x82328BEC):
+// Only a firearm knocked out of a ped's hand with +0x210 bit 0x40 (0x8226E1F8 < 0.3)
+// and impact > 0.5 * mass fires once on landing (rand(0,1) > 0.7), then clears bit 0x40.
+static void misfire(Drop& drop,void* entry){
+    if(!drop.accidental||drop.misfired||drop.weaponType<22||drop.weaponType>34||drop.ammo==0)return;
+    drop.accidental=false;
+    drop.misfired=true;
+    const float impactSpeed=std::sqrt(2.f*9.81f*std::max(0.f,drop.hand.z-drop.landing.z));
+    if(impactSpeed<=.5f)return;
+    if(reinterpret_cast<float(__cdecl*)(float,float)>(0x41BD90)(0.f,1.f)<=.70f)return;
+    auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(drop.weaponType,1);
+    if(!info)return;
+    const float range=std::clamp(at<float>(info,8),8.f,90.f);
+    const float yaw=drop.yaw;
+    const V dir=normalized(V{std::cos(yaw),std::sin(yaw),.03f});
+    const V muzzle=drop.spot+V{0,0,.05f}+dir*.22f;
+    const V end=muzzle+dir*range;
+    void* obj=at<void*>(entry,4);
+    auto*& ignore=*reinterpret_cast<void**>(0xB7CD68);
+    void* prevIgnore=ignore;
+    ignore=obj;
+    ColPoint col{};void* hitEntity=nullptr;
+    const bool hit=reinterpret_cast<bool(__cdecl*)(const V&,const V&,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,bool,bool)>(0x56BA00)(
+        muzzle,end,col,hitEntity,true,true,true,true,true,false,false,true);
+    ignore=prevIgnore;
+    const V impact=hit&&finite(col.point)?col.point:end;
+    struct RawWeapon { int type,state; unsigned clip,total,timer; unsigned char pad[8]; } w{};
+    w.type=drop.weaponType;
+    w.clip=1;
+    w.total=drop.ammo;
+    if(drop.ammo>1){
+        --drop.ammo;
+        at<unsigned>(entry,8)=drop.ammo;
+    }
+    reinterpret_cast<void(__thiscall*)(void*,V,V)>(0x73E690)(&w,muzzle,impact);
+    // 0x73B550 (DoBulletImpact) unconditionally reads [owner+0x36] at 0x73B6C3; never pass nullptr.
+    const bool validObj=obj&&(at<unsigned char>(obj,0x36)&7)==4;
+    if(hit&&hitEntity&&validObj)
+        reinterpret_cast<void(__thiscall*)(void*,void*,void*,V*,V*,ColPoint*,int)>(0x73B550)(
+            &w,obj,hitEntity,const_cast<V*>(&muzzle),const_cast<V*>(&impact),&col,0);
+    else
+        reinterpret_cast<void(__cdecl*)(V*,V*,int,void*)>(0x726AF0)(
+            const_cast<V*>(&muzzle),const_cast<V*>(&impact),drop.weaponType,validObj?obj:nullptr);
+    if(void* sndEnt=validObj?obj:player())
+        reinterpret_cast<void(__thiscall*)(void*,int,int,void*)>(0x506F40)(
+            reinterpret_cast<void*>(0xB6BC90),0x91,drop.weaponType,sndEnt);
+    event("dropped_weapon_misfire",-1,drop.weaponType,"pickup="+std::to_string(drop.handle));
+}
 static bool spawn(void* ped,V hand,int type,unsigned ammo){
     V landing=hand+normalized(matrix(ped)->right)*.42f;
     bool found=false;
@@ -42,7 +103,9 @@ static bool spawn(void* ped,V hand,int type,unsigned ammo){
     const int handle=generate(hand,type,timeoutPickup,ammo,false,nullptr);
     if(!pickup(handle))return false;
     const V right=matrix(ped)->right;
-    drops.push_back({handle,hand,landing,hand,gameTime(),std::atan2(right.y,right.x)});
+    // IV 0x8226E1F8 (0x8226E3EC): only shot-out-of-hand pickups get +0x210 bit 0x40 on rand(0,1) < 0.3.
+    const bool accidental=reinterpret_cast<float(__cdecl*)(float,float)>(0x41BD90)(0.f,1.f)<.30f;
+    drops.push_back({handle,hand,landing,hand,gameTime(),std::atan2(right.y,right.x),0.f,type,ammo,false,accidental});
     return true;
 }
 // Keep SA's death bookkeeping, pickup lifetime, merging and ammunition intact.
@@ -74,7 +137,10 @@ static void __fastcall deathPickups(void* ped,void*){
         if(!found||!std::isfinite(ground)||length(landing-position(ped))>4.f)continue;
         landing.z=ground+.075f;
         const V start=hand.z>=ground?hand:landing;
-        drops.push_back({handle,start,landing,start,gameTime(),std::atan2(right.y,right.x)});
+        const int weaponType=resolveWeaponType(at<short>(p,0x18));
+        const unsigned ammo=at<unsigned>(p,8);
+        // IV 0x8222B278 (normal death drop) never sets +0x210 bit 0x40 (accidental=false).
+        drops.push_back({handle,start,landing,start,gameTime(),std::atan2(right.y,right.x),0.f,weaponType,ammo,false,false});
         event("death_weapon_dropped",reference(ped),at<short>(p,0x18),"pickup="+std::to_string(handle));
     }
 }
@@ -92,8 +158,10 @@ static void tick(unsigned now){
         auto* packed=&at<short>(entry,0x10);
         const auto encode=[](float value){return short(std::clamp(std::round(value*8.f),-32768.f,32767.f));};
         packed[0]=encode(it->spot.x);packed[1]=encode(it->spot.y);packed[2]=encode(it->spot.z);
-        if(t>=1.f)
+        if(t>=1.f){
+            misfire(*it,entry);
             event("shot_weapon_landed",-1,-1,"pickup="+std::to_string(it->handle)+" orange_glow=1");
+        }
         ++it;
     }
 }

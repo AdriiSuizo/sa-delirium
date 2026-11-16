@@ -47,7 +47,7 @@ static bool windscreenYields(void*v){
     if(type==4){const auto*info=at<const char*>(hit,0x160);return info&&(*reinterpret_cast<const float*>(info+0x14)>0.f||info[0x1C]!=0);}
     return type==2&&at<float>(hit,0x90)<700.f;
 }
-constexpr float windscreenPlayerDv=18.f,windscreenPedDv=12.f,windscreenChance=.75f,windscreenForwardDot=-.707f,windscreenIvImpulse=.25f,windscreenExtraHorizontal=.11f,windscreenUp=3.f;
+constexpr float windscreenPlayerDv=21.6f,windscreenPedDv=12.f,windscreenChance=.75f,windscreenForwardDot=-.707f,windscreenIvImpulse=.25f,windscreenExtraHorizontal=.11f,windscreenUp=3.f;
 struct WindscreenRun {V last{};unsigned lastFrame=0,decided[2]{0,0},twoWheelerAt=0;};
 static std::map<int,WindscreenRun> windscreenRuns; // per vehicle ref
 struct WindscreenMark {V launch{};unsigned time=0;};

@@ -178,6 +178,12 @@ static bool(__thiscall* originalCombatExitVehicleJustDown)(void*)=nullptr;
 // provider before the task pass, then consume it only while melee owns CJ.
 static bool __fastcall combatExitVehicle(void*pad,void*){return combatOwns(player())?false:originalCombatExitVehicle(pad);}
 static bool __fastcall combatExitVehicleJustDown(void*pad,void*){return combatOwns(player())?false:originalCombatExitVehicleJustDown(pad);}
+static bool(__thiscall* originalCombatGetTarget)(void*)=nullptr;
+static bool __fastcall combatGetTarget(void*pad,void*){
+    const bool down=originalCombatGetTarget(pad);
+    if(!down||pad!=reinterpret_cast<void*>(0xB73458))return down;
+    return (ready&&playing()&&!cutscene()&&player_cover::holdsFire(player()))?false:true;
+}
 static void(__thiscall* originalCombatUpdatePosition)(void*)=nullptr;
 static void __fastcall combatUpdatePosition(void*p,void*){
     invalidateOriginalPedMotorUpdate(p);

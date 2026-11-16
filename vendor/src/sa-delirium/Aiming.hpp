@@ -34,15 +34,27 @@ static void __fastcall bonePosition(void*ped,void*,V&out,unsigned bone,bool upda
 static void(__thiscall* originalCameraProcess)(void*)=nullptr;
 static void __fastcall cameraProcess(void*camera,void*){
     player_cover::cameraBegin();
+    if(onBeforeCameraProcess)onBeforeCameraProcess(camera);
     // Restore the unmodified input before native smoothing; avoid accumulating
     // our offset every frame. Native camera and wall obstruction remain owners.
     if(zoomCam)at<float>(zoomCam,0xB4)-=appliedZoom;
     appliedZoom=0;zoomCam=nullptr;
     cameraQuery=true;{NativeHitScope scope;originalCameraProcess(camera);}cameraQuery=false;
+    if(onAfterCameraProcess)onAfterCameraProcess(camera);
     void*cam=activeCamera();
-    if(aimWheelZoom&&playing()&&!cutscene()&&aimCamera(cam)){
-        const float base=at<float>(cam,0xB4);const float adjusted=std::clamp(base+aimZoomOffset,25.f,80.f);
-        appliedZoom=adjusted-base;zoomCam=cam;at<float>(cam,0xB4)=adjusted;
-        reinterpret_cast<void(__cdecl*)(float)>(0x6FF410)(adjusted);
+    if(playing()&&!cutscene()&&cam){
+        const float base=at<float>(cam,0xB4);
+        float adjusted=base;
+        if(ivFovBlend>0.f&&ivTargetFov>0.f){
+            const float wheelAdjust=aimWheelZoom?aimZoomOffset:0.f;
+            const float want=std::clamp(ivTargetFov+wheelAdjust,25.f,80.f);
+            adjusted=std::clamp(base+(want-base)*ivFovBlend,25.f,80.f);
+        }else if(aimWheelZoom&&aimCamera(cam)){
+            adjusted=std::clamp(base+aimZoomOffset,25.f,80.f);
+        }
+        if(std::abs(adjusted-base)>1e-4f){
+            appliedZoom=adjusted-base;zoomCam=cam;at<float>(cam,0xB4)=adjusted;
+            reinterpret_cast<void(__cdecl*)(float)>(0x6FF410)(adjusted);
+        }
     }
 }

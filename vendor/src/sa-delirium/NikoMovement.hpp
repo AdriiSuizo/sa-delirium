@@ -55,9 +55,34 @@ static bool nikoPadActive(){
         if(get(i,s)!=ERROR_SUCCESS)continue;
         const WORD buttons=*reinterpret_cast<const WORD*>(s+4);
         const short lx=*reinterpret_cast<const short*>(s+8),ly=*reinterpret_cast<const short*>(s+10);
-        if(buttons||std::abs(int(lx))>4000||std::abs(int(ly))>4000)return true;
+        if(buttons||std::abs(int(lx))>7849||std::abs(int(ly))>7849)return true;
     }
     return false;
+}
+static bool nikoWalkToggle=false,nikoWalkToggleWasDown=false;
+static bool nikoKeyboardWalk(void*pad,float push){
+    if(push>0.f&&push<=.65f)return true;
+    static int walkHoldKey=-1,walkToggleKey=-1;
+    if(walkHoldKey<0){
+        const auto iniPath=(folder.parent_path()/"DeliriumSA.ini").string();
+        walkHoldKey=GetPrivateProfileIntA("Movement","WalkKey",VK_MENU,iniPath.c_str());
+        walkToggleKey=GetPrivateProfileIntA("Movement","WalkToggleKey",VK_CAPITAL,iniPath.c_str());
+        nikoWalkToggle=GetPrivateProfileIntA("Movement","DefaultWalk",0,iniPath.c_str())!=0;
+    }
+    DWORD foreground=0;GetWindowThreadProcessId(GetForegroundWindow(),&foreground);
+    if(foreground!=GetCurrentProcessId()||!pad||at<short>(pad,0x10E)){
+        nikoWalkToggleWasDown=false;return nikoWalkToggle;
+    }
+    const auto*newKeys=reinterpret_cast<const short*>(0xB73190+0x18);
+    const auto keyDown=[&](int k){return k>0&&k<=255&&(newKeys[k]!=0||(GetAsyncKeyState(k)&0x8000)!=0);};
+    const bool toggleDown=keyDown(walkToggleKey);
+    if(toggleDown&&!nikoWalkToggleWasDown){
+        nikoWalkToggle=!nikoWalkToggle;
+        event("niko_walk_toggle",nikoRef,nikoModel,nikoWalkToggle?"walk=1":"walk=0");
+    }
+    nikoWalkToggleWasDown=toggleDown;
+    const bool holdDown=keyDown(walkHoldKey)||(walkHoldKey==VK_MENU&&(keyDown(VK_LMENU)||keyDown(VK_RMENU)));
+    return holdDown||nikoWalkToggle;
 }
 static void nikoUpdatePosition(void*p){
     if(p!=player())return;
@@ -94,11 +119,13 @@ static void nikoUpdatePosition(void*p){
                 float push=std::min(1.f,std::sqrt(x*x+y*y));
                 bool held=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad),tap=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407F0)(pad);
                 if(tap)event("niko_run_tap",nikoRef,nikoModel,"held="+std::to_string(held));
-                if(push>0.f&&!nikoPadActive()){
-                    const bool walkKey=push<=.65f||(GetAsyncKeyState(VK_MENU)&0x8000)!=0;
+                const bool padActive=nikoPadActive();
+                const bool walkMode=!padActive&&nikoKeyboardWalk(pad,push);
+                if(push>0.f&&!padActive){
                     push=1.f;
                     if(held){tap=true;}
-                    else if(!walkKey){held=true;tap=false;}
+                    else if(!walkMode){held=true;tap=false;}
+                    else{held=false;tap=false;}
                 }
                 wanted=nm_locomotion_control(nikoMovement,push,tap,held,gameTime(),dt);
                 if(wanted<0){nikoActive=false;return;}
@@ -120,11 +147,56 @@ static void nikoUpdatePosition(void*p){
 // SA's own gait runs under Niko's. In the plain PLAYER group it is run_player and sprint_civi: X plays
 // sprint_civi at once, and copying the arms from it pumped them as a sprint over a jog (07/11). Only a real
 // weapon layer may give the arms: an armed group, or anything aiming or firing.
+static bool nikoBaseLocomotionGroup(unsigned group){
+    return group==0||(group>=54&&group<=56)||(group>=63&&group<=65)||group==69;
+}
+static bool nikoTwoHandedLocomotionGroup(unsigned group){
+    return (group>=57&&group<=62)||(group>=66&&group<=68);
+}
+static bool nikoHasPartialOrCombatAnim(void*p){
+    void*clump=at<void*>(p,0x18);void*assoc=clump?reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump):nullptr;
+    for(int count=0;assoc&&count<24;count++){
+        const unsigned group=at<unsigned short>(assoc,0xE);
+        const unsigned flags=at<unsigned short>(assoc,0x2E);
+        const float blend=at<float>(assoc,0x18);
+        if(blend>.05f&&(!nikoBaseLocomotionGroup(group)&&!nikoTwoHandedLocomotionGroup(group)||(flags&0x10u)!=0))return true;
+        assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+    }
+    return false;
+}
+static bool nikoNativeRunningGait(void*p){
+    void*clump=at<void*>(p,0x18);void*assoc=clump?reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump):nullptr;
+    for(int count=0;assoc&&count<24;count++){
+        const unsigned group=at<unsigned short>(assoc,0xE);
+        const short animId=at<short>(assoc,0x2C);
+        const unsigned flags=at<unsigned short>(assoc,0x2E);
+        const float blend=at<float>(assoc,0x18);
+        if(blend>.15f&&(flags&0x10u)==0&&group>=54&&group<=69&&(animId==1||animId==2))return true;
+        assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+    }
+    return false;
+}
+static int nikoDominantTwoHandedGroup(void*p,short*outAnimId=nullptr,float*outBlend=nullptr){
+    void*clump=at<void*>(p,0x18);void*assoc=clump?reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump):nullptr;
+    int bestGroup=-1;short bestAnim=-1;float bestBlend=0.f;
+    for(int count=0;assoc&&count<24;count++){
+        const unsigned group=at<unsigned short>(assoc,0xE);
+        const short animId=at<short>(assoc,0x2C);
+        const unsigned flags=at<unsigned short>(assoc,0x2E);
+        const float blend=at<float>(assoc,0x18);
+        if(blend>.05f&&(flags&0x10u)==0&&nikoTwoHandedLocomotionGroup(group)&&blend>bestBlend){
+            bestGroup=int(group);bestAnim=animId;bestBlend=blend;
+        }
+        assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+    }
+    if(outAnimId)*outAnimId=bestAnim;if(outBlend)*outBlend=bestBlend;return bestGroup;
+}
 static bool nikoNativeHoldsWeapon(void*p){
     void*clump=at<void*>(p,0x18);void*assoc=clump?reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump):nullptr;
     for(int count=0;assoc&&count<24;count++){
         const unsigned group=at<unsigned short>(assoc,0xE);
-        if(group!=0&&group!=54&&at<float>(assoc,0x18)>.05f)return true;
+        const unsigned flags=at<unsigned short>(assoc,0x2E);
+        if(at<float>(assoc,0x18)>.05f&&(!nikoBaseLocomotionGroup(group)||(flags&0x10u)!=0))return true;
         assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
     }
     return false;
@@ -136,17 +208,30 @@ static void nikoRender(void*p){
     // Preserve SA's weapon/aim upper layer until its own IV retarget is complete.
     // Arms cannot inherit locomotion rotations while holding a two-handed gun.
     const int weapon=combatWeapon(p);
-    const bool pistol=weapon>=22&&weapon<=24&&at<void*>(p,0x4F4);
+    const float nikoSpeed=std::hypot(nikoState[1],nikoState[2]);
+    const bool combatUpper=weapon>1&&nikoHasPartialOrCombatAnim(p);
+    const bool runningGait=nikoNativeRunningGait(p);
+    const bool pistol=weapon>=22&&weapon<=24&&at<void*>(p,0x4F4)&&(combatUpper||!runningGait);
     const bool armedUpper=weapon>1&&nikoNativeHoldsWeapon(p);
+    static int calmRef=-1,calmGroup=-1,calmWeapon=-1;static std::vector<T> calmLocal;
+    if(calmRef!=nikoRef){calmRef=nikoRef;calmGroup=-1;calmWeapon=-1;calmLocal.clear();}
     if(pistol||armedUpper){
         std::array<T,21> parts{};std::vector<T> native;
         if(nikoRig->incoming(p,parts,native)){
+            short twoHandAnim=-1;float twoHandBlend=0.f;
+            const int twoHandGroup=armedUpper&&!combatUpper?nikoDominantTwoHandedGroup(p,&twoHandAnim,&twoHandBlend):-1;
+            const bool calmTwoHand=twoHandGroup>=0&&(twoHandAnim==0||twoHandAnim==3||twoHandAnim==4||twoHandAnim==5)&&twoHandBlend>=.7f&&!runningGait;
+            if(calmTwoHand&&native.size()==bones.size()){
+                calmLocal.resize(bones.size());calmGroup=twoHandGroup;calmWeapon=weapon;
+                for(size_t i=0;i<bones.size();i++){const int parent=nikoRig->parents[i];calmLocal[i]=(parent>=0&&parent<int(i))?mul(inverse(native[parent]),native[i]):T{};}
+            }
+            const bool useCalmCache=twoHandGroup>=0&&!combatUpper&&runningGait&&nikoSpeed<2.4f&&calmGroup==twoHandGroup&&calmWeapon==weapon&&calmLocal.size()==bones.size();
             for(size_t i=0;i<bones.size();i++){
                 const int id=nikoRig->ids[i],parent=nikoRig->parents[i];
                 // Pistols can use SA's default locomotion group. Preserve
                 // the weapon hand and its arm even in that group.
                 if(parent>=0&&parent<int(i)&&((armedUpper&&id>=3&&id<41)||(pistol&&id>=21&&id<=26)))
-                    bones[i]=mul(bones[parent],mul(inverse(native[parent]),native[i]));
+                    bones[i]=mul(bones[parent],useCalmCache?calmLocal[i]:mul(inverse(native[parent]),native[i]));
                 else if(parent>=0&&parent<int(i)&&(id==301||id==302))
                     bones[i]=mul(bones[parent],nikoRig->bindLocal[i]);
             }

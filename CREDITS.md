@@ -10,7 +10,6 @@ derechos.
 
 - **Lively Vehicle Physics 1.6**, de **Izzy / Izzys Mods**. Incluido con su permiso explícito. [Publicación de la autora](https://libertycity.net/files/gta-san-andreas/246038-izzys-lively-vehicle-physics-1-6.html).
 - **Grinch Trainer 1.0**, de **Grinch_**. Distribución gratuita según el acuerdo de `Documentation/Licenses/GrinchTrainer-License.txt`. [Proyecto](https://github.com/user-grinch/GrinchTrainer-III-VC-SA/tree/1.0).
-- **Advanced Aiming Mod 1.4**, de **DK22Pac**, con soporte de armas añadidas de **Junior_Djjr**. [Página original](https://www.mixmods.com.br/2022/06/advanced-aiming-mod/). Incluye un preset de cámara publicado en GTAInside por su autor.
 - **FxsFuncs 1.1 Build 46 (47 fix)**, de **Junior_Djjr**, con soporte de Ezekiel. Incluido según su permiso para compilaciones. [Página original](https://www.mixmods.com.br/2025/06/fxsfuncs/).
 - **SkyGfx Extended 1.7**: SkyGfx de **aap (The Hero)**, versión Extended de **Junior_Djjr**. [SkyGfx](https://github.com/aap/skygfx).
 - **Framerate Vigilante**, de **Junior_Djjr**. Licencia MIT.

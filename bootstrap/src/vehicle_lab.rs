@@ -498,12 +498,39 @@ impl Car {
             let front = i < 2;
             let axle = usize::from(!front);
             let supported = ground.supported != 0;
-            let powered = if h.drive_bias[axle] > 0.0 {
+            let powered_axle = h.drive_bias[axle] > 0.0;
+            let burnout = powered_axle && frame.brake * h.brake_force > 0.1 && frame.gas > 0.9
+                && (axle == 1 || h.drive_bias[1] < 0.1)
+                && (speed.abs() < 2.5 || (self.tyres[i].flags & tyre::flags::BURNOUT()) != 0);
+            let powered = if powered_axle {
                 tyre::flags::POWERED() | tyre::flags::DRIVEN()
             } else {
                 0
             };
-            let flags = powered | if supported { tyre::flags::GROUNDED } else { 0 };
+            let mut iv_flags = 0;
+            if h.model_flags & 0x10 != 0 || h.handling_flags & 0x1 != 0 {
+                iv_flags |= tyre::flags::CAP_SLIDE();
+            } else if h.model_flags & 0x40 != 0 {
+                iv_flags |= tyre::flags::NO_LOCK();
+            }
+            if h.handling_flags & 0x2 != 0
+                || (powered_axle && !burnout && (h.drive_force >= 0.24 || (h.drive_bias[0] == 0.0 && h.drive_force >= 0.20)))
+            {
+                iv_flags |= tyre::flags::CAP_SPIN();
+            }
+            if h.handling_flags & 0x4 != 0 || (quicker && h.drive_force >= 0.26) {
+                iv_flags |= tyre::flags::CLAMP_SLIP();
+            }
+            if h.handling_flags & 0x8 != 0 {
+                iv_flags |= tyre::flags::GRIP_115();
+            }
+            if h.handling_flags & 0x10 != 0 {
+                iv_flags |= tyre::flags::GRIP_130();
+            }
+            if burnout {
+                iv_flags |= tyre::flags::BURNOUT();
+            }
+            let flags = powered | iv_flags | if supported { tyre::flags::GROUNDED } else { 0 };
             let compression = ground.compression * ground.travel;
             // A new face at a ramp seam or a landing has no previous spring
             // length on that support. Do not treat free extension as load.
@@ -535,14 +562,19 @@ impl Car {
             if resting_on_level_ground || (supported && !previous.is_finite()) {
                 self.treads[i].anchor = ground.point;
             }
+            let v_side = dot(frame.velocity, frame.basis[0]);
             self.treads[i] = Tread {
                 steer: if front {
-                    // Retain lock through junction speeds; narrow it as
-                    // the car reaches the faster part of its road range.
-                    let road = ((speed.abs() - 16.0) / 17.0).clamp(0.0, 1.0);
-                    let limit = if quicker { 1.40 - 0.57 * road } else { 1.25 };
-                    let lock = h.steering_lock * limit;
-                    (frame.steer * self.steering_scale).clamp(-lock, lock)
+                    let lock = h.steering_lock * 1.25;
+                    let mut angle = frame.steer * self.steering_scale;
+                    if speed > 5.0 && angle * v_side >= -0.1 * speed.abs() {
+                        angle /= (speed - 5.0) * 0.1 + 1.0;
+                    }
+                    if speed > 1.0 {
+                        let slide = (-v_side).atan2(speed).clamp(-10_f32.to_radians(), 10_f32.to_radians());
+                        angle += slide;
+                    }
+                    angle.clamp(-lock, lock)
                 } else {
                     0.0
                 },
@@ -1215,5 +1247,104 @@ mod tests {
         assert!(normal < 0.0);
         println!("airborne_vehicle_vertical_speed normal={normal} reduced={reduced}");
         assert!((reduced / normal - 0.01).abs() < 0.00001);
+    }
+
+    #[test]
+    #[ignore = "requires the owned GTA IV program imported by the installer"]
+    fn hotring_and_sports_accelerate_straight_without_spinout() {
+        let root = std::path::PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        let program = std::fs::read(root.join("DeliriumSA-local-v3/iv-program.bin")).unwrap();
+        assert!(delirium_data::kv::unlock_program(&program));
+        let bytes = std::fs::read(root.join("DeliriumSA-local-v3/iv-vehicle-handling.dat")).unwrap();
+        let _ = IV_HANDLING.set(vehicles::read_handling(&String::from_utf8_lossy(&bytes)));
+
+        for model in [494u32, 411, 415, 429, 451] {
+            let ptr = sa_vehicle_lab_create(1600.0, model, 82, 4.7, 1.25, 61.0, 5, 30.0);
+            assert!(!ptr.is_null(), "create {model}");
+            let mut car = unsafe { Box::from_raw(ptr) };
+            let mut basis = [
+                AXLE,
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.6, 1.0],
+            ];
+            let mut vel = [0.0f32; 4];
+            let mut spin = [0.0f32; 4];
+            let radius = 0.34;
+            let ground = |b: &[V4; 4], x: f32, y: f32, share: f32| {
+                let pt = [
+                    b[3][0] + b[0][0] * x + b[1][0] * y,
+                    b[3][1] + b[0][1] * x + b[1][1] * y,
+                    0.0,
+                    0.0,
+                ];
+                let travel = 0.40;
+                let top_z = b[3][2] + b[0][2] * x + b[1][2] * y - b[2][2] * 0.344;
+                let frac = (top_z / travel).clamp(0.0, 1.0);
+                Ground {
+                    point: pt,
+                    normal: [0.0, 0.0, 1.0, 0.0],
+                    travel,
+                    compression: 1.0 - frac,
+                    radius,
+                    load_share: share,
+                    supported: u32::from(frac < 1.0),
+                }
+            };
+            let mut max_yaw_rate = 0.0f32;
+            let mut max_lat_ratio = 0.0f32;
+            for tick in 0..200u32 {
+                if tick == 20 {
+                    spin[2] = 0.15;
+                }
+                vel[2] -= 20.0 * 0.02;
+                let frame = Frame {
+                    basis,
+                    velocity: vel,
+                    spin,
+                    native_spin_loss: [0.0; 4],
+                    inertia: [3100.0, 1200.0, 3500.0, 1.0],
+                    contacts: [
+                        ground(&basis, -0.82, 1.35, 0.255),
+                        ground(&basis, 0.82, 1.35, 0.245),
+                        ground(&basis, -0.82, -1.35, 0.245),
+                        ground(&basis, 0.82, -1.35, 0.255),
+                    ],
+                    mass: 1600.0,
+                    dt: 0.02,
+                    gas: 1.0,
+                    brake: 0.0,
+                    steer: 0.0,
+                    now_ms: tick * 20,
+                    reseed_contacts: 0,
+                    handbrake: 0,
+                    nitro: 0,
+                    gravity_scale: 1.0,
+                };
+                let mut res = unsafe { std::mem::zeroed::<Result>() };
+                assert_eq!(unsafe { sa_vehicle_lab_step(&mut *car, &frame, &mut res) }, 1);
+                vel = res.velocity;
+                spin = res.spin;
+                let prev_pos = basis[3];
+                basis = res.basis;
+                basis[3] = [
+                    prev_pos[0] + vel[0] * 0.02,
+                    prev_pos[1] + vel[1] * 0.02,
+                    prev_pos[2] + vel[2] * 0.02,
+                    1.0,
+                ];
+                let fwd = vel[0] * basis[1][0] + vel[1] * basis[1][1];
+                let side = vel[0] * basis[0][0] + vel[1] * basis[0][1];
+                max_yaw_rate = max_yaw_rate.max(spin[2].abs());
+                if fwd > 4.0 {
+                    max_lat_ratio = max_lat_ratio.max(side.abs() / fwd);
+                }
+            }
+            let final_fwd = vel[0] * basis[1][0] + vel[1] * basis[1][1];
+            assert!(final_fwd > 28.0, "{model} final_fwd={final_fwd}");
+            assert!(max_yaw_rate < 0.35, "{model} spun out max_yaw={max_yaw_rate}");
+            assert!(max_lat_ratio < 0.08, "{model} drifted sideways max_lat_ratio={max_lat_ratio}");
+            assert!(basis[1][1] > 0.90, "{model} turned off course heading_y={}", basis[1][1]);
+        }
     }
 }

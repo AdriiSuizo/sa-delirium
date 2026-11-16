@@ -37,9 +37,10 @@ static void finishPlayerHighFall(Active&a,V com,const float hit[2]){
         (reinterpret_cast<void*>(0xB79538),ground.surfaces[7]);
     // The stationary-ground fall factor from CPed::ProcessEntityCollision
     // (0x5E2D06..0x5E2F74). Let SA apply armour bypass, damage and death.
-    const float damage=verticalSpeed<-.6f?500.f:
+    const float rawDamage=verticalSpeed<-.6f?500.f:
         400.f*std::max(0.f,(soft?-.375f:-.25f)-verticalSpeed)+
         100.f*std::max(0.f,std::hypot(impact.x,impact.y)-(soft?.375f:.25f));
+    const float damage=rawDamage*.25f;
     if(damage>=1.f)
         reinterpret_cast<void(__cdecl*)(void*,void*,int,int,int,int)>(0x73A530)
             (a.ped,nullptr,54,int(std::lround(damage)),3,2);
