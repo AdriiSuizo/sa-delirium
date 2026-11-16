@@ -41,6 +41,24 @@ static bool nikoEligible(void*p){
     return nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_GO_TO_POINT||
         nikoTask==TASK_SIMPLE_GO_TO_POINT_FINE||nikoTask==TASK_SIMPLE_STAND_STILL;
 }
+static bool nikoPadActive(){
+    if(GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return true;
+    using Get=DWORD(WINAPI*)(DWORD,void*);
+    static Get get=[]()->Get{
+        for(const wchar_t*n:{L"xinput1_4.dll",L"xinput1_3.dll",L"xinput9_1_0.dll"})
+            if(HMODULE m=GetModuleHandleW(n))if(auto fn=GetProcAddress(m,"XInputGetState"))return reinterpret_cast<Get>(fn);
+        return nullptr;
+    }();
+    if(!get)return false;
+    for(DWORD i=0;i<4;i++){
+        unsigned char s[16]{};
+        if(get(i,s)!=ERROR_SUCCESS)continue;
+        const WORD buttons=*reinterpret_cast<const WORD*>(s+4);
+        const short lx=*reinterpret_cast<const short*>(s+8),ly=*reinterpret_cast<const short*>(s+10);
+        if(buttons||std::abs(int(lx))>4000||std::abs(int(ly))>4000)return true;
+    }
+    return false;
+}
 static void nikoUpdatePosition(void*p){
     if(p!=player())return;
     const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
@@ -73,9 +91,16 @@ static void nikoUpdatePosition(void*p){
             // scripted go-to tasks retain their explicit movement intention.
             auto*pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
             if(pad){const float x=reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,y=reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f;
-                const bool held=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad),tap=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407F0)(pad);
+                float push=std::min(1.f,std::sqrt(x*x+y*y));
+                bool held=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad),tap=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407F0)(pad);
                 if(tap)event("niko_run_tap",nikoRef,nikoModel,"held="+std::to_string(held));
-                wanted=nm_locomotion_control(nikoMovement,std::min(1.f,std::sqrt(x*x+y*y)),tap,held,gameTime(),dt);
+                if(push>0.f&&!nikoPadActive()){
+                    const bool walkKey=push<=.65f||(GetAsyncKeyState(VK_MENU)&0x8000)!=0;
+                    push=1.f;
+                    if(held){tap=true;}
+                    else if(!walkKey){held=true;tap=false;}
+                }
+                wanted=nm_locomotion_control(nikoMovement,push,tap,held,gameTime(),dt);
                 if(wanted<0){nikoActive=false;return;}
             }else if(data)wanted=std::clamp(at<float>(data,0x14),0.f,3.f);
         }

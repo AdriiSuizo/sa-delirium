@@ -52,6 +52,11 @@ Microsoft incluido; su instalador puede pedir permisos de administrador.
 Esta versión unifica las correcciones del motor, cobertura y cámara sobre la base **0.4.0** con todas las mejoras de compatibilidad del instalador introducidas entre **0.4.1** y **0.4.5**:
 
 - **Anatomía de brazos y hombros de CJ**: en `torso.dff` y las prendas de `player.img`, los huesos `301` y `302` forman la mitad superior del bíceps/deltoides en el mismo *socket* que `UpperArm` (`22`/`32`). Se enlazan ahora a `22`/`32` sin sobrescribirse con la pista pectoral de `ped.ifp` (que giraba la mitad superior del brazo 96° hacia el pecho creando un pliegue en zig-zag) y se evita encoger las clavículas (`21`/`31`) hacia el cuello.
+- **Controles de teclado y menú de opciones en `Pausa → Opciones`**:
+  - **Cubrirse con la tecla `B`** en teclado (`CoverKey=B` en `DeliriumSA.ini`, y `R1`/`RB` en mando): ya no interfiere con el Click Derecho (Apuntar) al jugar con teclado y ratón.
+  - **Movimiento de GTA IV adaptado a teclado**: `W, A, S, D` trota normal, `Alt + W, A, S, D` camina despacio y mantener `Espacio` esprinta directamente sin tener que aporrearlo.
+  - **Combate, nitro y gravedad en teclado**: al fijar objetivo con Click Derecho puedes usar `Click Izquierdo` (puñetazo), `R` o `F` (ataque secundario/contraataque), `Q` o `Espacio` (patada) y `Shift` o `Alt` (esquivar/bloquear); `N` activa el nitro separado del disparo y mantener `K` (0,6 s) alterna la gravedad reducida.
+  - **Menú en `Pausa → Opciones`**: permite alternar en partida entre `Manejo: Delirium GTA IV / Clasico retocado / Izzy`, `Movimiento CJ: IV / SA`, `Combate: Delirium / SA` y `Deformacion: si / no`.
 - **Cobertura y cámara**: la cámara al cubrirse a pie ya funciona aunque se desactive el apuntado desde vehículos (`DriveByShoulderAim=0`). Al apuntar por el hombro contrario (esquina alta izquierda), se recupera el punto nativo de cámara previo al recorte de colisión de San Andreas para que CJ no desaparezca del encuadre. Además, CJ puede avanzar y cambiar de sentido a lo largo de coberturas bajas con uniones redondeadas (`woodenbox1224`) sin atascarse.
 - **Motor y parches nativos**: `FrozenThreads` verifica que todos los hilos relevantes se hayan abierto y suspendido antes de escribir parches de código nativo (reanudando los hilos si alguno falla), y la API de transformación de vehículos del SDK actualiza el centro de colisión junto con el centro de masa.
 - **Instalador y compatibilidad (0.4.1–0.4.6)**:
@@ -234,6 +239,11 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 - **CJ Upper-Arm & Shoulder Anatomy**:
   - On CJ's torso and clothing meshes (`player.img`), bones `301` and `302` weight the upper bicep and deltoid at the `UpperArm` (`22`/`32`) socket. They now follow `UpperArm` (`22`/`32`) as authored in `torso.dff` instead of being overwritten by `ped.ifp`'s 96°-rotated NPC breast track (eliminating the Z-zig-zag crease in CJ's arms), and neck-rooted clavicles (`21`/`31`) keep their natural rest slope without shrugging upward.
+- **Keyboard Controls & In-Game `Pause → Options` Menu**:
+  - **Cover on `B`** on keyboard (`CoverKey=B` in `DeliriumSA.ini`, `R1`/`RB` on gamepad): no longer collides with Right Mouse Button aiming on keyboard/mouse.
+  - **PC Keyboard GTA IV Locomotion**: `W, A, S, D` jogs normally, `Alt + W, A, S, D` walks, and holding `Space` sprints directly without button mashing.
+  - **Keyboard Melee, Nitro & Gravity**: while aiming/locked on with Right Mouse Button, use `LMB` (punch), `R` or `F` (alternate punch/counter), `Q` or `Space` (kick), and `Shift` or `Alt` (dodge/block); `N` fires nitro separately from vehicle weapons, and holding `K` (0.6s) toggles reduced gravity.
+  - **`Pause → Options` Menu**: switch live between `Delirium GTA IV / Enhanced Classic / Izzy` driving, `CJ movement: IV / SA`, `Combat: Delirium / SA`, and `Deformation: on / off`.
 - **Cover Camera & Low-Wall Continuity**:
   - Foot cover camera framing now works even when vehicle drive-by shoulder aiming is disabled (`DriveByShoulderAim=0`).
   - Aiming over the opposite shoulder in cover (such as high-left corners) recovers the pre-collision native camera anchor before running the active cover sweep, preventing CJ from disappearing out of frame.

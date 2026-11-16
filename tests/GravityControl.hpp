@@ -60,8 +60,13 @@ static void tick() {
         return;
     }
     XINPUT_STATE pad{};
-    sample(playing() && vehicle_nitro::readForegroundPad(pad) &&
-        (pad.Gamepad.wButtons & padChord) == padChord, GetTickCount());
+    auto* pad0 = reinterpret_cast<void*>(0xB73458);
+    const short* newKeys = pad0 && !at<short>(pad0, 0x10E) ? reinterpret_cast<const short*>(0xB73190 + 0x18) : nullptr;
+    DWORD foreground = 0;
+    GetWindowThreadProcessId(GetForegroundWindow(), &foreground);
+    const bool keyHeld = foreground == GetCurrentProcessId() && newKeys && newKeys['K'] != 0;
+    sample(playing() && ((vehicle_nitro::readForegroundPad(pad) &&
+        (pad.Gamepad.wButtons & padChord) == padChord) || keyHeld), GetTickCount());
 }
 
 static void __fastcall applyGravity(void* physical, void*) {

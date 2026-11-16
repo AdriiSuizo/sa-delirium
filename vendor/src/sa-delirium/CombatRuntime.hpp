@@ -273,10 +273,11 @@ static void combatPrepare(){
     combatInput.aim=reinterpret_cast<bool(__thiscall*)(void*)>(0x540670)(pad);
     combatInput.look=at<short>(pad,4); // CPad::NewState.RightStickX; movement uses the left stick.
     if(!combatInput.aim||std::abs(combatInput.look)<35)combatLookLatched=false;
+    const auto*newKeys=!at<short>(pad,0x10E)?reinterpret_cast<const short*>(0xB73190+0x18):nullptr;
     const auto attack=reinterpret_cast<unsigned char(__thiscall*)(void*,bool)>(0x540340)(pad,false);
-    const bool block=reinterpret_cast<bool(__thiscall*)(void*)>(0x540750)(pad);
-    const bool kick=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad);
-    const bool second=originalCombatExitVehicle&&originalCombatExitVehicle(pad);
+    const bool block=reinterpret_cast<bool(__thiscall*)(void*)>(0x540750)(pad)||(combatInput.aim&&newKeys&&(newKeys[VK_LMENU]!=0||newKeys[VK_MENU]!=0));
+    const bool kick=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad)||(combatInput.aim&&newKeys&&newKeys['Q']!=0);
+    const bool second=(originalCombatExitVehicle&&originalCombatExitVehicle(pad))||(combatInput.aim&&newKeys&&newKeys['R']!=0);
     combatInput.buttons=(combatInput.aim?1u:0u)|(attack?0x20u:0u)|(block?0x40u:0u)|(kick?0x80u:0u)|(second?0x10u:0u);
     combatInput.x=std::clamp(127.f+reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad),0.f,255.f);
     combatInput.y=std::clamp(127.f+reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad),0.f,255.f);

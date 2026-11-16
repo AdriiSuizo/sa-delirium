@@ -351,6 +351,14 @@ static std::string diveKey(void* ped){
     return std::string("cover_dive/")+(cover.wall.low?"low_":"high_")+
         (cover.side>0?"l_":"r_")+(held[0]=='r'?"rifle":"pistol")+(cover.shortDive?"_short":"");
 }
+static unsigned coverKey(){
+    static const unsigned key=[](){
+        const auto ini=(folder.parent_path()/"DeliriumSA.ini").wstring();
+        const unsigned k=GetPrivateProfileIntW(L"Player",L"CoverKey",'B',ini.c_str());
+        return k&&k<=255?k:unsigned('B');
+    }();
+    return key;
+}
 static bool r1(void* pad){
     using GetState=DWORD(WINAPI*)(DWORD,XINPUT_STATE*);
     static const GetState get=[]()->GetState {
@@ -362,10 +370,14 @@ static bool r1(void* pad){
     DWORD foreground=0;
     GetWindowThreadProcessId(GetForegroundWindow(),&foreground);
     if(foreground!=GetCurrentProcessId())return false;
+    if(pad&&!at<short>(pad,0x10E)){
+        const unsigned k=coverKey();
+        const auto* newKeys=reinterpret_cast<const short*>(0xB73190+0x18);
+        if(newKeys[k]!=0||(GetAsyncKeyState(int(k))&0x8000)!=0)return true;
+    }
     XINPUT_STATE input{};
     if(get&&get(0,&input)==ERROR_SUCCESS)return (input.Gamepad.wButtons&XINPUT_GAMEPAD_RIGHT_SHOULDER)!=0;
-    // DirectInput mappings still expose the raw right shoulder in CPad.
-    return pad&&at<short>(pad,0xC)>0;
+    return false;
 }
 static void tick(bool down){
     const bool pressed=down&&!wasDown;
