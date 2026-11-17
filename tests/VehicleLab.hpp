@@ -34,7 +34,7 @@ constexpr uint32_t reseedWheels = 1;
 constexpr uint32_t resetDriver = 2;
 static_assert(sizeof(Ground) == 52 && sizeof(Frame) == 376 && sizeof(Result) == 144);
 
-static void* (__cdecl* create)(float, uint32_t, uint32_t, float, float, float, uint32_t, float) = nullptr;
+static void* (__cdecl* create)(float, uint32_t, uint32_t, float, float, float, uint32_t, float, float, float) = nullptr;
 static int (__cdecl* tuningSource)(uint32_t) = nullptr;
 static int (__cdecl* driverLimits)(void*, float*) = nullptr;
 static int (__cdecl* step)(void*, const Frame*, Result*) = nullptr;
@@ -365,7 +365,7 @@ static bool install(HMODULE engine) {
     useIv = canToggle || traffic || strcmp(mode, "iv") == 0;
     if (useIv) {
         const auto abi = reinterpret_cast<uint32_t(__cdecl*)()>(GetProcAddress(engine, "sa_vehicle_lab_abi"));
-        if (!abi || abi() != 10) return false;
+        if (!abi || abi() != 11) return false;
         create = reinterpret_cast<decltype(create)>(GetProcAddress(engine, "sa_vehicle_lab_create"));
         step = reinterpret_cast<decltype(step)>(GetProcAddress(engine, "sa_vehicle_lab_step"));
         turn = reinterpret_cast<decltype(turn)>(GetProcAddress(engine, "sa_vehicle_lab_turn"));
@@ -445,7 +445,9 @@ static void* makeSolver(void* car, V dimensions) {
     return create(at<float>(car, 0x8C), at<short>(car, 0x22), handling[0x2C + 0x48],
                   dimensions.y, dimensions.z,
                   *reinterpret_cast<const float*>(handling+0x2C+0x5C)*50.f,
-                  handling[0x2C+0x4A], *reinterpret_cast<const float*>(handling + 0xA0));
+                  handling[0x2C+0x4A], *reinterpret_cast<const float*>(handling + 0xA0),
+                  *reinterpret_cast<const float*>(handling + 0xAC),
+                  *reinterpret_cast<const float*>(handling + 0xC0));
 }
 
 static void stockSuspension(void*car){

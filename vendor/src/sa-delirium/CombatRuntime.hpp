@@ -677,8 +677,47 @@ static void combatCheckPlayerVehicleStrike(void*cj,const CombatActor&a,bool hitP
         const float impulseNs=club?85.f:45.f;
         at<unsigned char>(entity,0xB8)=0;
         reinterpret_cast<void(__thiscall*)(void*,V,V,bool)>(0x542B50)(entity,push*(impulseNs*.02f),cp.point-position(entity),true);
-        playIvMeleeImpact(club&&!bladeWeapon(held)?5:0,3,cp.point,reference(cj));
-        event("combat_vehicle_contact",vehicleRef(entity),at<short>(entity,0x22),"weapon="+std::to_string(wep)+" result="+std::to_string(res));
+        const auto*handling=at<unsigned char*>(entity,0x384);
+        const float vehMass=handling&&*reinterpret_cast<const float*>(handling+0x4)>0.f
+            ?*reinterpret_cast<const float*>(handling+0x4):std::max(100.f,at<float>(entity,0x8C));
+        const bool kick=s.fromId>=41;
+        const int saWeapon=wep?wep:(held==1?1:0);
+        const float strikeDamage=club?(bladeWeapon(held)?14.f:18.f):((kick?9.f:6.f)*(held==1?1.5f:1.f));
+        const float damageIntensity=std::max(10.f,vehMass*strikeDamage*0.01f);
+        const float healthBefore=at<float>(entity,0x4C0);
+        V colPos=cp.point,colDir=push;
+        using VehicleDamageFn=void(__thiscall*)(void*,float,unsigned short,void*,V*,V*,int);
+        if(auto**vt=at<VehicleDamageFn*>(entity,0);vt&&vt[0xE0/4]){
+            vt[0xE0/4](entity,damageIntensity,cp.surfaces[4],cj,&colPos,&colDir,saWeapon);
+        }
+        reinterpret_cast<void(__cdecl*)(int,void*,void*)>(0x532010)(0x15,entity,cj);
+        const auto notifyOccupant=[&](void*occupant){
+            if(!occupant||occupant==cj||at<float>(occupant,0x540)<=0.f)return;
+            if(void*brain=at<void*>(occupant,0x47C)){
+                alignas(4) unsigned char ev[0x20]{};
+                reinterpret_cast<void(__thiscall*)(void*,void*,void*,int)>(0x4B18D0)(ev,entity,cj,saWeapon?saWeapon:5);
+                reinterpret_cast<void(__thiscall*)(void*,void*,bool)>(0x4AB420)(static_cast<unsigned char*>(brain)+0x68,ev,false);
+                reinterpret_cast<void(__thiscall*)(void*)>(0x4B1990)(ev);
+            }
+        };
+        notifyOccupant(at<void*>(entity,0x460));
+        const unsigned passengers=std::min<unsigned>(at<unsigned char>(entity,0x488),8u);
+        for(unsigned pi=0;pi<passengers;pi++)notifyOccupant(at<void*>(entity,0x464+pi*4));
+        const float healthAfter=at<float>(entity,0x4C0);
+        if(healthAfter<healthBefore){
+            at<unsigned char>(entity,0x508)=static_cast<unsigned char>(saWeapon);
+            auto&lastDamager=at<void*>(entity,0x50C);lastDamager=cj;
+            reinterpret_cast<void(__thiscall*)(void*,void**)>(0x571B70)(cj,&lastDamager);
+        }
+        const unsigned char surf=(cp.surfaces[3]>0&&cp.surfaces[3]<179)?cp.surfaces[3]:63u;
+        reinterpret_cast<void(__thiscall*)(void*,int,float,float,void*,unsigned char,int,int)>(0x4E2BB0)(
+            static_cast<unsigned char*>(cj)+0x138,kick?0x44:0x40,0.f,1.f,entity,surf,0,0);
+        reinterpret_cast<void(__thiscall*)(void*,V*,V*,int)>(0x49F670)(
+            reinterpret_cast<void*>(0xA9AE00),&colPos,&colDir,4);
+        event("combat_vehicle_contact",vehicleRef(entity),at<short>(entity,0x22),
+              "weapon="+std::to_string(wep)+" sa_weapon="+std::to_string(saWeapon)+" result="+std::to_string(res)+
+              " damage_intensity="+std::to_string(damageIntensity)+" health_before="+std::to_string(healthBefore)+
+              " health_after="+std::to_string(healthAfter)+" surface="+std::to_string(int(surf)));
         break;
     }
 }

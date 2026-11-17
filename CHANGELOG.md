@@ -1,5 +1,25 @@
 # Historial / Changelog
 
+## 0.4.9 · continuidad al soltar apuntado, daño/audio al golpear autos, altura/giro de suspensión y movimiento IV en interiores / aim-release continuity, vehicle punch damage & audio, SA ride-height/cornering & interior IV locomotion
+
+### Español
+
+- **Continuidad de trote al dejar de apuntar (`NikoMovement` / `sa-combat/locomotion` / `delirium-sdk/locomotion`)**: al apuntar en movimiento con armas de una mano (`9mm`, `Tec-9`, `Uzi`, escopeta recortada, etc.) o soltar la mira mientras CJ sigue trotando, `NikoMovement` conserva la velocidad nativa (`suspend_moving` por `dt <= -2.5`) y mezcla la pose final del apuntado durante 120 ms sin repetir la animación de arrancar desde parado (`wstart`/`runstart`).
+- **Golpear vehículos con daño real y audio nativo de impacto (`CombatRuntime`)**: al golpear un coche sin armas cuerpo a cuerpo o con un arma cuerpo a cuerpo, se reemplaza el audio humano de impacto por `CAEPedAudioEntity::AddAudioEvent` (`0x4E2BB0`) con la superficie del vehículo (`SURFACE_CAR` / superficie de `ColPoint`), se aplica daño real mediante `CVehicle::VehicleDamage` (`vtable[0xE0/4]`), chispas/partículas (`0x49F670`), registro de crimen (`0x532010`) y notificación `CEventVehicleDamageWeapon` (`0x4B18D0` / `0x4AB420` / `0x4B1990`) al conductor y pasajeros.
+- **Altura real de suspensión, entrada sin saltos y estabilidad de chasis al girar (`vehicle_lab` / `VehicleLab`)**:
+  - Actualizado `sa_vehicle_lab_abi` a `11` para recibir `m_fSuspensionForceLevel` (`handling+0xAC`) y `m_fSuspensionBiasBetweenFrontAndRear` (`handling+0xC0`), sustituyendo el reposo fijo `0.36 * travel` por el equilibrio estático SA por rueda (`sa_rest_fraction`) y eliminando tanto la caída de vehículos bajos como el pequeño salto al subirse.
+  - Se evita ablandar los muelles en recorridos largos de SA (`stiffness_scale` con mínimo `1.0`), se añade tope progresivo de compresión (`bump_stop_compression`), se refuerza el acoplamiento antivuelco por eje (`0.25`) y se adelanta `excess_lean` (`0.035 rad`) para que deportivos y *lowriders* no rocen el suelo ni pierdan giro al doblar.
+- **Movimiento GTA IV en gimnasios e interiores (`Prepare-VehicleLabRuntime` / `NikoMovement`)**: `nikoMovementAllowed()` mantiene activa la locomoción IV en interiores (`area() != 0`) aunque el juego ejecute un script de interior marcado como misión (`GYMLS`, `GYMSF`, `GYMLV`, `SHRANGE`, casinos), respetando `ProtectMissions` en exteriores y cediendo cuando se bloquean los controles del jugador (`!pad || at<short>(pad, 0x10E)`) o entra en máquinas/combate de gimnasio.
+
+### English
+
+- **Jog/run continuity on firearm aim release (`NikoMovement` / `sa-combat/locomotion` / `delirium-sdk/locomotion`)**: releasing firearm aim (`22..38`, including one-handed weapons like `9mm`, `Tec-9`, `Uzi`, and sawn-off shotgun) while moving now seeds IV locomotion with CJ's native speed (`Locomotion::suspend_moving` via `dt <= -2.5`) and blends smoothly over 120 ms from the ending aim pose without replaying a start-from-still animation (`wstart`/`runstart`).
+- **Vehicle melee strikes with native impact sound and real vehicle damage (`CombatRuntime`)**: `combatCheckPlayerVehicleStrike` replaces the human-flesh audio trigger with `CAEPedAudioEntity::AddAudioEvent` (`0x4E2BB0`, `ColPoint` vehicle surface / `SURFACE_CAR`), inflicts real deformation and health loss through `CVehicle::VehicleDamage` (`vtable[0xE0/4]`), spawns native impact FX (`0x49F670`), reports the strike (`0x532010`), and dispatches `CEventVehicleDamageWeapon` to occupants.
+- **SA ride height, hop-free parked entry, and anti-scrape cornering (`vehicle_lab` / `VehicleLab`)**:
+  - Bumps `sa_vehicle_lab_abi` to `11` to pass SA `m_fSuspensionForceLevel` and `m_fSuspensionBiasBetweenFrontAndRear`, computing per-wheel SA static equilibrium (`sa_rest_fraction`) instead of a hardcoded `0.36 * travel` so low cars neither sit too low nor hop when entered.
+  - Clamps `stiffness_scale` to `>= 1.0`, adds progressive bump-stop compression (`bump_stop_compression`), strengthens axle anti-roll (`0.25`), and lowers the `excess_lean` threshold (`0.035 rad`) so low-clearance sports cars and lowriders corner cleanly without scraping their underside `COL` on asphalt.
+- **GTA IV on-foot movement inside gyms and interiors (`Prepare-VehicleLabRuntime` / `NikoMovement`)**: adds `nikoMovementAllowed()` so interiors (`area() != 0`, including Ganton/SF/LV Gyms, Ammu-Nation ranges, and casinos that set `scriptMissionActive()`) keep IV locomotion active while preserving `ProtectMissions` outdoors, clearing area transitions cleanly (`nikoArea`), and yielding whenever script control locks (`!pad || at<short>(pad, 0x10E)`) or non-locomotion tasks are active.
+
 ## 0.4.8 · puñetazos sin objetivo/a vehículos, salto continuo y levantamiento Dive/Brace / unarmed & vehicle punches, jump continuity & Dive/Brace getup
 
 ### Español

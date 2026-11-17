@@ -39,6 +39,7 @@ combat_source = replace_once(combat.read_text(encoding="utf-8"),
     'static bool combatAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}',
     'static bool ivCombatEnabled=false,ivLocomotionEnabled=false;\n'
     'static bool authoredGameplayAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}\n'
+    'static bool nikoMovementAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&(!(protectMissions&&scriptMissionActive())||area()!=0);}\n'
     'static bool combatAllowed(){return ivCombatEnabled&&authoredGameplayAllowed();}')
 combat_source = replace_once(combat_source,
     '    if(!GetPrivateProfileIntA("Combat","Enabled",0,ini.c_str()))return;',
@@ -68,7 +69,7 @@ if not args.shipping:
 combat.write_text(combat_source, encoding="utf-8", newline="\n")
 niko = args.out / "NikoMovement.hpp"
 niko_source = replace_once(niko.read_text(encoding="utf-8"), 'p!=player()||!combatAllowed()',
-    'p!=player()||!ivLocomotionEnabled||!authoredGameplayAllowed()')
+    'p!=player()||!ivLocomotionEnabled||!nikoMovementAllowed()')
 niko_source = replace_once(niko_source,
     '    const auto ini=(folder.parent_path()/"DeliriumSA.ini").string();\n'
     '    static int enabled=GetPrivateProfileIntA("Movement","NikoOnFoot",0,ini.c_str());if(!enabled)return;\n', '')

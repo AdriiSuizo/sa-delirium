@@ -19,11 +19,12 @@ pub unsafe extern "C" fn nm_locomotion_control(p:*mut NmLocomotion,push:f32,tapp
     match p.0.control(push,tapped!=0,held!=0,now,dt){Ok(wanted)=>wanted,Err(e)=>{fail(NM_E_ARG,e);-1.}}
 }
 /// Input wanted gait 0..3, target/current yaw, crouch and terrain slope.
-/// Negative dt cancels ownership (-1), or suspends across a native jump (-2)
-/// without discarding continuous locomotion gait.
+/// Negative dt cancels ownership (-1), suspends across a native jump (-2),
+/// or seeds continuous locomotion from native speed on exit from gun aim (-3 - ratio).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nm_locomotion_step(c:*const NmCombat,p:*mut NmLocomotion,wanted:f32,goal:f32,heading:f32,crouch:i32,slope:i32,now:u32,dt:f32)->i32{
     let Some(p)=(unsafe{p.as_mut()})else{return fail(NM_E_ARG,"null movement")};
+    if dt<=-2.5{p.0.suspend_moving((-dt-3.).max(0.));return 0}
     if dt<=-1.5{p.0.suspend_jump();return 0}
     if dt<0.{p.0.cancel();return 0}
     let Some(rt)=(unsafe{c.as_ref()}).and_then(|c|c.1.as_ref())else{return fail(NM_E_ARG,"movement bank unavailable")};

@@ -309,8 +309,27 @@ pub struct Car {
     handling: Handling,
     suspension: Option<SuspensionProfile>,
     steering_scale: f32,
+    sa_suspension_force: f32,
+    sa_suspension_bias: f32,
     clock_origin: Option<u32>,
     handbrake_turn: HandbrakeTurn,
+}
+
+fn sa_rest_fraction(load_share: f32, front: bool, sa_force: f32, sa_bias: f32) -> f32 {
+    let force = if (0.1..=10.0).contains(&sa_force) { sa_force } else { 1.2 };
+    let bias = (if front { sa_bias } else { 1.0 - sa_bias }).clamp(0.15, 0.85);
+    ((0.5 * load_share) / (force * bias)).clamp(0.08, 0.72)
+}
+
+fn bump_stop_compression(x: f32, rest: f32, travel: f32) -> f32 {
+    let avail = (travel - rest).max(0.06);
+    let knee = (avail * 0.35).min(0.045);
+    let over = ((x - rest) - knee).max(0.0);
+    if over <= 0.0 {
+        return x.min(travel);
+    }
+    let scale = over / (avail - knee).max(0.04);
+    (x + avail * 1.8 * scale * scale).min(travel)
 }
 
 impl Car {
@@ -324,6 +343,8 @@ impl Car {
             gearbox: Transmission::default(),
             suspension: None,
             steering_scale: 1.0,
+            sa_suspension_force: 0.6944444,
+            sa_suspension_bias: 0.5,
             clock_origin: None,
             handbrake_turn: HandbrakeTurn::default(),
             handling: Handling {
@@ -374,7 +395,7 @@ impl Car {
             if !(0.02..=2.0).contains(&stroke) {
                 return None;
             }
-            let stiffness_scale = (profile.stroke / stroke).clamp(0.4, 2.5);
+            let stiffness_scale = (profile.stroke / stroke).clamp(1.0, 2.5);
             self.handling.suspension_force = profile.spring * stiffness_scale;
             self.handling.suspension_comp_damp =
                 profile.compression_damping * stiffness_scale.sqrt();
@@ -591,22 +612,30 @@ impl Car {
             // Add front authority only through a deliberate road turn.
             if front { calls.base[i].grip *= 1.0 + corner_grip; }
             calls.treads[i] = self.treads[i];
+            let rest_frac = sa_rest_fraction(
+                ground.load_share,
+                front,
+                self.sa_suspension_force,
+                self.sa_suspension_bias,
+            );
+            let rest = ground.travel * rest_frac;
+            let raw_prev = if previous.is_finite() {
+                previous
+            } else {
+                compression
+            };
             calls.struts[i] = Strut {
                 spring: Spring {
                     front,
                     share: ground.load_share,
                     travel: ground.travel,
-                    // Keep the SA ride-height reference. The original IV
-                    // rest point assumes the IV wheel and chassis geometry.
-                    rest: ground.travel * 0.36,
+                    // Preserve each vehicle's SA static ride height so low cars
+                    // do not drop onto their chassis COL or hop when entered.
+                    rest,
                     limit: ground.travel,
                 },
-                x: compression,
-                prev: if previous.is_finite() {
-                    previous
-                } else {
-                    compression
-                },
+                x: bump_stop_compression(compression, rest, ground.travel),
+                prev: bump_stop_compression(raw_prev, rest, ground.travel),
                 axis: [0.0, 0.0, 1.0, 0.0],
                 contact: ground.point,
                 start: ground.point,
@@ -627,7 +656,7 @@ impl Car {
                 let (left, right) = calls.struts[axle..axle + 2].split_at_mut(1);
                 let (left, right) = (&mut left[0], &mut right[0]);
                 let transfer = |l: f32, r: f32| {
-                    (0.17 * (l - r)).clamp(
+                    (0.25 * (l - r)).clamp(
                         -l.min(right.spring.travel - r).max(0.0),
                         r.min(left.spring.travel - l).max(0.0),
                     )
@@ -674,12 +703,12 @@ impl Car {
             // Keep measuring lean when the inner tyres lift. Dropping the
             // correction at two planted tyres lets the roll build unchecked.
             let lean = dot(side, normal_sum) / dot(normal_sum, normal_sum).sqrt();
-            let excess_lean = (lean.abs() - 0.17).max(0.0).copysign(lean);
-            // Keep the lean under load. Dampen its momentum a little
-            // more so the body follows a change of direction sooner.
-            let roll_acceleration = 2.2 * lean
-                + (12.0 + 26.0 * road_assist) * excess_lean
-                - (1.0 + 0.5 * road_assist) * dot(spin, roll_axis);
+            let excess_lean = (lean.abs() - 0.035).max(0.0).copysign(lean);
+            // Keep the lean under load without allowing low chassis COL to scrape
+            // the tarmac in corners. Dampen roll velocity cleanly.
+            let roll_acceleration = 2.8 * lean
+                + (50.0 + 55.0 * road_assist) * excess_lean
+                - (1.5 + 0.6 * road_assist) * dot(spin, roll_axis);
             for axis in 0..3 {
                 body_torque[axis] += roll_axis[axis] * inertia[1] * roll_acceleration;
             }
@@ -867,7 +896,7 @@ impl wheelstep::Calls for WheelCalls<'_> {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn sa_vehicle_lab_abi() -> u32 {
-    10
+    11
 }
 
 #[unsafe(no_mangle)]
@@ -923,6 +952,8 @@ pub extern "C" fn sa_vehicle_lab_create(
     stock_flat_mps: f32,
     stock_gears: u32,
     stock_steering_deg: f32,
+    sa_suspension_force: f32,
+    sa_suspension_bias: f32,
 ) -> *mut Car {
     if !delirium_data::kv::open()
         || !(40.0..=25000.0).contains(&mass)
@@ -947,6 +978,16 @@ pub extern "C" fn sa_vehicle_lab_create(
         _ => return std::ptr::null_mut(),
     };
     let mut car = Car::new(mass, profile, drive_bias);
+    car.sa_suspension_force = if sa_suspension_force.is_finite() && (0.1..=10.0).contains(&sa_suspension_force) {
+        sa_suspension_force
+    } else {
+        1.2
+    };
+    car.sa_suspension_bias = if sa_suspension_bias.is_finite() && (0.05..=0.95).contains(&sa_suspension_bias) {
+        sa_suspension_bias
+    } else {
+        0.5
+    };
     if let Some(reference) = iv_tuning(model) {
         car.suspension = Some(SuspensionProfile::from_handling(reference));
         let sa_top = car.handling.drive_max_velocity;
@@ -1063,7 +1104,7 @@ mod tests {
         assert_eq!(count, 146);
         let _ = IV_HANDLING.set(table);
         let car = |model, drive| {
-            let ptr = sa_vehicle_lab_create(1400.0, model, drive, 4.0, 1.3, 50.0, 5, 30.0);
+            let ptr = sa_vehicle_lab_create(1400.0, model, drive, 4.0, 1.3, 50.0, 5, 30.0, 1.2, 0.5);
             assert!(!ptr.is_null());
             unsafe { Box::from_raw(ptr) }
         };
@@ -1259,7 +1300,7 @@ mod tests {
         let _ = IV_HANDLING.set(vehicles::read_handling(&String::from_utf8_lossy(&bytes)));
 
         for model in [494u32, 411, 415, 429, 451] {
-            let ptr = sa_vehicle_lab_create(1600.0, model, 82, 4.7, 1.25, 61.0, 5, 30.0);
+            let ptr = sa_vehicle_lab_create(1600.0, model, 82, 4.7, 1.25, 61.0, 5, 30.0, 1.2, 0.5);
             assert!(!ptr.is_null(), "create {model}");
             let mut car = unsafe { Box::from_raw(ptr) };
             let mut basis = [
@@ -1345,6 +1386,203 @@ mod tests {
             assert!(max_yaw_rate < 0.35, "{model} spun out max_yaw={max_yaw_rate}");
             assert!(max_lat_ratio < 0.08, "{model} drifted sideways max_lat_ratio={max_lat_ratio}");
             assert!(basis[1][1] > 0.90, "{model} turned off course heading_y={}", basis[1][1]);
+        }
+    }
+
+    #[test]
+    fn sa_rest_fraction_and_bump_stop_preserve_sa_clearance() {
+        // Low sports cars sit higher than 0.36; Remington sits lower.
+        let banshee = sa_rest_fraction(0.25, true, 1.6, 0.5);
+        let infernus = sa_rest_fraction(0.25, true, 1.2, 0.5);
+        let remington_f = sa_rest_fraction(0.25, true, 0.5, 0.4);
+        assert!((banshee - 0.15625).abs() < 0.001, "banshee={banshee}");
+        assert!((infernus - 0.20833).abs() < 0.001, "infernus={infernus}");
+        assert!((remington_f - 0.625).abs() < 0.001, "remington_f={remington_f}");
+        let travel = 0.38;
+        let rest = travel * sa_rest_fraction(0.25, true, 1.3, 0.5);
+        // Normal road ripples near rest pass unmodified; deep compressions ramp cleanly.
+        assert!((bump_stop_compression(rest + 0.02, rest, travel) - (rest + 0.02)).abs() < 1e-6);
+        let deep = rest + 0.12;
+        assert!(bump_stop_compression(deep, rest, travel) > deep + 0.02);
+    }
+
+    #[test]
+    #[ignore = "requires local GTA SA/IV data files"]
+    fn parked_entry_at_sa_ride_height_does_not_hop() {
+        let root = std::path::PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        let program = std::fs::read(root.join("DeliriumSA-local-v3/iv-program.bin")).unwrap();
+        assert!(delirium_data::kv::unlock_program(&program));
+        let bytes = std::fs::read(root.join("DeliriumSA-local-v3/iv-vehicle-handling.dat")).unwrap();
+        let _ = IV_HANDLING.set(vehicles::read_handling(&String::from_utf8_lossy(&bytes)));
+
+        for (model, drive, sa_force, sa_bias, travel) in [
+            (411u32, 52u32, 1.2f32, 0.50f32, 0.35f32), // Infernus
+            (429, 82, 1.6, 0.50, 0.45),                // Banshee
+            (558, 82, 1.3, 0.50, 0.38),                // Uranus
+            (534, 82, 0.5, 0.40, 0.20),                // Remington
+        ] {
+            let ptr = sa_vehicle_lab_create(1500.0, model, drive, 4.5, 1.2, 55.0, 5, 30.0, sa_force, sa_bias);
+            assert!(!ptr.is_null(), "create {model}");
+            let mut car = unsafe { Box::from_raw(ptr) };
+            let eq_f = sa_rest_fraction(0.25, true, sa_force, sa_bias);
+            let eq_r = sa_rest_fraction(0.25, false, sa_force, sa_bias);
+            let top_f = (1.0 - eq_f) * travel;
+            let top_r = (1.0 - eq_r) * travel;
+            let mut z = 0.34 + 0.5 * (top_f + top_r);
+            let pitch_sin = ((top_f - top_r) / 2.6).clamp(-0.2, 0.2);
+            let pitch_cos = (1.0 - pitch_sin * pitch_sin).sqrt();
+            let z0 = z;
+            let mut vel = [0.0f32, 0.0, -0.40, 0.0]; // SA ApplyGravity pre-impulse
+            let mut spin = [0.0f32; 4];
+            let mut basis = [
+                AXLE,
+                [0.0, pitch_cos, pitch_sin, 0.0],
+                [0.0, -pitch_sin, pitch_cos, 0.0],
+                [0.0, 0.0, z, 1.0],
+            ];
+            let mut max_vz = 0.0f32;
+            let mut max_dz = 0.0f32;
+            for tick in 0..40u32 {
+                let comp = |x: f32, y: f32| {
+                    let top_z = basis[3][2] + basis[0][2] * x + basis[1][2] * y - basis[2][2] * 0.34;
+                    let frac = (top_z / travel).clamp(0.0, 1.0);
+                    Ground {
+                        point: [x, y, 0.0, 0.0],
+                        normal: [0.0, 0.0, 1.0, 0.0],
+                        travel,
+                        compression: 1.0 - frac,
+                        radius: 0.34,
+                        load_share: 0.25,
+                        supported: u32::from(frac < 1.0),
+                    }
+                };
+                let frame = Frame {
+                    basis,
+                    velocity: vel,
+                    spin,
+                    native_spin_loss: [0.0; 4],
+                    inertia: [3200.0, 1000.0, 3500.0, 1.0],
+                    contacts: [
+                        comp(-0.8, 1.3),
+                        comp(0.8, 1.3),
+                        comp(-0.8, -1.3),
+                        comp(0.8, -1.3),
+                    ],
+                    mass: 1500.0,
+                    dt: 0.02,
+                    gas: 0.0,
+                    brake: 0.0,
+                    steer: 0.0,
+                    now_ms: tick * 20,
+                    reseed_contacts: u32::from(tick == 0),
+                    handbrake: 0,
+                    nitro: 0,
+                    gravity_scale: 1.0,
+                };
+                let mut res = unsafe { std::mem::zeroed::<Result>() };
+                assert_eq!(unsafe { sa_vehicle_lab_step(&mut *car, &frame, &mut res) }, 1);
+                vel = res.velocity;
+                // Simulate next SA frame's pre-applied ApplyGravity (-0.40 m/s) after z integration
+                z += vel[2] * 0.02;
+                basis = res.basis;
+                basis[3][2] = z;
+                spin = res.spin;
+                max_vz = max_vz.max(vel[2].abs());
+                max_dz = max_dz.max((z - z0).abs());
+                vel[2] -= 0.40;
+            }
+            eprintln!("parked_entry {model}: max_vz={max_vz:.4} max_dz={max_dz:.4} final_z_diff={:.4}", z - z0);
+            assert!(max_vz < 0.16, "{model} entry hop max_vz={max_vz}");
+            assert!(max_dz < 0.025, "{model} entry sag/hop max_dz={max_dz}");
+        }
+    }
+
+    #[test]
+    #[ignore = "requires local GTA SA/IV data files"]
+    fn low_sports_cornering_limits_roll_without_bottoming() {
+        let root = std::path::PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        let program = std::fs::read(root.join("DeliriumSA-local-v3/iv-program.bin")).unwrap();
+        assert!(delirium_data::kv::unlock_program(&program));
+        let bytes = std::fs::read(root.join("DeliriumSA-local-v3/iv-vehicle-handling.dat")).unwrap();
+        let _ = IV_HANDLING.set(vehicles::read_handling(&String::from_utf8_lossy(&bytes)));
+
+        for (model, drive, sa_force, travel, sa_col_clr) in [
+            (411u32, 52u32, 1.2f32, 0.35f32, 0.112f32), // Infernus
+            (451, 82, 1.2, 0.35, 0.112),                // Turismo
+            (558, 82, 1.3, 0.38, 0.076),                // Uranus
+            (541, 82, 1.0, 0.35, 0.062),                // Bullet
+        ] {
+            let ptr = sa_vehicle_lab_create(1450.0, model, drive, 4.4, 1.2, 58.0, 5, 30.0, sa_force, 0.5);
+            assert!(!ptr.is_null(), "create {model}");
+            let mut car = unsafe { Box::from_raw(ptr) };
+            let eq = sa_rest_fraction(0.25, true, sa_force, 0.5);
+            let mut z = 0.34 + (1.0 - eq) * travel;
+            let z0 = z;
+            let mut vel = [0.0f32, 22.0, -0.40, 0.0];
+            let mut spin = [0.0f32; 4];
+            let mut basis = [
+                AXLE,
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, z, 1.0],
+            ];
+            let mut max_lean = 0.0f32;
+            let mut max_outer_drop = 0.0f32;
+            for tick in 0..40u32 {
+                let comp = |x: f32, y: f32| {
+                    let top_z = basis[3][2] + basis[0][2] * x + basis[1][2] * y - basis[2][2] * 0.34;
+                    let frac = (top_z / travel).clamp(0.0, 1.0);
+                    Ground {
+                        point: [basis[3][0] + x, basis[3][1] + y, 0.0, 0.0],
+                        normal: [0.0, 0.0, 1.0, 0.0],
+                        travel,
+                        compression: 1.0 - frac,
+                        radius: 0.34,
+                        load_share: 0.25,
+                        supported: u32::from(frac < 1.0),
+                    }
+                };
+                let frame = Frame {
+                    basis,
+                    velocity: vel,
+                    spin,
+                    native_spin_loss: [0.0; 4],
+                    inertia: [3000.0, 850.0, 3300.0, 1.0],
+                    contacts: [
+                        comp(-0.85, 1.3),
+                        comp(0.85, 1.3),
+                        comp(-0.85, -1.3),
+                        comp(0.85, -1.3),
+                    ],
+                    mass: 1450.0,
+                    dt: 0.02,
+                    gas: 0.35,
+                    brake: 0.0,
+                    steer: 0.32,
+                    now_ms: tick * 20,
+                    reseed_contacts: u32::from(tick == 0),
+                    handbrake: 0,
+                    nitro: 0,
+                    gravity_scale: 1.0,
+                };
+                let mut res = unsafe { std::mem::zeroed::<Result>() };
+                assert_eq!(unsafe { sa_vehicle_lab_step(&mut *car, &frame, &mut res) }, 1);
+                vel = res.velocity;
+                spin = res.spin;
+                z += vel[2] * 0.02;
+                let prev_x = basis[3][0];
+                let prev_y = basis[3][1];
+                basis = res.basis;
+                basis[3] = [prev_x + vel[0] * 0.02, prev_y + vel[1] * 0.02, z, 1.0];
+                max_lean = max_lean.max(basis[0][2].abs());
+                let outer_drop = (z0 - z) + 0.85 * basis[0][2].abs();
+                max_outer_drop = max_outer_drop.max(outer_drop);
+                vel[2] -= 0.40;
+            }
+            eprintln!("cornering {model}: max_lean={max_lean:.4} max_outer_drop={max_outer_drop:.4} clr={sa_col_clr:.3} heading_x={:.4}", basis[1][0]);
+            assert!(max_lean < 0.090, "{model} rolled too far max_lean={max_lean}");
+            assert!(max_outer_drop < sa_col_clr + 0.015, "{model} outer skirt scraped road outer_drop={max_outer_drop} clr={sa_col_clr}");
+            assert!(basis[1][0].abs() > 0.12, "{model} failed to turn heading_x={}", basis[1][0]);
         }
     }
 }
