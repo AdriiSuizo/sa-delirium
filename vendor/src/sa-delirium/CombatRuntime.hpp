@@ -47,13 +47,25 @@ static bool combatResponseActive(void*p){
     return nm_combat_receiving(combat,ref)==1||
         (physical!=agents.end()&&physical->second->ped==p&&!physical->second->preview);
 }
+static bool combatPlayerOnFoot(void*p){
+    if(!p||!nativeOnFootControl(at<unsigned char>(p,0x46D))||agents.contains(reference(p))||pending.contains(reference(p)))return false;
+    auto*m=taskManager(p);auto*t=m?reinterpret_cast<void*(__thiscall*)(void*)>(0x681720)(m):nullptr;
+    int leaf=-1;
+    for(int depth=0;t&&depth<16;depth++){
+        auto*v=at<void**>(t,0);leaf=reinterpret_cast<int(__thiscall*)(void*)>(v[4])(t);
+        auto*sub=reinterpret_cast<void*(__thiscall*)(void*)>(v[2])(t);
+        if(!sub)break;t=sub;
+    }
+    return leaf==TASK_SIMPLE_PLAYER_ON_FOOT||leaf==TASK_SIMPLE_GO_TO_POINT||
+        leaf==TASK_SIMPLE_GO_TO_POINT_FINE||leaf==TASK_SIMPLE_STAND_STILL;
+}
 static bool combatCanFight(void*p){
     if(!combatAllowed()||player_cover::owns(p)||!validPed(p,false,false,p==player()))return false;
     if(p!=player()&&ivHealth(p)<combat_health::injured)return false;
     const int weapon=combatWeapon(p);
-    if(clubWeapon(weapon))return at<void*>(p,0x4F4)&&(p==player()||nativeClubTarget(p));
+    if(clubWeapon(weapon))return at<void*>(p,0x4F4)&&(p==player()?combatPlayerOnFoot(p):nativeClubTarget(p)!=nullptr);
     if(weapon<0||weapon>1)return false;
-    if(p==player())return true;
+    if(p==player())return combatPlayerOnFoot(p);
     const int decision=nm_combat_decision(combat,reference(p));if(decision==1904||decision==200)return false;
     const auto intent=combatReadNativeIntent(p);if(intent.type<0)return true;
     const auto target=combatTargets.find(reference(p));
@@ -159,6 +171,7 @@ static bool __cdecl combatGenerateDamage(void*victim,void*source,int weapon,int 
 }
 static bool combatFightTask(void*task,void*ped){
     if(!combatEligible(ped))return false;
+    if(ped==player()&&combatOwns(ped))return true;
     if(ped!=player()&&combatEndedAgainst(ped,at<void*>(task,0x18)))return true;
     // Native retarget/pursuit requests cannot replace the source and clock of
     // a received reaction. The native task remains intact for the handback.
@@ -169,6 +182,12 @@ static bool combatFightTask(void*task,void*ped){
     if(clubWeapon(combatWeapon(ped)))return combatOwns(ped);
     // Keep the native seek outside melee range; own action clocks inside it.
     return length(position(target)-position(ped))<5.5f&&combatClearPath(ped,target)&&!agents.contains(reference(ped));
+}
+static unsigned char(__thiscall* originalCombatGetMeleeAttack)(void*,bool)=nullptr;
+static unsigned char __fastcall combatGetMeleeAttack(void*pad,void*,bool checkCircle){
+    const unsigned char down=originalCombatGetMeleeAttack(pad,checkCircle);
+    if(!down||checkCircle||pad!=reinterpret_cast<void*>(0xB73458))return down;
+    return (combatCanFight(player())||combatOwns(player()))?0:down;
 }
 static bool(__thiscall* originalCombatJumpJustDown)(void*)=nullptr;
 static bool __fastcall combatJumpJustDown(void*pad,void*){return combatOwns(player())?false:originalCombatJumpJustDown(pad);}
@@ -280,7 +299,7 @@ static void combatPrepare(){
     combatInput.look=at<short>(pad,4); // CPad::NewState.RightStickX; movement uses the left stick.
     if(!combatInput.aim||std::abs(combatInput.look)<35)combatLookLatched=false;
     const auto*newKeys=!at<short>(pad,0x10E)?reinterpret_cast<const short*>(0xB73190+0x18):nullptr;
-    const auto attack=reinterpret_cast<unsigned char(__thiscall*)(void*,bool)>(0x540340)(pad,false);
+    const auto attack=(originalCombatGetMeleeAttack?originalCombatGetMeleeAttack:reinterpret_cast<unsigned char(__thiscall*)(void*,bool)>(0x540340))(pad,false);
     const bool block=reinterpret_cast<bool(__thiscall*)(void*)>(0x540750)(pad)||(combatInput.aim&&newKeys&&(newKeys[VK_LMENU]!=0||newKeys[VK_MENU]!=0));
     const bool kick=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad)||(combatInput.aim&&newKeys&&newKeys['Q']!=0);
     const bool second=(originalCombatExitVehicle&&originalCombatExitVehicle(pad))||(combatInput.aim&&newKeys&&newKeys['R']!=0);
@@ -578,7 +597,9 @@ static void combatTick(float dt){
         if(!ok(nm_combat_feed_weapon(combat,ref,a->clubReady?a->clubBounds.data():nullptr,club&&bladeWeapon(combatWeapon(p)))))continue;
         const bool physical=agents.contains(ref)&&!agents[ref]->preview;void*foe=targets.contains(ref)?pedFromRef(targets[ref]):nullptr;
         const bool finishing = p==player() && finishStrike;
-        const bool engaged=finishing||(foe&&(!club||a->clubReady)&&combatCanFight(p)&&length(position(foe)-pos)<5.5f&&combatClearPath(p,foe));
+        const bool readyToFight = combatCanFight(p) && (!club || a->clubReady);
+        const bool engaged = finishing || (p==player() && readyToFight) ||
+            (foe && readyToFight && length(position(foe)-pos)<5.5f && combatClearPath(p,foe));
         const bool receiving=nm_combat_receiving(combat,ref)==1;
         const auto active=agents.find(ref);
         const bool down=physical&&(nm_agent_has_fallen(active->second->agent)==1||active->second->current[10].p.z-active->second->current[0].p.z<.25f);
@@ -607,6 +628,10 @@ static void combatTick(float dt){
         if(a.state[11]>=0&&pedFromRef(int(a.state[11])))combatTargets[ref]={int(a.state[11]),now};
         if(a.state[13]>=0)event("combat_request_step",ref,a.model,"attacker="+std::to_string(int(a.state[13]))+" taken="+std::to_string(int(a.state[12]))+" result="+std::to_string(int(a.state[4]))+" ownership="+std::to_string(own));
         a.owned=own==1||own==3;a.previousPoseEpoch=a.poseEpoch;a.previous=a.pose;a.pose.clear();a.root=position(p);a.motionSeconds=dt;
+        if(p==player()&&a.owned){
+            CombatNativeRetirement host{p,nullptr};
+            if(const auto atk=host.attack();atk.fight&&host.abort(atk.task,1)&&host.attack().task==atk.task)host.clearAttack();
+        }
         a.poseHistory.begin(*reinterpret_cast<unsigned*>(0xB7CB4C),++combatPoseSerial);
         a.authoredPose=own==1||own==2||own==3;
         a.poseEpoch=a.authoredPose?SeedEpoch{a.poseHistory.frame,a.poseHistory.serial,SeedPhase::AuthoredEnd,dt,dt}:a.fedPoseEpoch;
@@ -625,6 +650,37 @@ static void combatTick(float dt){
         }
     }
     combatFrameReady=true;
+}
+static void combatCheckPlayerVehicleStrike(void*cj,const CombatActor&a,bool hitPedThisTick){
+    static int lastResult=-1;static float lastTime=0.f;static bool struck=false;
+    if(!cj||!combatOwns(cj)||a.state[4]<0||!matrix(cj)||a.pose.empty()){lastResult=-1;struck=false;return;}
+    const int res=int(a.state[4]);const float clipT=a.state[5];
+    if(res!=lastResult||clipT<lastTime-.02f){lastResult=res;struck=false;}
+    lastTime=clipT;
+    if(hitPedThisTick){struck=true;return;}
+    if(struck||(int(a.state[7])&3)==0||!a.rig||a.pose.size()!=a.rig->ids.size())return;
+    const int held=combatWeapon(cj),wep=clubWeapon(held)?held:0;const bool club=wep!=0;
+    const V origin=position(cj),fwd=matrix(cj)->up;
+    struct Seg{int fromId,toId;float reach;};
+    const Seg segs[]={{23,24,club?.55f:.22f},{33,34,.22f},{53,54,.22f},{43,44,.22f}};
+    for(const auto&s:segs){
+        const int fi=a.rig->index(s.fromId),ti=a.rig->index(s.toId);
+        if(fi<0||ti<0)continue;
+        const V from=a.pose[fi].p,hand=a.pose[ti].p;
+        if(!finite(from)||!finite(hand)||dot(hand-origin,fwd)<=.15f)continue;
+        const V dir=normalized(hand-from);if(!finite(dir))continue;
+        ColPoint cp{};void*entity=nullptr;
+        if(!originalLineOfSight(from,hand+dir*s.reach,cp,entity,false,true,false,false,false,false,false,false))continue;
+        if(!entity||vehicleRef(entity)<0||!matrix(entity))continue;
+        struck=true;
+        V push=normalized(cp.point-from);if(!finite(push))push=fwd;
+        const float impulseNs=club?85.f:45.f;
+        at<unsigned char>(entity,0xB8)=0;
+        reinterpret_cast<void(__thiscall*)(void*,V,V,bool)>(0x542B50)(entity,push*(impulseNs*.02f),cp.point-position(entity),true);
+        playIvMeleeImpact(club&&!bladeWeapon(held)?5:0,3,cp.point,reference(cj));
+        event("combat_vehicle_contact",vehicleRef(entity),at<short>(entity,0x22),"weapon="+std::to_string(wep)+" result="+std::to_string(res));
+        break;
+    }
 }
 static void combatFinish(){
     if(!combatFrameReady||!combatAllowed())return;combatFrameReady=false;
@@ -662,10 +718,12 @@ static void combatFinish(){
         }
     }
     const int hits=nm_combat_finish(combat);if(!ok(hits))return;
+    bool playerHitPed=false;
     for(int i=0;i<hits;i++){float hit[16]{};if(nm_combat_contact(combat,i,hit)!=1)continue;
         const int source=int(hit[0]),target=int(hit[1]),part=combatPart(int(hit[2]));void*p=pedFromRef(target),*by=pedFromRef(source);if(!p||!by||!fighters.contains(target))continue;
         // Hit kind 3: the taker's DisarmOpponent at its clip's 0x200 event (sa-combat runtime.rs): the foe's weapon changes hands, nothing else.
         if(hit[15]==3){meleeDisarm(by,p);continue;}
+        if(by==player())playerHitPed=true;
         const int held=combatWeapon(by),weapon=clubWeapon(held)?held:0;
         const float before=at<float>(p,0x540);const V motionBefore=at<V>(p,0x44);const int piece=combatPiece(part);
         const bool motorStart=hit[15]==2;
@@ -774,6 +832,11 @@ static void combatFinish(){
             pending[target]=r;a.owned=false;
         }
     }
+    if(auto*cj=player()){
+        const auto it=fighters.find(reference(cj));
+        if(it!=fighters.end())combatCheckPlayerVehicleStrike(cj,it->second,playerHitPed);
+        else{CombatActor empty{};combatCheckPlayerVehicleStrike(cj,empty,playerHitPed);}
+    }else{CombatActor empty{};combatCheckPlayerVehicleStrike(nullptr,empty,false);}
 }
 static bool combatReactionPlaying(const Active&a){
     const auto i=fighters.find(a.ref);

@@ -9,12 +9,22 @@ static unsigned nikoFrame=UINT32_MAX,nikoTrace=0;
 static bool nikoActive=false;
 static float nikoState[8]{};
 static std::vector<float> nikoPose;
+static bool nikoLastRejectWasPureJump=false,nikoJumpSuspended=false;
+static unsigned nikoJumpResumedAt=0;
+static std::vector<T> nikoJumpLandLocal;
 static void nikoClear(){
     if(nikoMovement)nm_locomotion_destroy(nikoMovement);
     nikoMovement=nullptr;nikoRig.reset();nikoRef=-1;nikoActive=false;nikoFrame=UINT32_MAX;
+    nikoLastRejectWasPureJump=false;nikoJumpSuspended=false;nikoJumpResumedAt=0;nikoJumpLandLocal.clear();
+}
+static bool nikoIsJumpOrAirTask(int task,unsigned char airFlags){
+    if(task==TASK_SIMPLE_JUMP||task==TASK_COMPLEX_JUMP||
+       task==TASK_COMPLEX_IN_AIR_AND_LAND||task==TASK_SIMPLE_IN_AIR||
+       task==TASK_SIMPLE_LAND||task==TASK_COMPLEX_MOVE_BACK_AND_JUMP)return true;
+    return (airFlags&6u)!=0&&task==TASK_SIMPLE_PLAYER_ON_FOOT;
 }
 static bool nikoEligible(void*p){
-    nikoTask=-1;nikoTaskMove=-1;
+    nikoTask=-1;nikoTaskMove=-1;nikoLastRejectWasPureJump=false;
     if(p)if(auto*m=taskManager(p)){
         auto*t=reinterpret_cast<void*(__thiscall*)(void*)>(0x681720)(m);
         for(int depth=0;t&&depth<16;depth++){
@@ -25,10 +35,6 @@ static bool nikoEligible(void*p){
     }
     if(p!=player()||!combatAllowed()||player_cover::owns(p)||!validPed(p,false,false,true)||combatLocomotionOwns(p)||
        agents.contains(reference(p))||pending.contains(reference(p))||at<float>(p,0x540)<=0)return false;
-    // CPed::IsPedInControl (0x5E3960) tests airborne/landing, not bIsStanding.
-    // Support can disappear for a frame when stepping off a curb without a
-    // jump/fall task: that must not cancel the original move/start/stop clock.
-    if(!nativeOnFootControl(at<unsigned char>(p,0x46D)))return false;
     if(combatWeapon(p)>1&&(at<unsigned char>(p,0x46C)&0x10))return false;
     // Guns: SA's player aim lives in the secondary attack slot (CTaskManager
     // +0x14, CTaskSimpleUseGun from CTaskSimplePlayerOnFoot::ProcessPlayerWeapon)
@@ -36,10 +42,17 @@ static bool nikoEligible(void*p){
     // this layer still turning CJ to the stick). Aiming strafes natively, as
     // IV turns the body to the camera while aiming (gta4-viewer main.rs:2519).
     if(const int w=combatWeapon(p);w>=22&&w<=38)if(auto*m=taskManager(p);m&&at<void*>(m,0x14))return false;
+    // CPed::IsPedInControl (0x5E3960) tests airborne/landing, not bIsStanding.
+    // Support can disappear for a frame when stepping off a curb without a
+    // jump/fall task: that must not cancel the original move/start/stop clock.
+    const unsigned char airFlags=at<unsigned char>(p,0x46D);
+    if(!nativeOnFootControl(airFlags)){nikoLastRejectWasPureJump=nikoIsJumpOrAirTask(nikoTask,airFlags);return false;}
     // Positive list: swimming, jumping, getting up, climbing, phone and vehicle
     // tasks cannot accidentally acquire this palette. Physical calls still work.
-    return nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_GO_TO_POINT||
-        nikoTask==TASK_SIMPLE_GO_TO_POINT_FINE||nikoTask==TASK_SIMPLE_STAND_STILL;
+    if(nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_GO_TO_POINT||
+       nikoTask==TASK_SIMPLE_GO_TO_POINT_FINE||nikoTask==TASK_SIMPLE_STAND_STILL)return true;
+    nikoLastRejectWasPureJump=nikoIsJumpOrAirTask(nikoTask,airFlags);
+    return false;
 }
 static bool nikoPadActive(){
     if(GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0))return true;
@@ -88,12 +101,21 @@ static void nikoUpdatePosition(void*p){
     if(p!=player())return;
     const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
     if(!nikoEligible(p)){
-        if(nikoActive){event("niko_movement_yield",reference(p),nikoModel,"native_task="+std::to_string(nikoTask)+" support_flags="+std::to_string(at<unsigned char>(p,0x46C))+" air_flags="+std::to_string(at<unsigned char>(p,0x46D)));nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),-1);}
+        const bool pureJump=(nikoActive||nikoJumpSuspended)&&nikoLastRejectWasPureJump;
+        if(nikoActive){
+            event("niko_movement_yield",reference(p),nikoModel,"native_task="+std::to_string(nikoTask)+" support_flags="+std::to_string(at<unsigned char>(p,0x46C))+" air_flags="+std::to_string(at<unsigned char>(p,0x46D))+" jump_suspend="+std::to_string(pureJump));
+            if(nikoMovement)nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),pureJump?-2.f:-1.f);
+            nikoJumpSuspended=pureJump;if(!pureJump)nikoJumpLandLocal.clear();
+        }else if(nikoJumpSuspended&&!pureJump){
+            if(nikoMovement)nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),-1.f);
+            nikoJumpSuspended=false;nikoJumpLandLocal.clear();
+        }
         nikoActive=false;return;
     }
     const auto ini=(folder.parent_path()/"DeliriumSA.ini").string();
     static int enabled=GetPrivateProfileIntA("Movement","NikoOnFoot",0,ini.c_str());if(!enabled)return;
-    if(reference(p)!=nikoRef||at<short>(p,0x22)!=nikoModel)nikoClear();
+    if(reference(p)!=nikoRef||at<short>(p,0x22)!=nikoModel){nikoJumpSuspended=false;nikoJumpLandLocal.clear();nikoClear();}
+    if(nikoJumpSuspended){nikoJumpSuspended=false;nikoJumpResumedAt=gameTime();}
     if(!nikoMovement){
         try{
             nikoRig=std::make_unique<Rig>(p,sourceBuild);nikoRef=reference(p);nikoModel=at<short>(p,0x22);
@@ -202,9 +224,30 @@ static bool nikoNativeHoldsWeapon(void*p){
     return false;
 }
 static void nikoRender(void*p){
-    if(!nikoActive||reference(p)!=nikoRef||!nikoRig||!nikoEligible(p)||nikoFrame!=*reinterpret_cast<unsigned*>(0xB7CB4C))return;
+    if(p!=player()||reference(p)!=nikoRef||!nikoRig)return;
+    if(!nikoActive){
+        if(nikoJumpSuspended&&matrix(p)){
+            std::array<T,21> parts{};std::vector<T> native;
+            if(nikoRig->incoming(p,parts,native)){
+                const T root=inverse(transform(*matrix(p)));
+                nikoJumpLandLocal.clear();nikoJumpLandLocal.reserve(native.size());
+                for(const auto&t:native)nikoJumpLandLocal.push_back(mul(root,t));
+            }
+        }
+        return;
+    }
+    if(!nikoEligible(p)||nikoFrame!=*reinterpret_cast<unsigned*>(0xB7CB4C))return;
     auto*h=hierarchy(p);if(!h||h->num!=int(nikoRig->ids.size()))return;
     const T root=transform(*matrix(p));std::vector<T> bones;for(size_t i=0;i<nikoRig->ids.size();i++){const float*r=nikoPose.data()+7*i;bones.push_back(mul(root,T{{r[3],r[4],r[5],r[6]},{r[0],r[1],r[2]}}));}
+    if(nikoJumpResumedAt){
+        const float blend=(gameTime()-nikoJumpResumedAt)/120.f;
+        if(blend>=1.f||nikoJumpLandLocal.size()!=bones.size()){nikoJumpResumedAt=0;nikoJumpLandLocal.clear();}
+        else{
+            std::vector<T> from;from.reserve(bones.size());
+            for(const auto&l:nikoJumpLandLocal)from.push_back(mul(root,l));
+            bones=nikoRig->blendBones(from,bones,blend);
+        }
+    }
     // Preserve SA's weapon/aim upper layer until its own IV retarget is complete.
     // Arms cannot inherit locomotion rotations while holding a two-handed gun.
     const int weapon=combatWeapon(p);

@@ -7,7 +7,7 @@ use serde_json::json;
 struct Contact { point:Vec3,normal:Vec3,gap:f32,relative:Vec3 }
 fn query(world:&Collision,ob:&Obstacle,owner_com:Vec3,owner_v:Vec3,owner_w:Vec3)->Vec<Contact>{
     let fallback=[ObPart{shape:gjk::Shape::Box(ob.half,0.),at:Vec3::ZERO,m:Mat3::IDENTITY,lo:-ob.half,hi:ob.half,mesh:None,filter:Default::default()}];
-    let parts=if ob.parts.is_empty(){&fallback[..]}else{ob.parts};
+    let parts=if ob.parts.is_empty(){&fallback[..]}else{&*ob.parts};
     let mut contacts=vec![];let rot=Mat3::from_quat(ob.rot);
     let margin=delirium_data::kv!(565);
     for part in parts {
@@ -34,11 +34,11 @@ fn main(){
     let owner=Obstacle{id:1,at,centre:at,com:at,half,..Default::default()};
     let hits=query(&floor,&owner,at,Vec3::ZERO,Vec3::ZERO);
     assert!(!hits.is_empty());assert!(hits.iter().any(|h|h.normal.z>0.99&&h.gap<0.));
-    let above=Obstacle{at:at+Vec3::Z,centre:at+Vec3::Z,..owner};
+    let above=Obstacle{at:at+Vec3::Z,centre:at+Vec3::Z,parts:owner.parts.clone(),..owner};
     assert!(query(&floor,&above,above.at,Vec3::ZERO,Vec3::ZERO).is_empty());
     // Articulation must remain a prescribed relative velocity when the
     // chassis is finite; the future row must not erase hinge motion.
-    let rotating=Obstacle{spin:Vec3::Y*2.,..owner};
+    let rotating=Obstacle{spin:Vec3::Y*2.,parts:owner.parts.clone(),..owner};
     let rotated=query(&floor,&rotating,at,Vec3::ZERO,Vec3::ZERO);
     assert!(rotated.iter().any(|h|h.relative.length()>0.1));
     let mut wall=Collision::default();

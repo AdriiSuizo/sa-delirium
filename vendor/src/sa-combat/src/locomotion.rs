@@ -60,6 +60,25 @@ impl<'a> Clips<'a>{
     p.step(&bank,0.,-1.,-1.,false,0,t+100,1./60.).unwrap();assert!(p.velocity.length()<0.001);
     println!("Movement clips exercised: {seen:?}; travel={distance}");
  }
+ #[test]fn jump_suspension_resumes_running_without_wstart_or_runstart(){
+    let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").expect("owned assets"));
+    let bytes=std::fs::read(assets.join("fred.xrt")).unwrap();
+    assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&bytes)));
+    let bank=Bank::load(std::path::Path::new(&std::env::var("NM_TEST_COMBAT").expect("movement assets"))).unwrap();
+    let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+    let mut p=Locomotion::new(rig,0.);let mut t=0u32;
+    for _ in 0..240{t+=16;p.step(&bank,2.,0.,p.state()[0],false,0,t,1./60.).unwrap();if p.state()[3]>1.5{break;}}
+    assert!(p.state()[3]>1.5,"expected established jog before jump, got state={:?} key={}",p.state(),p.key);
+    p.suspend_jump();assert!(!p.active);assert_eq!(p.velocity,Vec2::ZERO);
+    let mut post_jump_keys=Vec::new();
+    for _ in 0..30{t+=16;p.step(&bank,2.,0.,0.,false,0,t,1./60.).unwrap();post_jump_keys.push(p.key.clone());}
+    assert!(!post_jump_keys.iter().any(|k|k.contains("wstart")||k.contains("runstart")),
+        "resuming after running jump must not replay walk/run start: {post_jump_keys:?}");
+    assert!(p.state()[3]>1.5,"expected continuous jog ratio on land, got {}",p.state()[3]);
+    // Full cancel must still reset cleanly to idle.
+    p.cancel();t+=16;p.step(&bank,2.,0.,0.,false,0,t,1./60.).unwrap();
+    assert!(p.key.contains("wstart")||p.key.contains("runstart")||p.state()[5]==1.0);
+ }
 }
 #[derive(Default)]struct Slope{slope:i16}
 #[derive(Default)]pub struct Player{
@@ -70,9 +89,9 @@ impl<'a> Clips<'a>{
     stand_step:Option<f32>,spot_turn:f32,slope:Slope,
 }
 pub struct Locomotion{p:Player,stamina:Stamina,control_at:Option<u32>,pub rig:Rig,pub pose:Vec<Pose>,pub velocity:Vec2,pub key:String,
-    pub active:bool,pub elapsed:f32,set:usize,fade:Option<(usize,f32)>,last_heading:f32}
+    pub active:bool,jump_resume:bool,pub elapsed:f32,set:usize,fade:Option<(usize,f32)>,last_heading:f32}
 impl Locomotion{
-    pub fn new(rig:Rig,heading:f32)->Self{Self{pose:rig.bind.clone(),rig,stamina:Stamina::default(),control_at:None,p:Player{heading,goal:heading,turn_col:3.,gait_w:1.,..Default::default()},velocity:Vec2::ZERO,key:String::new(),active:false,elapsed:0.,set:0,fade:None,last_heading:heading}}
+    pub fn new(rig:Rig,heading:f32)->Self{Self{pose:rig.bind.clone(),rig,stamina:Stamina::default(),control_at:None,p:Player{heading,goal:heading,turn_col:3.,gait_w:1.,..Default::default()},velocity:Vec2::ZERO,key:String::new(),active:false,jump_resume:false,elapsed:0.,set:0,fade:None,last_heading:heading}}
     pub fn control(&mut self,push:f32,tapped:bool,held:bool,now:u32,dt:f32)->Result<f32,String>{
         if !push.is_finite()||!(0.0..=1.0).contains(&push)||!dt.is_finite()||dt<=0.||dt>0.1{return Err("invalid on-foot control".into())}
         if let Some(at)=self.control_at{if now<at{self.control_at=None;}else if now-at>100{
@@ -86,12 +105,31 @@ impl Locomotion{
         Ok(animblend::move_ratio(push,run))
     }
     pub fn state(&self)->[f32;8]{[self.p.heading,self.velocity.x,self.velocity.y,self.p.ratio,self.p.phase,self.p.state,self.elapsed,self.set as f32]}
-    pub fn cancel(&mut self){self.active=false;self.velocity=Vec2::ZERO;}
+    pub fn cancel(&mut self){self.active=false;self.jump_resume=false;self.velocity=Vec2::ZERO;}
+    /// Preserve gait continuity across a pure jump/air/land handoff so landing
+    /// while moving resumes jogging/sprinting instead of replaying wstart/runstart.
+    pub fn suspend_jump(&mut self){
+        if self.active{self.jump_resume=true;}
+        self.active=false;
+        self.velocity=Vec2::ZERO;
+    }
     /// wanted 0..3 is analog gait intent, goal is the camera-relative heading.
     pub fn step(&mut self,bank:&Bank,wanted:f32,goal:f32,heading:f32,crouched:bool,slope:i16,now:u32,dt:f32)->Result<(),String>{
         if !wanted.is_finite()||!goal.is_finite()||!heading.is_finite()||!dt.is_finite()||dt<=0.||dt>0.1||!(0.0..=3.0).contains(&wanted){return Err("Invalid locomotion frame".into())}
         let clips=Clips::new(bank)?;
-        if !self.active{self.p=Player{heading,goal:heading,turn_col:3.,gait_w:1.,..Default::default()};self.elapsed=0.;self.last_heading=heading;self.active=true;}
+        if !self.active{
+            let resuming_jump=std::mem::take(&mut self.jump_resume);
+            if resuming_jump&&wanted>0.&&(self.p.ratio>0.||self.p.start.is_some()){
+                self.p.start=None;self.p.stop=None;self.p.turn=None;self.p.spot=None;
+                self.p.turning=Default::default();self.p.turned=0.;self.p.stand_step=None;
+                self.p.heading=heading;self.p.goal=goal;self.p.turn_col=3.;self.p.gait_w=1.;self.p.state=2.;
+                if self.p.ratio<=0.{self.p.ratio=wanted.min(2.);}
+                self.last_heading=heading;self.fade=None;self.active=true;
+            }else{
+                self.p=Player{heading,goal:heading,turn_col:3.,gait_w:1.,..Default::default()};
+                self.elapsed=0.;self.last_heading=heading;self.active=true;
+            }
+        }
         let set=if crouched{CROUCHED}else{ON_FOOT};if set!=self.set{self.fade=Some((self.set,0.));self.set=set;}
         let p=&mut self.p;p.ms=now;p.goal=goal;p.wish_heading=(wanted>0.).then_some(goal);p.slope.slope=slope;
         // Respect external heading changes while retaining the original rate history.

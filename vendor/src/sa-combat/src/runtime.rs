@@ -49,17 +49,30 @@ pub struct Actor{
             if !self.accept{return Ok(false)}self.health=r.after;self.revision+=1;self.receipts.push(*r);Ok(true)
         }
     }
+    fn assets_dir(root:&std::path::Path)->std::path::PathBuf{
+        std::env::var_os("NM_TEST_ASSETS").map(std::path::PathBuf::from).unwrap_or_else(||root.join("game/DeliriumSA"))
+    }
+    fn combat_dir(root:&std::path::Path)->std::path::PathBuf{
+        std::env::var_os("NM_TEST_COMBAT").map(std::path::PathBuf::from).unwrap_or_else(||root.join("game/DeliriumSA/combat"))
+    }
     fn fixture(initial:f32,guard:bool)->(Runtime,Data,Host){
         static INIT:std::sync::Once=std::sync::Once::new();let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        INIT.call_once(||assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(root.join("game/DeliriumSA/fred.xrt")).unwrap()))));
-        let dir=root.join("game/DeliriumSA/combat");let read=|n|std::fs::read(dir.join(n)).unwrap();
+        let assets=assets_dir(&root);
+        INIT.call_once(||assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap()))));
+        let dir=combat_dir(&root);let read=|n|std::fs::read(dir.join(n)).unwrap();
         let mut d=Data::load(&read("meleeanims.dat"),&read("action_table.csv"),&read("pedpersonality.dat")).unwrap();
         // Contacts are controlled leaves here. A table with no compatible
         // reaction proves the source Combat1900 + post-health branch itself.
         d.table.actions.clear();d.table.results=vec![ResultDef{name:1,anim_group:-1,anim:-1,..Default::default()},ResultDef{name:2,is_a_block:true,anim_group:-1,anim:-1,..Default::default()}];
         let bank=Bank::load(&dir).unwrap();let mut r=Runtime::new(bank);
-        r.load_health_weapons(&std::fs::read_to_string(root.join("tools/mod-staging/original-health-20261101/weaponinfo.xml")).unwrap()).unwrap();
-        let rig=Rig::from_json(&std::fs::read(root.join("research/combat-contact-20261031/inputs/f9200d93a5301c0db03dddf21256f0a959766e9c695a6caf25da4ec435e76010-combat-rig-7.json")).unwrap()).unwrap();
+        let weaponinfo=std::env::var_os("NM_TEST_MOD_STAGING")
+            .map(|p|std::path::PathBuf::from(p).join("original-health-20261101/weaponinfo.xml"))
+            .unwrap_or_else(||root.join("tools/mod-staging/original-health-20261101/weaponinfo.xml"));
+        r.load_health_weapons(&std::fs::read_to_string(weaponinfo).unwrap()).unwrap();
+        let rig_path=std::env::var_os("NM_TEST_RESEARCH")
+            .map(|p|std::path::PathBuf::from(p).join("combat-contact-20261031/inputs/f9200d93a5301c0db03dddf21256f0a959766e9c695a6caf25da4ec435e76010-combat-rig-7.json"))
+            .unwrap_or_else(||root.join("research/combat-contact-20261031/inputs/f9200d93a5301c0db03dddf21256f0a959766e9c695a6caf25da4ec435e76010-combat-rig-7.json"));
+        let rig=Rig::from_json(&std::fs::read(rig_path).unwrap()).unwrap();
         r.register(&d,1,true,"player",rig.clone()).unwrap();r.register(&d,2,false,"ig_roman",rig).unwrap();r.now=100;r.rng=Rand::new(1);
         for (id,a) in &mut r.actors{a.flags=FIGHT|LOCK;a.frame[4]=if *id==2{initial}else{200.};a.target=if *id==2{1}else{2};a.last_seen=100;a.melee.on=true;
             ct::play_result(&mut a.melee.mv,&d,&Action{move_:if *id==2&&guard{2}else{1},..Default::default()},a.player,&|_|None);}
@@ -74,7 +87,7 @@ pub struct Actor{
     #[test]fn no_original_decision_cannot_start_a_host_melee_but_keeps_a_received_action(){
         for given in [false,true]{
             let(mut r,_,_)=fixture(200.,false);
-            let dir=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../game/DeliriumSA/combat");let read=|n|std::fs::read(dir.join(n)).unwrap();
+            let dir=combat_dir(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));let read=|n|std::fs::read(dir.join(n)).unwrap();
             let d=Data::load(&read("meleeanims.dat"),&read("action_table.csv"),&read("pedpersonality.dat")).unwrap();
             r.actors.get_mut(&1).unwrap().melee=Melee::default();
             let a=r.actors.get_mut(&2).unwrap();a.decision.clear();a.melee=Melee::default();
@@ -589,8 +602,9 @@ impl Runtime {
     // taker and foe; the weapon swap (host) must not restart the taker's clip.
     fn world(lock:bool,club:bool)->(Runtime,Data){
         static INIT:std::sync::Once=std::sync::Once::new();let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        INIT.call_once(||assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(root.join("game/DeliriumSA/fred.xrt")).unwrap()))));
-        let dir=root.join("game/DeliriumSA/combat");let read=|n:&str|std::fs::read(dir.join(n)).unwrap();
+        let assets=std::env::var_os("NM_TEST_ASSETS").map(std::path::PathBuf::from).unwrap_or_else(||root.join("game/DeliriumSA"));
+        INIT.call_once(||assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap()))));
+        let dir=std::env::var_os("NM_TEST_COMBAT").map(std::path::PathBuf::from).unwrap_or_else(||root.join("game/DeliriumSA/combat"));let read=|n:&str|std::fs::read(dir.join(n)).unwrap();
         let d=Data::load(&read("meleeanims.dat"),&read("action_table.csv"),&read("pedpersonality.dat")).unwrap();
         let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
         let mut r=Runtime::new(Bank::load(&dir).unwrap());r.register(&d,1,true,"player",rig.clone()).unwrap();r.register(&d,2,false,"ig_roman",rig).unwrap();
@@ -642,5 +656,46 @@ impl Runtime {
         let (mut r,d)=world(true,true);for f in 0..10{frame(&mut r,&d,f,true);}
         assert!(r.actors[&1].melee.mv.is_some());r.feed_club(1,Some(&[0.,0.,0.,0.,0.,0.9,0.04,0.1])).unwrap();
         assert!(r.actors[&1].melee.mv.is_none());
+    }
+    #[test]
+    fn player_punches_without_npc_target_when_standing_or_running(){
+        let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").expect("NM_TEST_ASSETS"));
+        assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap())));
+        let dir=std::path::PathBuf::from(std::env::var("NM_TEST_COMBAT").expect("NM_TEST_COMBAT"));
+        let read=|n:&str|std::fs::read(dir.join(n)).unwrap();
+        let d=Data::load(&read("MeleeAnims.dat"),&read("action_table.csv"),&read("pedpersonality.dat")).unwrap();
+        let mut r=Runtime::new(Bank::load(&dir).unwrap());
+        let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").expect("NM_TEST_RIG")).unwrap()).unwrap();
+        r.register(&d,1,true,"player",rig).unwrap();
+        r.actors.get_mut(&1).unwrap().melee=Melee::default();
+        let mut step_player=|now:u32,buttons:u32,stick:[u8;2]|->(f32,String,bool){
+            let a=r.actors.get_mut(&1).unwrap();
+            a.frame[..3].copy_from_slice(&[0.,0.,1.]);a.frame[3]=0.;a.frame[4]=200.;
+            a.flags=PLAYER|FIGHT;a.target=u32::MAX;a.last_seen=now;
+            a.pad.feed(buttons,stick,[0,0],now);
+            r.advance(&d,now,0.017).unwrap();
+            let state0=r.actors[&1].state[0];
+            let key=r.actors[&1].key.clone();
+            let mv_done=r.actors[&1].melee.mv.is_none();
+            r.finish(&d).unwrap();
+            (state0,key,mv_done)
+        };
+        assert_eq!(step_player(100,0,[127,127]).0,0.);
+        let (s,k,_)=step_player(117,0x20,[127,127]);
+        assert!(s>0.&&k.contains("jab"),"expected standalone no-target jab, got state={s} clip={k}");
+        let mut mv_finished_at=None;
+        let mut exited_at=None;
+        for f in 1..200{
+            let cur=step_player(117+f*17,0,[127,127]);
+            if mv_finished_at.is_none()&&cur.2{mv_finished_at=Some(f);}
+            if mv_finished_at.is_some()&&cur.0==0.{exited_at=Some(f);break;}
+        }
+        assert!(mv_finished_at.is_some(),"jab clip must finish cleanly without NPC target");
+        assert!(exited_at.is_some(),"melee state must exit cleanly after idle quit timeout");
+        let mut now=117+exited_at.unwrap()*17;
+        for _ in 0..20{now+=17;step_player(now,0,[127,255]);}
+        now+=17;
+        let (s_run,k_run,_)=step_player(now,0x20,[127,255]);
+        assert!(s_run>0.&&k_run.contains("partial_punch_r"),"expected running no-target punch, got state={s_run} clip={k_run}");
     }
 }

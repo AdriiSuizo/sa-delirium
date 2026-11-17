@@ -23,3 +23,20 @@ inline bool originalStandingRecovery(bool sourceResponse,bool balancing,bool fal
     return sourceResponse&&balancing?!fallen:geometric;
 }
 inline float recoveryEase(float t){t=std::clamp(t,0.f,1.f);return t*t*(3.f-2.f*t);}
+inline float recoveryGroundClearance(float nativeGroundClearance,float rigClearance){
+    return nativeGroundClearance>0.f?nativeGroundClearance:rigClearance;
+}
+inline float seedRecoveryGroundClearance(float measuredClearance,bool validStandingPose,float idleClearance,float rigClearance,bool airborneReaction){
+    if(measuredClearance>.65f&&measuredClearance<1.5f&&validStandingPose)return measuredClearance;
+    if(idleClearance>.65f&&idleClearance<1.35f)return idleClearance;
+    // SA's standing ped collision bottom (ms_colModelPed1) sits 1.00 m under the root,
+    // while NM ankle-sole rigClearance can sit higher (~1.055 m for CJ) and cause a post-getup drop.
+    if(airborneReaction&&rigClearance>1.f)return 1.f;
+    return 0.f;
+}
+inline unsigned char clearAirAndLandingFlags(unsigned char airFlags){
+    return static_cast<unsigned char>(airFlags&~6u);
+}
+inline bool nativeJumpOrFallClip(int id){
+    return (id>=116&&id<=125)||id==128||id==133||id==134;
+}

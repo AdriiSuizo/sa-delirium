@@ -1,5 +1,23 @@
 # Historial / Changelog
 
+## 0.4.8 · puñetazos sin objetivo/a vehículos, salto continuo y levantamiento Dive/Brace / unarmed & vehicle punches, jump continuity & Dive/Brace getup
+
+### Español
+
+- **Puñetazos desarmados al aire y contra vehículos (`CombatRuntime` / `sa-combat/runtime`)**: al pulsar golpe sin armas cerca de ningún NPC o al golpear un coche, CJ vuelve a ejecutar el movimiento y la animación de golpear desarmado en lugar de solo cerrar los puños.
+- **Continuidad de trote/carrera tras saltar (`NikoMovement` / `sa-combat/locomotion` / `delirium-sdk/locomotion`)**: durante un salto puro sin ragdoll ni caída física, la locomoción IV suspende el ritmo sin reiniciarse a parado (`suspend_jump`) y al aterrizar reanuda el trote o carrera suavemente sin repetir la animación de arranque desde cero.
+- **Aterrizaje y levantamiento limpio tras Dive/Brace (`Recovery` / `NativeIdlePose` / `Adapter` / `RecoveryMath`)**:
+  - Al iniciar el Dive/Brace desde un salto, `retireNativePrimaryTasks` aborta la tarea nativa de salto con prioridad inmediata (`ABORT_PRIORITY_IMMEDIATE = 2`), limpia `bIsInTheAir`/`bIsLanding` (`0x46D`) y retira clips residuales de salto o carrera (`RUN_CIVI`) dejando la base en reposo (`IDLE_STANCE`).
+  - Se mide y aplica la holgura real al suelo de pie (`1.00 m` frente al offset más alto del rig) en recuperaciones aéreas para evitar la pequeña caída residual y el destello de animación de salto al levantarse tras `GETUP_0`/`GETUP_FRONT`.
+
+### English
+
+- **Unarmed punches without an NPC target and against vehicles (`CombatRuntime` / `sa-combat/runtime`)**: pressing unarmed melee attack with no nearby ped or when punching a vehicle now plays CJ's full punch motion and animation instead of only clenching his fists.
+- **Continuous jog/run resumption after jumping (`NikoMovement` / `sa-combat/locomotion` / `delirium-sdk/locomotion`)**: pure jumps suspend IV locomotion pace (`suspend_jump`) instead of cancelling back to idle, blending cleanly back into running/jogging upon landing without replaying a start-from-still animation.
+- **Clean landing and stand-up transition after Dive/Brace (`Recovery` / `NativeIdlePose` / `Adapter` / `RecoveryMath`)**:
+  - Aborts native jump/in-air tasks with immediate priority (`ABORT_PRIORITY_IMMEDIATE = 2`), clears `bIsInTheAir`/`bIsLanding` (`0x46D`) and stale jump/run clips (`RUN_CIVI`), and normalizes the base clump layer to idle stance when entering Dive/HighFall and completing get-up.
+  - Captures/applies SA's true standing ground clearance (`1.00 m` vs the taller rig sole offset) on mid-air recoveries so CJ no longer drops slightly or flashes a jump-like pose right as `GETUP_0`/`GETUP_FRONT` finishes.
+
 ## 0.4.7 · apuntado GTA IV, cobertura, caminar, físicas y correcciones / GTA IV aiming, cover, walk, physics & fixes
 
 ### Español

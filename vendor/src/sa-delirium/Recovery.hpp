@@ -79,27 +79,81 @@ static void answerRunOver(Active& a){
     reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(taskManager(p),task,3,true);
     event("run_over_retaliation",a.ref,a.model,"weapon="+std::to_string(gun));
 }
+static void releaseRecoveryTask(Active& a);
+static bool nativeJumpOrAirTask(int type){
+    return type==210||type==211||type==240||type==241||type==242||type==511||type==515;
+}
+static bool nativeTransientFallOrJumpTask(int type){
+    return type==206||type==207||type==208||type==209||nativeJumpOrAirTask(type);
+}
+static void fadeAssociationNow(void*assoc,bool detach){
+    if(detach)reinterpret_cast<void(__thiscall*)(void*,void*,void*)>(0x4CEBE0)(assoc,reinterpret_cast<void*>(&detachedAnimationCallback),nullptr);
+    at<float>(assoc,0x18)=0.f;
+    at<float>(assoc,0x1C)=-1000.f;
+    at<unsigned short>(assoc,0x2E)|=4u; // ANIMATION_IS_BLEND_AUTO_REMOVE
+}
+static void resetNativeJumpAndLocomotionState(void*p,bool clearLocomotionToIdle){
+    if(!p||inVehicle(p)||at<float>(p,0x540)<=0)return;
+    at<unsigned char>(p,0x46D)=clearAirAndLandingFlags(at<unsigned char>(p,0x46D));
+    void*clump=at<void*>(p,0x18);if(!clump)return;
+    void*assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump);
+    for(int count=0;assoc&&count<64;count++){
+        void*next=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+        if(at<unsigned short>(assoc,0xE)==0&&nativeJumpOrFallClip(at<short>(assoc,0x2C)))fadeAssociationNow(assoc,true);
+        assoc=next;
+    }
+    if(!clearLocomotionToIdle)return;
+    at<int>(p,0x534)=1; // PEDMOVE_STILL
+    if(p==player())if(void*pd=at<void*>(p,0x480))at<float>(pd,0x14)=0.f;
+    const int group=at<int>(p,0x4D4);
+    if(group<0||group>=200)return;
+    if(void*idle=reinterpret_cast<void*(__cdecl*)(void*,int,int,float)>(0x4D4610)(clump,group,3,1000.f)){
+        assoc=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D15E0)(clump);
+        for(int count=0;assoc&&count<64;count++){
+            void*next=reinterpret_cast<void*(__cdecl*)(void*)>(0x4D6AB0)(assoc);
+            const int ag=at<unsigned short>(assoc,0xE);
+            const int aid=at<short>(assoc,0x2C);
+            if(assoc!=idle&&ag==group&&(aid==0||aid==1||aid==2))fadeAssociationNow(assoc,false);
+            assoc=next;
+        }
+        at<float>(idle,0x18)=1.f;
+        at<float>(idle,0x1C)=0.f;
+    }
+}
+static void retireNativePrimaryTasks(Active&a,bool jumpOnly){
+    void*m=taskManager(a.ped);if(!m)return;
+    bool retiredJump=false;
+    for(int slot:{1,2,3}){
+        void*t=at<void*>(m,slot*4);
+        if(!t)continue;
+        const int type=reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[4])(t);
+        if(!(jumpOnly?nativeJumpOrAirTask(type):nativeTransientFallOrJumpTask(type)))continue;
+        // ABORT_PRIORITY_IMMEDIATE (2) lets CTaskSimpleInAir/Jump/Land/Fall fade their clips and clear bIsInTheAir.
+        reinterpret_cast<bool(__thiscall*)(void*,void*,int,void*)>((*reinterpret_cast<void***>(t))[6])(t,a.ped,2,nullptr);
+        if(at<void*>(m,slot*4)==t)
+            reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(m,nullptr,slot,true);
+        retiredJump|=nativeJumpOrAirTask(type);
+        event("native_fall_getup_retired",a.ref,a.model,"slot="+std::to_string(slot)+" task="+std::to_string(type));
+    }
+    if(retiredJump||jumpOnly)resetNativeJumpAndLocomotionState(a.ped,jumpOnly&&!a.taskAborted);
+}
 static void releaseRecoveryTask(Active& a){
     retireRecoveryAnimation(a);
+    if(a.kind==Reaction::Dive||a.kind==Reaction::HighFall)retireNativePrimaryTasks(a,true);
     auto*p=pedFromRef(a.ref);
     if(p==a.ped&&p&&at<short>(p,0x22)==a.model&&a.ownedTask&&physicalTask(p)==a.ownedTask){
         reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(taskManager(p),nullptr,0,true);
         event("native_response_slots",a.ref,a.model,"stage=release slots="+nativeResponseSlots(p));
     }
+    if(p==a.ped&&p&&at<short>(p,0x22)==a.model&&!a.taskAborted&&(a.recoveryDone||a.kind==Reaction::Dive||a.kind==Reaction::HighFall))
+        resetNativeJumpAndLocomotionState(p,a.recoveryDone);
     a.ownedTask=nullptr;
 }
-// A bike jack leaves SA's CTaskComplexFallAndGetUp (208) in an event-response
-// slot under the physical task. The physical get-up has already played its
-// CTaskSimpleGetUp clip: kept, it played the same clip a second time after the
-// hand-back (CJ jacked off a BMX, 06/11). Slots are CTaskManager's primaries.
+// A bike jack or air dive leaves SA's CTaskComplexFallAndGetUp (208) or jump/air/land
+// tasks (210/211/240/241/242/511/515) in a primary slot under the physical task.
+// Kept intact, releasing slot 0 resumes that stale native jump/get-up animation.
 static void retireNativeFallAndGetUp(Active&a){
-    void*m=taskManager(a.ped);if(!m)return;
-    for(int slot:{1,2,3}){
-        void*t=at<void*>(m,slot*4);
-        if(!t||reinterpret_cast<int(__thiscall*)(void*)>((*reinterpret_cast<void***>(t))[4])(t)!=208)continue;
-        reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(m,nullptr,slot,true);
-        event("native_fall_getup_retired",a.ref,a.model,"slot="+std::to_string(slot));
-    }
+    retireNativePrimaryTasks(a,false);
 }
 static bool ensureRecoveryTask(Active&a){
     if(a.taskAborted)return false;
@@ -109,7 +163,9 @@ static bool ensureRecoveryTask(Active&a){
     void*t=reinterpret_cast<void*(__cdecl*)(unsigned)>(0x61A5A0)(0x10);if(!t)return false;
     reinterpret_cast<void*(__thiscall*)(void*)>(0x677F50)(t);
     reinterpret_cast<void(__thiscall*)(void*,void*,int,bool)>(0x681AF0)(m,t,0,true);
-    a.ownedTask=t;event("physical_task_acquired",a.ref,a.model,"slots="+nativeResponseSlots(a.ped));return true;
+    a.ownedTask=t;
+    if(a.kind==Reaction::Dive||a.kind==Reaction::HighFall)retireNativePrimaryTasks(a,true);
+    event("physical_task_acquired",a.ref,a.model,"slots="+nativeResponseSlots(a.ped));return true;
 }
 static bool resumePhysicalContact(Active&a,const char*reason){
     if(!a.recovering&&!a.taskAborted)return false;
@@ -311,7 +367,7 @@ static void maintainRecoverySupport(){
         if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
             (from,root.z-2.5f,ground,support,true,true,false,true,true,false,nullptr)&&ground.normal.z>.45f){
             if (a.kind == Reaction::Impact && vehicleRef(support) >= 0) continue;
-            const float target=ground.point.z+(a.nativeGroundClearance>0?a.nativeGroundClearance:a.rig->rootClearance);
+            const float target=ground.point.z+recoveryGroundClearance(a.nativeGroundClearance,a.rig->rootClearance);
             if(root.z<target){matrix(a.ped)->pos.z=target;if(at<V>(a.ped,0x44).z<0)at<V>(a.ped,0x44).z=0;
                 reinterpret_cast<void(__thiscall*)(void*)>(0x542560)(a.ped);}
         }
@@ -360,7 +416,7 @@ static void commitPendingRecoveryPlacements(){
         const auto*evaluation=currentNativePaletteEvaluation(a.ped);if(!evaluation||evaluation->serial!=c.serial)continue;
         const auto currentFit=fitRecovery(a.bones,a.rig->physicalBones(a.current),recoveryPoints(*a.rig));
         if(!currentFit.valid)continue;const T aligned=mul(currentFit.delta,c.nativeRoot);
-        V target=aligned.p;const float clearance=a.nativeGroundClearance>0?a.nativeGroundClearance:a.rig->rootClearance;
+        V target=aligned.p;const float clearance=recoveryGroundClearance(a.nativeGroundClearance,a.rig->rootClearance);
         // SA supplies its actual supporting surface, including vehicle roofs.
         // This vertical query is only ground placement; room is a volume query.
         // The probe starts above the physical pelvis. A lying body's pelvis is

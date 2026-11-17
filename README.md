@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.4.7-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.4.8-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -47,27 +47,19 @@ SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
 
-## Novedades y correcciones en 0.4.7
+## Novedades y correcciones en 0.4.8
 
-- **Apuntado GTA IV integrado (sustituye a *Advanced Aiming Mod*)**: se retira *Advanced Aiming Mod* del instalador y se integra el apuntado sobre el hombro estilo GTA IV tanto a pie como desde vehículos (`IvAim=1`), con zoom mediante `R3` o botón central del ratón (`MMB`), rueda de ratón (`AimWheelZoom=1`), recorte de colisión suave y retícula sincronizada.
-- **Mirar atrás con `R3` en coches y modo Lowrider**: `R3` (o `MMB` en ratón) mira atrás al conducir en lugar de `L1 + R1`. En *lowriders* con hidráulica, pulsar **`G`** en teclado o **`D-Pad Arriba`** en mando (`LowriderCameraToggleKey=71`, `LowriderCameraTogglePadButton=1`) alterna entre hidráulica activa y cámara normal (`R3` para mirar atrás).
-- **Cobertura, animaciones y caminar con CJ**: mejora el acceso/aproximación a cobertura, sincroniza la rotación y la pose de disparo de CJ al apuntar desde esquinas para que mire hacia donde apunta la retícula, añade tecla para caminar (`Alt` mantenido o `Bloq Mayús` como alternancia en `DeliriumSA.ini`) y estabiliza la postura de brazos con armas de dos manos.
-- **Combate en ragdoll, policía desarmada, daño y entorno**:
-  - Permite disparar manualmente durante el ragdoll hacia donde apunta el arma con su retroceso físico, y limita los disparos accidentales de armas caídas solo a armas arrancadas de la mano en impactos fuertes.
-  - Los policías sin arma de fuego o desarmados evitan enfrentarse a tiros y recurren a la huida.
-  - Reduce a un cuarto el daño recibido por CJ en ragdoll/caídas, eleva un 20 % el umbral de salida por el parabrisas (`21.6`), refuerza el antiatravieso del suelo y fija las manchas de sangre al pavimento para que no sigan al cuerpo al moverse.
-- **Conducción GTA IV**: aplica flags de neumático y guiado a velocidad por modelo para estabilizar la aceleración recta en deportivos como el *Hotring*.
+- **Puñetazos desarmados al aire y contra vehículos**: CJ vuelve a ejecutar el movimiento y la animación de golpear sin arma tanto cuando no hay ningún NPC cerca como al golpear coches.
+- **Trote continuo tras saltar**: al saltar mientras trotas o corres y volver al suelo, CJ mantiene su ritmo y continúa trotando suavemente sin repetir la animación de inicio desde parado.
+- **Levantamiento limpio tras Dive / Brace (`B` en el aire)**: al entrar en Dive/Brace y terminar la animación de levantarse, se abortan por completo el estado aéreo nativo (`bIsInTheAir` / `bIsLanding`), el clip previo de carrera (`RUN_CIVI`) y el desfase de altura al suelo para que no aparezca una animación ni caída intermedia de salto al ponerse de pie.
 
-### Resumen de 0.4.6 y base 0.4.0
+### Resumen de 0.4.7 y base 0.4.0–0.4.6
 
-Esta base mantiene las correcciones de **0.4.6** y **0.4.0** (ver [historial](CHANGELOG.md) para el detalle completo):
+Esta base mantiene todas las novedades y correcciones de **0.4.7**, **0.4.6** y **0.4.0** (ver [historial](CHANGELOG.md) para el detalle completo):
 
-- **Anatomía de brazos y hombros de CJ**: en `torso.dff` y las prendas de `player.img`, los huesos `301` y `302` siguen a `UpperArm` (`22`/`32`) sin la rotación pectoral errónea de `ped.ifp`.
-- **Controles de teclado y menú de opciones en `Pausa → Opciones`**:
-  - **Cubrirse con la tecla `B`** en teclado (`R1`/`RB` en mando) sin colisionar con el Click Derecho (Apuntar).
-  - **Movimiento de GTA IV**: `W, A, S, D` trota, `Alt` o `Bloq Mayús` camina y `Espacio` mantenido esprinta; `R`/`F`, `Q`/`Espacio` y `Shift`/`Alt` para combate cuerpo a cuerpo; `N` activa el nitro y `K` (0,6 s) alterna la gravedad reducida.
-  - **Menú en `Pausa → Opciones`**: cambia en partida entre `Manejo: Delirium GTA IV / Clasico retocado / Izzy`, `Movimiento CJ: IV / SA`, `Combate: Delirium / SA` y `Deformacion: si / no`.
-- **Instalador y compatibilidad (0.4.1–0.4.6)**: recuperación automática de caché dañada (`.invalid-<id>`), comprobación anticipada de permisos y restauración segura en *Solo Delirium*, lanzador `.cmd` de respaldo ante `E_NOTIMPL`, omisión limpia de *Urbanize* si falla su parche opcional, soporte de variantes copiadas (`text/*.gxt`, `movies/*.mpg`, `audio/*`, `stream.ini`), preservación de cargadores ASI y *Grinch Trainer* desactivado por defecto.
+- **Apuntado GTA IV integrado (sustituye a *Advanced Aiming Mod*)**: apuntado sobre el hombro estilo GTA IV a pie y desde vehículos (`IvAim=1`), zoom con `R3` / `MMB` y rueda (`AimWheelZoom=1`), `R3` para mirar atrás al conducir y alternancia de hidráulica/cámara en *lowriders* (`G` / `D-Pad Arriba`).
+- **Cobertura, animaciones y caminar con CJ**: cobertura con la tecla **`B`** en teclado (`R1`/`RB` en mando), sincronización de cámara/pose en esquinas, caminar con `Alt` o `Bloq Mayús` en `DeliriumSA.ini`, disparo en ragdoll (`RagdollFire`), huida de policías desarmados, menor daño de caída en ragdoll (`0.25x`), mayor umbral de eyección por parabrisas (`21.6`), sangre fija al suelo y estabilidad IV en deportivos (*Hotring*).
+- **Anatomía de brazos de CJ (`301`/`302`), controles PC, menú en `Pausa → Opciones` e instalador (0.4.1–0.4.6)**: anatomía corregida en hombros, menú en partida (`Delirium GTA IV / Clásico retocado / Izzy`, `Movimiento CJ: IV / SA`, `Combate: Delirium / SA`, `Deformación: sí / no`), recuperación de caché dañada, precomprobación/restauración en *Solo Delirium*, respaldo `.cmd`, *Urbanize* opcional y *Grinch Trainer* desactivado por defecto.
 
 ## Funciones de 0.4.0
 
@@ -202,7 +194,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.4.7-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.4.8-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -234,29 +226,24 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ---
 
-## English — SA Delirium 0.4.7
+## English — SA Delirium 0.4.8
 
 **SA Delirium** brings GTA IV-inspired character physics (Euphoria/NaturalMotion reimplementation), melee and firearm combat, cover mechanics, and vehicle handling/deformation to classic PC **GTA San Andreas** (Steam AppID 12120 or PC 1.0 US).
 
-### What's New in 0.4.7
+### What's New in 0.4.8
 
-- **Built-in GTA IV Aiming (*Advanced Aiming Mod* Removed)**: removes *Advanced Aiming Mod* from the installer in favor of built-in over-the-shoulder GTA IV aiming both on foot and from vehicles (`IvAim=1` in `DeliriumSA.ini`), featuring `R3` / `MMB` zoom toggle, scroll-wheel zoom (`AimWheelZoom=1`), smooth wall collision pull-in, and synchronized reticle framing.
-- **`R3` Vehicle Look-Behind & Lowrider Toggle**: press `R3` on controller (or `MMB` on mouse) to look behind while driving instead of `L1 + R1`. On vehicles with hydraulics (*lowriders*), press **`G`** on keyboard or **`D-Pad Up`** on XInput controllers (`LowriderCameraToggleKey=71`, `LowriderCameraTogglePadButton=1`) to toggle between active hydraulics and normal camera mode (`R3` look-behind).
-- **Cover, Aiming Pose & Walking Toggle**: improves cover approach/pathing, synchronizes aim yaw and animation pose so CJ looks directly where the reticle aims when peeking out of corners, adds dedicated walk controls (`Alt` hold or `Caps Lock` toggle in `DeliriumSA.ini`) alongside jog/sprint, and stabilizes two-handed weapon upper-body framing.
-- **Ragdoll Gunfire, Unarmed Police, Damage, Ground & Blood Fixes**:
-  - Allows firing manually while in ragdoll along the weapon's physical direction with recoil applied to arm and chest, while restricting dropped-weapon misfires strictly to firearms knocked out of a ped's hand under heavy impact.
-  - Disarmed cops and officers without a firearm avoid gunfire exchanges and flee natively.
-  - Cuts CJ's ragdoll fall damage to one quarter (`0.25x`), increases CJ's windscreen ejection speed threshold by 20% (`21.6`), reinforces `rejectGroundTunnel` against floor penetration and low ceilings, and anchors static/permanent blood decals to the ground so they do not slide with moving bodies.
-- **GTA IV Vehicle Stability**: applies per-model tyre and handling flags (`CAP_SLIDE`, `NO_LOCK`, `CAP_SPIN`, `CLAMP_SLIP`, `BURNOUT`) plus high-speed steering stabilization for sports cars like the *Hotring*.
+- **Unarmed Punches Without an NPC Target & Against Vehicles**: CJ now plays the full unarmed punch motion and animation both when swinging in empty air without a nearby NPC and when punching vehicles.
+- **Continuous Jog/Run Resumption After Jumping**: jumping while jogging/running suspends IV locomotion pace cleanly instead of resetting to idle, resuming stride continuously on landing without replaying a start-from-still clip.
+- **Clean Dive/Brace Landing & Get-Up Transition**: entering mid-air Dive/Brace and finishing `GETUP_0`/`GETUP_FRONT` aborts the native jump task with immediate priority (`ABORT_PRIORITY_IMMEDIATE`), clears `bIsInTheAir`/`bIsLanding` and leftover jump/`RUN_CIVI` animations, and places CJ at true standing ground height (`1.00 m`) so no mid-air jump pose or drop appears when standing up.
 
-### Highlights from 0.4.0–0.4.6
+### Highlights from 0.4.0–0.4.7
 
-- **CJ Upper-Arm Anatomy & Controls**: binds CJ's upper-arm helper bones (`301`/`302`) to `UpperArm` (`22`/`32`), keeps **Cover on `B`** (`R1`/`RB` on gamepad), PC keyboard GTA IV locomotion, melee (`R`/`Q`/`Alt`/`F`/`Space`/`Shift`), separate nitro (`N`), reduced gravity toggle (`K` or `L3 + R3` for 0.6s, 50% for CJ / 1% ambient), and live **Pause → Options** switching (`Delirium GTA IV / Enhanced Classic / Izzy`, `CJ movement: IV / SA`, `Combat: Delirium / SA`, `Deformation: on / off`). See [CHANGELOG.md](CHANGELOG.md) for full details.
-- **Installer & Compatibility (0.4.1–0.4.6)**: corrupted cache recovery (`.invalid-<id>`), *Solo Delirium* early write-access preflight and restore, `.cmd` shortcut fallback on `E_NOTIMPL`, optional *Urbanize* skip on delta failure, localized copy-only asset tolerance, ASI loader preservation, and *Grinch Trainer* disabled by default (`SA/Documentation/Optional/GrinchTrainerSA.asi.disabled`).
+- **Integrated GTA IV Aiming & Vehicle Controls (0.4.7)**: built-in GTA IV over-the-shoulder aiming on foot and from vehicles (`IvAim=1`, *Advanced Aiming Mod* removed), `R3` / `MMB` zoom + scroll wheel (`AimWheelZoom=1`), `R3` vehicle look-behind, lowrider hydraulics/camera toggle (`G` / `D-Pad Up`), reworked cover approach & corner aim synchronization, dedicated walk hold/toggle (`Alt` / `Caps Lock`), manual ragdoll gunfire (`RagdollFire`), disarmed/unarmed cops flee (`PoliceResponse`), `0.25x` CJ ragdoll fall damage, raised windscreen ejection threshold (`21.6`), grounded static blood decals (`BloodDecals`), and IV straight-line stability fixes (*Hotring*).
+- **CJ Upper-Arm Anatomy, Keyboard Controls & Installer (0.4.0–0.4.6)**: CJ upper-arm helper bones (`301`/`302`) attached to `UpperArm` (`22`/`32`), **Cover on `B`** (`R1`/`RB` on gamepad), PC keyboard IV movement & melee, **Pause → Options** live toggles (`Delirium GTA IV / Enhanced Classic / Izzy`, `CJ movement`, `Combat`, `Deformation`), corrupted cache recovery (`.invalid-<id>`), *Solo Delirium* write preflight/restore, `.cmd` shortcut fallback on `E_NOTIMPL`, optional *Urbanize* skip, and *Grinch Trainer* disabled by default. See [CHANGELOG.md](CHANGELOG.md) for full details.
 
 ### Installation & Restore
 
-1. Download **[SA-Delirium-0.4.7-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+1. Download **[SA-Delirium-0.4.8-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
 2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
 3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
 4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.

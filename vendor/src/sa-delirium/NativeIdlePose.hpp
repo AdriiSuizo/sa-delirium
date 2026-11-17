@@ -2,7 +2,7 @@
 // The reference host supplies an animated IDLE zero pose to NM. A skin bind
 // pose is only an assembly reference, not a character's neutral motor target.
 // Observe SA's already evaluated idle; never install an idle or edit tasks.
-struct NativeIdlePose {void*ped=nullptr;void*clump=nullptr;int model=-1;unsigned time=0;std::vector<int>ids;std::vector<T>bones;};
+struct NativeIdlePose {void*ped=nullptr;void*clump=nullptr;int model=-1;unsigned time=0;float groundClearance=0;std::vector<int>ids;std::vector<T>bones;};
 static std::map<int,NativeIdlePose> nativeIdlePoses;
 static void sampleNativeIdlePose(void*p){
     const int ref=reference(p);if(ref<0||agents.contains(ref)||pending.contains(ref)||!matrix(p)||!player()||inVehicle(p)||at<float>(p,0x540)<=0||length(position(p)-position(player()))>radius+5.f)return;
@@ -24,6 +24,14 @@ static void sampleNativeIdlePose(void*p){
     if(intelligence&&at<void*>(static_cast<unsigned char*>(intelligence)+4,0x14))return; // secondary attack task
     auto*h=hierarchy(p);if(!h||!h->nodes||!h->matrices||h->num<20||h->num>128)return;
     NativeIdlePose sample;sample.ped=p;sample.clump=clump;sample.model=at<short>(p,0x22);sample.time=gameTime();
+    if(at<unsigned char>(p,0x46C)&1u){
+        const V pos=position(p);ColPoint ground{};void*support=nullptr;
+        if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
+            (pos+V{0,0,1.f},pos.z-2.f,ground,support,true,true,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.85f){
+            const float clearance=pos.z-ground.point.z;
+            if(clearance>.65f&&clearance<1.35f)sample.groundClearance=clearance;
+        }
+    }
     for(int n=0;n<h->num;n++){
         T t=transform(h->matrices[n]);if(!finite(t.p)||length(t.p-position(p))>3.f)return;
         sample.ids.push_back(h->nodes[n].id);sample.bones.push_back(t);

@@ -180,7 +180,7 @@ int main(){
     }
     V inertia=inheritedVelocity({0,10,1},{0,0,2},{1,0,0},{0,0,0});assert(length(inertia-V{0,12,1})<.0001f);
     assert(blastDamage(0,10)>100&&blastDamage(5,10)>30&&blastDamage(5,10)<60&&blastDamage(10,10)==0);
-    assert(articulatedHelper(6)&&articulatedHelper(7)&&articulatedHelper(302)&&articulatedHelper(8)&&!articulatedHelper(5));
+    assert(articulatedHelper(6)&&articulatedHelper(7)&&articulatedHelper(201)&&articulatedHelper(8)&&!articulatedHelper(5)&&!articulatedHelper(301)&&!articulatedHelper(302));
     assert(directedHit({0,1,10},30).z<6.1f);
     M scaled{};scaled.right={0,2,0};scaled.up={-3,0,0};scaled.at={0,0,.7f};scaled.pos={2420,-1660,12};M inverted{};
     assert(affineInverse(scaled,inverted));V testPoint{.1f,.2f,.3f};assert(length(point(inverted,point(scaled,testPoint))-testPoint)<.001f);
@@ -229,5 +229,13 @@ int main(){
     }
     assert(recoveryEase(0)==0&&recoveryEase(1)==1&&recoveryEase(.5f)==.5f);
     assert(recoveryEase(.001f)<.00001f&&1-recoveryEase(.999f)<.00001f);
+    assert(recoveryGroundClearance(1.f,1.055f)==1.f&&recoveryGroundClearance(0.f,1.055f)==1.055f);
+    assert(seedRecoveryGroundClearance(1.01f,true,1.f,1.055f,false)==1.01f);
+    assert(seedRecoveryGroundClearance(1.86f,true,1.f,1.055f,true)==1.f);
+    assert(seedRecoveryGroundClearance(1.86f,true,0.f,1.055f,true)==1.f);
+    assert(seedRecoveryGroundClearance(1.86f,true,0.f,.95f,true)==0.f);
+    assert(seedRecoveryGroundClearance(1.01f,false,.99f,1.055f,false)==.99f);
+    assert(clearAirAndLandingFlags(0x26u)==0x20u&&nativeOnFootControl(clearAirAndLandingFlags(0x26u)));
+    assert(nativeJumpOrFallClip(116)&&nativeJumpOrFallClip(118)&&nativeJumpOrFallClip(121)&&nativeJumpOrFallClip(128)&&!nativeJumpOrFallClip(115)&&!nativeJumpOrFallClip(3));
     std::cout<<"Recovery fitting: yaw/translation, ground constraint, candidate choice, invalid poses and smooth endpoints passed\n";
 }

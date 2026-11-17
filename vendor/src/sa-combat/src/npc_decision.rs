@@ -100,10 +100,16 @@ impl NpcDecision{
 
 #[cfg(test)]mod tests{
  use super::*;
- fn dm()->DecisionMaker{DecisionMaker::parse(&std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/mod-staging/npc-decisions-20261101/decision/M_NO_NO.cmb")).unwrap()).unwrap()}
+ fn decision_dir(folder:&str)->std::path::PathBuf{
+  if let Some(p)=std::env::var_os("NM_TEST_MOD_STAGING"){return std::path::PathBuf::from(p).join(folder).join("decision");}
+  let local=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/mod-staging").join(folder).join("decision");
+  if local.exists(){return local;}
+  std::path::PathBuf::from(std::env::var_os("NM_TEST_COMBAT").expect("NM_TEST_MOD_STAGING or NM_TEST_COMBAT")).join("decision")
+ }
+ fn dm()->DecisionMaker{DecisionMaker::parse(&std::fs::read_to_string(decision_dir("npc-decisions-20261101").join("M_NO_NO.cmb")).unwrap()).unwrap()}
  fn input()->Input{Input{flags:SUPPORTED|ENGAGEMENT|POPULATION|TARGET_PLAYER,target:Some(42),target_health:200.,distance:1.2,line:1,..Default::default()}}
  #[test]fn original_ambient_damage_event_and_preexisting_flee_are_distinct(){
-  let root=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/mod-staging/original-health-20261101/decision");
+  let root=decision_dir("original-health-20261101");
   let events=CivilianEvents::load(&root).unwrap();let mut r=Rand::new(1);
   assert_eq!(events.harmed(200.,1,&mut r),1900);assert_eq!(events.harmed(200.,0,&mut r),1900);
   assert_eq!(events.harmed(200.,2,&mut r),200);assert_eq!(events.harmed(99.,1,&mut r),200);

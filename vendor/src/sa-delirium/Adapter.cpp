@@ -279,7 +279,7 @@ static void restoreNative(Active& a,bool settle,bool enableCollision=true){
                 const V before=position(p);V from=before+V{0,0,2.f};ColPoint ground{};void*support=nullptr;
                 if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
                     (from,before.z-2.f,ground,support,true,true,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.45f){
-                    const float standing=ground.point.z+(a.nativeGroundClearance>0?a.nativeGroundClearance:a.rig->rootClearance);
+                    const float standing=ground.point.z+recoveryGroundClearance(a.nativeGroundClearance,a.rig->rootClearance);
                     if(before.z<standing-.03f){
                         V fixed=before;fixed.z=standing;movePhysicalRoot(p,fixed,a.playerVehicle);
                         event("native_boundary_ground_clearance",a.ref,a.model,"before_z="+std::to_string(before.z)+" ground_z="+std::to_string(ground.point.z)+" after_z="+std::to_string(fixed.z));
@@ -295,8 +295,24 @@ static void restoreNative(Active& a,bool settle,bool enableCollision=true){
                 const bool supported=reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
                     (from,from.z-10,hit,support,true,true,false,true,true,false,nullptr);
                 if(supported&&finite(hit.point)&&hit.normal.z>.45f){
-                    V root=position(p);root.z=hit.point.z+(a.nativeGroundClearance>0?a.nativeGroundClearance:a.rig->rootClearance);movePhysicalRoot(p,root,a.playerVehicle);
+                    V root=position(p);root.z=hit.point.z+recoveryGroundClearance(a.nativeGroundClearance,a.rig->rootClearance);movePhysicalRoot(p,root,a.playerVehicle);
                     event("recovery_support",a.ref,a.model,"z="+std::to_string(hit.point.z)+" support_model="+std::to_string(support?at<short>(support,0x22):-1));
+                }
+                at<V>(p,0x44)=V{};
+            }
+            if(enableCollision&&!settle&&a.recovering&&a.recoveryDone&&!a.uprightRecovery&&
+                !inVehicle(p)&&area()==at<unsigned char>(p,0x2F)&&at<float>(p,0x540)>0){
+                at<unsigned char>(p,0x46D)=clearAirAndLandingFlags(at<unsigned char>(p,0x46D));
+                const V before=position(p);ColPoint ground{};void*support=nullptr;
+                if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
+                    (before+V{0,0,.5f},before.z-2.f,ground,support,true,true,false,true,true,false,nullptr)&&finite(ground.point)&&ground.normal.z>.45f){
+                    const float standing=ground.point.z+recoveryGroundClearance(a.nativeGroundClearance,a.rig->rootClearance);
+                    if(std::abs(before.z-standing)<.25f){
+                        if(std::abs(before.z-standing)>.005f){
+                            V fixed=before;fixed.z=standing;movePhysicalRoot(p,fixed,a.playerVehicle);
+                        }
+                        at<unsigned char>(p,0x46C)|=1u; // CPed::bIsStanding
+                    }
                 }
                 at<V>(p,0x44)=V{};
             }
@@ -462,8 +478,11 @@ static bool activate(void*p,const Request&r){
         if(snapshotIncoming){std::ofstream f(folder/("model-"+std::to_string(model)+"-incoming.txt"));f.precision(9);f<<floorFrom.z-distance<<'\n';for(auto&t:a->incoming)f<<t.p.x<<' '<<t.p.y<<' '<<t.p.z<<' '<<t.q.x<<' '<<t.q.y<<' '<<t.q.z<<' '<<t.q.w<<'\n';}
         if(snapshotIncoming)event("incoming_pose_snapshot",ref,model,"opt_in=GTASA_INCOMING_POSE_AUDIT files=bones,fit,incoming");
         V feet=position(p);feet.z=floorFrom.z-distance;
-        const float clearance=position(p).z-feet.z;
-        if(clearance>.65f&&clearance<1.5f&&(a->incoming[10].p-a->incoming[0].p).z>.3f)a->nativeGroundClearance=clearance;
+        const auto idleIt=nativeIdlePoses.find(ref);
+        const float idleClearance=idleIt!=nativeIdlePoses.end()&&idleIt->second.ped==p?idleIt->second.groundClearance:0.f;
+        a->nativeGroundClearance=seedRecoveryGroundClearance(
+            position(p).z-feet.z,(a->incoming[10].p-a->incoming[0].p).z>.3f,idleClearance,
+            a->rig->rootClearance,r.kind==Reaction::Dive||r.kind==Reaction::HighFall);
         // Distinct native RNG samples, not the same behaviour seed for every body.
         const float behaviourSeed=reinterpret_cast<float(__cdecl*)(float,float)>(0x41BD90)(0.f,1.f);
         cost.lap(2);
@@ -1297,11 +1316,11 @@ static void simulatePhysicsFrame(){
                 }
                 if(a.recoveryDone||(a.recoveryAnimatedOwner&&a.uprightRecovery&&(now-a.recoverStart)*.001f>=blendSeconds)){
                     recoveryFinishes++;event("recovery_motion",a.ref,a.model,"max_bone_step="+std::to_string(a.maxRecoveryStep));
-                    if(!a.uprightRecovery)retireNativeFallAndGetUp(a);
+                    retireNativeFallAndGetUp(a);
                     const bool limps=a.injuredChosen;restore(a,"native_getup_pose_handoff_complete",false);it=agents.erase(it);if(limps)beginInjuredMove(p);continue;
                 }
                 if(!a.uprightRecovery&&a.ownedTask&&physicalTask(p)!=a.ownedTask){
-                    recoveryInterrupted++;restore(a,"recovery_native_task_interrupted_or_timeout",false);it=agents.erase(it);continue;
+                    recoveryInterrupted++;retireNativeFallAndGetUp(a);restore(a,"recovery_native_task_interrupted_or_timeout",false);it=agents.erase(it);continue;
                 }
                 if(!a.recoveryAnimatedOwner)live.push_back(&a);
                 ++it;continue;
@@ -1786,6 +1805,7 @@ static DWORD WINAPI setup(void*){
         {0x4C0170,reinterpret_cast<void*>(&physicalDamageResponse),reinterpret_cast<void**>(&originalPhysicalDamageResponse)},
         {0x4BC3E0,reinterpret_cast<void*>(&killTaskAppropriate),reinterpret_cast<void**>(&originalKillTaskAppropriate)},
         {0x6302D0,reinterpret_cast<void*>(&physicalDieFirst),reinterpret_cast<void**>(&originalPhysicalDieFirst)},
+        {0x540340,reinterpret_cast<void*>(&combatGetMeleeAttack),reinterpret_cast<void**>(&originalCombatGetMeleeAttack)},
         {0x540770,reinterpret_cast<void*>(&combatJumpJustDown),reinterpret_cast<void**>(&originalCombatJumpJustDown)},
         {0x540670,reinterpret_cast<void*>(&combatGetTarget),reinterpret_cast<void**>(&originalCombatGetTarget)},
         {0x5400D0,reinterpret_cast<void*>(&combatExitVehicle),reinterpret_cast<void**>(&originalCombatExitVehicle)},
