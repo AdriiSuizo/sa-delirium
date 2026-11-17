@@ -156,7 +156,19 @@ fn actual_other(metadata:ExternalGroundBody)->OtherBody {
     else {OtherBody::Dynamic{mass:metadata.mass,excluded_type15:metadata.excluded_type15}}
 }
 pub(super) fn pair(group:&mut Group,a:&Obstacle,b:&Obstacle,child:usize,point:Vec3,n:Vec3)->bool{
-    let id=a.owner.unwrap();if !group.ground_claimed(id){return true;}
+    let id=a.owner.unwrap();if !group.ground_claimed(id){
+        if a.filter.animated_ped()&&a.parts.len()==4{
+            if child==1{return false;}
+            if child==3{
+                let heavy_or_fixed=b.owner.and_then(|bid|group.external.owners.get(&bid)).is_none_or(|o|{
+                    let im=n.dot(o.linear_inverse*n);
+                    o.linear_inverse==Mat3::ZERO||!(im>0.)||(1./im)>200.
+                });
+                if heavy_or_fixed{return false;}
+            }
+        }
+        return true;
+    }
     let other=group.external.owners[&b.owner.unwrap()];
     let metadata=group.ground.bodies[&other.id];
     let support=Support{owner:other.id,point,normal:n,velocity:if metadata.boat{b.vel_at(a.at)}else{Vec3::ZERO},stairs:false};

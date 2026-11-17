@@ -221,4 +221,23 @@ fn owner_mesh_sat()->bool{
   assert_eq!(old.0,new.0,"must preserve every contact/witness/constraint bit");assert_eq!(old.0[0],0);
   assert_eq!(old.1,2048);assert_eq!(new.1,0,"triangle plane must reject before GJK");
  }
+ #[test]fn unclaimed_ped_does_not_launch_off_car_roof_via_ground_or_leg_probe(){
+  let ped_id=(2u64<<32)|1;let car_id=(1u64<<32)|2;
+  let ped_parts:&[ObPart]=Box::leak(Box::new([
+   ObPart{shape:gjk::Shape::Capsule(0.3,0.2),m:Mat3::IDENTITY,at:Vec3::Z*0.085,lo:Vec3::splat(-0.5),hi:Vec3::splat(0.5),mesh:None,filter:CollisionFilter{kind:0x20,include:0x79FE}},
+   ObPart{shape:gjk::Shape::Capsule(0.325,0.1),m:Mat3::from_rotation_x(std::f32::consts::FRAC_PI_2),at:Vec3::Z*-0.875,lo:Vec3::splat(-0.45),hi:Vec3::splat(0.45),mesh:None,filter:CollisionFilter{kind:0x20,include:0x79FE}},
+   ObPart{shape:gjk::Shape::Capsule(0.255,0.21),m:Mat3::IDENTITY,at:Vec3::Z*-0.145,lo:Vec3::splat(-0.5),hi:Vec3::splat(0.5),mesh:None,filter:CollisionFilter{kind:0x20,include:0x79FE}},
+   ObPart{shape:gjk::Shape::Capsule(0.25,0.1),m:Mat3::IDENTITY,at:Vec3::Z*-0.55,lo:Vec3::splat(-0.35),hi:Vec3::splat(0.35),mesh:None,filter:CollisionFilter{kind:0x20,include:0x79FE}},
+  ]));
+  let mut g=Group::default();
+  let ped_root=Vec3::new(0.,0.,2.);let car_at=Vec3::new(0.,0.,0.5);
+  let ped=ExternalOwner{id:ped_id,epoch:1,com:ped_root,velocity:Vec3::ZERO,spin:Vec3::ZERO,linear_inverse:Mat3::IDENTITY/25.,angular_inverse:Mat3::ZERO};
+  let car=ExternalOwner{id:car_id,epoch:1,com:car_at,velocity:Vec3::ZERO,spin:Vec3::ZERO,linear_inverse:Mat3::IDENTITY/1500.,angular_inverse:Mat3::IDENTITY/2500.};
+  g.stage_external(1,&[ped,car]).unwrap();
+  let ped_ob=Obstacle{id:0,owner:Some(ped_id),filter:CollisionFilter{kind:0x20,include:0x79FE},at:ped_root,rot:Quat::IDENTITY,centre:ped_root,com:ped_root,half:Vec3::new(0.25,0.25,1.3),parts:ObstacleParts::Static(ped_parts),..Default::default()};
+  let car_ob=Obstacle{id:1,owner:Some(car_id),filter:CollisionFilter::default(),at:car_at,rot:Quat::IDENTITY,centre:car_at,com:car_at,half:Vec3::new(1.,2.2,0.5),..Default::default()};
+  g.stage_external_geometry(&[ped_ob,car_ob]).unwrap();
+  let rows=collect(&mut g,1./60.);
+  assert!(rows.is_empty(),"unclaimed ped standing on car roof must not generate child1/child3 push rows: count={}",rows.len());
+ }
 }

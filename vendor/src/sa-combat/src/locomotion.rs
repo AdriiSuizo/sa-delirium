@@ -98,6 +98,31 @@ impl<'a> Clips<'a>{
     p.cancel();p.suspend_moving(0.0);t+=16;p.step(&bank,2.,0.,0.,false,0,t,1./60.).unwrap();
     assert!(p.key.contains("wstart")||p.key.contains("runstart")||p.state()[5]==1.0);
  }
+ #[test]fn walk_start_from_idle_transitions_smoothly_without_frame_skip_or_speed_spike(){
+    let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").expect("owned assets"));
+    let bytes=std::fs::read(assets.join("fred.xrt")).unwrap();
+    assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&bytes)));
+    let bank=Bank::load(std::path::Path::new(&std::env::var("NM_TEST_COMBAT").expect("movement assets"))).unwrap();
+    let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+    let mut p=Locomotion::new(rig.clone(),0.);let mut t=0u32;let dt=1./60.;
+    for _ in 0..10{t+=17;let h=p.state()[0];p.step(&bank,0.,h,h,false,0,t,dt).unwrap();}
+    let mut prev=p.pose.clone();let mut prev_v=p.state()[2];
+    let(mut max_dp_at_cut,mut max_dv_at_cut)=(0.0f32,0.0f32);let mut saw_walk=false;
+    for _ in 0..50{
+        t+=17;let h=p.state()[0];
+        let prev_key=p.key.clone();
+        p.step(&bank,1.,0.,h,false,0,t,dt).unwrap();
+        let st=p.state();
+        let dp=prev.iter().zip(&p.pose).fold(0.0f32,|m,(a,b)|m.max(a.p.distance(b.p)));
+        let dv=(st[2]-prev_v).abs();
+        if p.key=="move_player/walk"&&prev_key.contains("wstart"){saw_walk=true;max_dp_at_cut=max_dp_at_cut.max(dp);max_dv_at_cut=max_dv_at_cut.max(dv);}
+        if p.key=="move_player/walk"{max_dv_at_cut=max_dv_at_cut.max(dv);}
+        prev=p.pose.clone();prev_v=st[2];
+    }
+    assert!(saw_walk);
+    assert!(max_dp_at_cut<0.055,"wstart->walk pose jumped: dp={max_dp_at_cut}");
+    assert!(max_dv_at_cut<0.25,"wstart->walk velocity jumped: dv={max_dv_at_cut}");
+ }
 }
 #[cfg(test)]mod continuity_unit_tests{
  use super::*;
@@ -217,6 +242,14 @@ impl Locomotion{
         p.phase=gait_step(&clips,gait_ratio(p.ratio,p.state),p.turn_col,p.phase,set,slope,dt);gait_left(p,dt);
         let late=p.yaw_was[0];p.yaw_was=[p.yaw_was[1],0.];
         for(step,w)in [stop(&clips,p,set,dt),start(&clips,p,wanted,set,dt),turn(&clips,p,wanted,set,dt)].into_iter().flatten(){v=v.lerp(step,w);}
+        if wanted>0.&&p.start.is_none()&&p.stop.is_none()&&p.turn.is_none()&&p.forced.is_none()&&dt>0.{
+            let prev_speed=self.velocity.length();
+            let target_speed=v.length();
+            let max_dv=(8.+4.*(wanted-1.).max(0.))*dt;
+            if prev_speed>0.01&&(target_speed-prev_speed).abs()>max_dv&&target_speed>1e-4{
+                v*=((prev_speed+(target_speed-prev_speed).clamp(-max_dv,max_dv))/target_speed);
+            }
+        }
         p.heading+=late;pick(&clips,p,before,wanted,set,dt);
         if let Some(s)=p.stop.as_mut().filter(|s|movestop::stop_fades(p.state,s.id)){s.rate=-movestop::STOP_FADE;}
         start_new(&clips,p,wanted,set);spot(&clips,p,set,dt);

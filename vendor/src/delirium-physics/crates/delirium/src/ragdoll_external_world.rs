@@ -325,7 +325,7 @@ pub(super) fn placement_scene(group:&Group,world:Option<&Collision>,replay:Optio
             // Claimed ordinary owner: source callback consumes child1 as
             // support and disables child3 against fixed world. Neither may
             // become a second rigid floor through placement admission.
-            if group.ground_claimed(id)&&(child==1||child==3){continue;}
+            if (group.ground_claimed(id)||(ob.filter.animated_ped()&&ob.parts.len()==4))&&(child==1||child==3){continue;}
             let at=ob.at+ob.rot*part.at;let q=ob.rot*Quat::from_mat3(&part.m);
             let inv=p.pending_rotation.inverse();let from=base+inv*(at-owner.com);
             shapes.push((part.shape,from,Mat3::from_quat(inv*q),(part.hi-part.lo)*0.5));

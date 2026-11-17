@@ -1185,7 +1185,8 @@ static void simulatePhysicsFrame(){
     if(!playing()||!player()||cutscene()||(protectMissions&&scriptMissionActive())||lastArea!=area()||(lastTime&&now<lastTime)){
         const char* reason=!playing()?"game_not_playing":!player()?"player_unavailable":cutscene()?"cutscene_boundary":
             (protectMissions&&scriptMissionActive())?"mission_boundary":lastArea!=area()?"area_boundary":"game_time_reset";
-        clear(reason);combatClear();exitTransits.clear();lastArea=area();lastTime=now;
+        const bool keepNiko=playing()&&player()&&!cutscene()&&lastArea==area()&&(!lastTime||now>=lastTime)&&area()!=0;
+        clear(reason);combatClear(!keepNiko);exitTransits.clear();lastArea=area();lastTime=now;
     }else{
         // Native movement and NM must consume the same simulated interval.
         // CTimer milliseconds can advance farther than the capped movement
@@ -1524,6 +1525,33 @@ static void __cdecl process(){
     evaluatedPeds.clear();evaluatedPedFrame=frame;
     physicsFrame.begin(frame,gameTime());
 }
+static bool(__thiscall* originalPedFrictionSingle)(void*,float,ColPoint*)=nullptr;
+static bool(__thiscall* originalPedFrictionPair)(void*,void*,float,ColPoint*)=nullptr;
+static bool originalPedMotorStepActive(){
+    return originalPedMotorEnabled&&ready&&playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive());
+}
+static bool pedWallFrictionSuppressed(void*ped,const ColPoint*point){
+    if(!originalPedMotorStepActive()||!ped||!point)return false;
+    if((at<unsigned char>(ped,0x36)&7)!=3||inVehicle(ped))return false;
+    if(std::abs(point->normal.z)>=.7f)return false;
+    const int ref=reference(ped);
+    return ref>=0&&!agents.contains(ref);
+}
+static bool frictionStructureOther(void*other){
+    if(!other)return false;
+    if((at<unsigned char>(other,0x40)&4)!=0)return true;
+    const unsigned char kind=at<unsigned char>(other,0x36)&7;
+    return kind==4||(kind==2&&length(at<V>(other,0x44))<.05f);
+}
+static bool __fastcall pedFrictionSingle(void*self,void*,float limit,ColPoint*point){
+    if(pedWallFrictionSuppressed(self,point))return false;
+    return originalPedFrictionSingle(self,limit,point);
+}
+static bool __fastcall pedFrictionPair(void*self,void*,void*other,float limit,ColPoint*point){
+    if((pedWallFrictionSuppressed(self,point)&&frictionStructureOther(other))||
+       (pedWallFrictionSuppressed(other,point)&&frictionStructureOther(self)))return false;
+    return originalPedFrictionPair(self,other,limit,point);
+}
 
 extern "C" __declspec(dllexport) int __cdecl DeliriumSA_ProbeHit(int targetRef){
     if(!ready)return -11;if(!playing())return -12;if(cutscene())return -13;if(protectMissions&&scriptMissionActive())return -14;
@@ -1815,6 +1843,8 @@ static DWORD WINAPI setup(void*){
         {0x64DD60,reinterpret_cast<void*>(&carJumpOut),reinterpret_cast<void**>(&originalCarJumpOut)},
         {0x53F3C0,reinterpret_cast<void*>(&mouseUpdate),reinterpret_cast<void**>(&originalMouseUpdate)},
         {0x5E4280,reinterpret_cast<void*>(&bonePosition),reinterpret_cast<void**>(&originalBonePosition)},
+        {0x5454C0,reinterpret_cast<void*>(&pedFrictionSingle),reinterpret_cast<void**>(&originalPedFrictionSingle)},
+        {0x545980,reinterpret_cast<void*>(&pedFrictionPair),reinterpret_cast<void**>(&originalPedFrictionPair)},
         {0x52B730,reinterpret_cast<void*>(&cameraProcess),reinterpret_cast<void**>(&originalCameraProcess)}};
     for(const auto&h:newHooks){if(!hook(reinterpret_cast<void*>(h.address),h.replacement,h.original)){status="reaction_extension_hook_failed";event(status,-1,-1,std::to_string(h.address));return 0;}MH_QueueEnableHook(reinterpret_cast<void*>(h.address));}
     MH_QueueEnableHook(reinterpret_cast<void*>(0x53BEE0));MH_QueueEnableHook(reinterpret_cast<void*>(0x5E8A20));MH_QueueEnableHook(reinterpret_cast<void*>(0x4B3A20));
@@ -1824,6 +1854,7 @@ static DWORD WINAPI setup(void*){
     if(!installBikeRenderPhase(&finishPhysicsFrame,&physicsFrameNeedsCompletion)){status="physics_frame_barrier_install_failed";event(status);report();return 0;}
     if(!installBikePoseSampling()){status="bike_pose_sampling_install_failed";event(status);report();return 0;}
     initializeNativePairAudit();
+    original_ped_motor_branch::allow=[](){return playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive());};
     if(!installOriginalPedMotor()){status="original_ped_motor_install_failed";event(status);report();return 0;}
     if(!installNativeGroundAudit()){status="native_ground_audit_install_failed";event(status);report();return 0;}
     if(!installOriginalGroundHost()){status="original_ground_host_install_failed";event(status);report();return 0;}

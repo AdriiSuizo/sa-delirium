@@ -286,8 +286,8 @@ static void initializeCombat(){
     if(!ok(nm_combat_enable(combat,data.c_str()))){nm_combat_destroy(combat);combat=nullptr;return;}
     event("combat_loaded",-1,-1,"controller=LSC4_380c8cb7d49a authored_assets=IV target_identity=pool_generation next_step_requests=1 native_guns=1");
 }
-static void combatClear(){
-    nikoClear();
+static void combatClear(bool clearNiko=true){
+    if(clearNiko)nikoClear();
     combatFrameReady=false;
     if(combat)nm_combat_remove(combat,UINT32_MAX);
     fighters.clear();combatTargets.clear();combatReceipts.clear();combatInput={};combatLockRef=-1;combatLockView={};combatLockChanged=0;combatLookLatched=false;
@@ -695,9 +695,10 @@ static void combatCheckPlayerVehicleStrike(void*cj,const CombatActor&a,bool hitP
             if(!occupant||occupant==cj||at<float>(occupant,0x540)<=0.f)return;
             if(void*brain=at<void*>(occupant,0x47C)){
                 alignas(4) unsigned char ev[0x20]{};
-                reinterpret_cast<void(__thiscall*)(void*,void*,void*,int)>(0x4B18D0)(ev,entity,cj,saWeapon?saWeapon:5);
+                // CEventVehicleDamage (0x4B18D0) leaves purecall at GetEventType; use concrete CEventVehicleDamageWeapon (0x61C2E0/0x61C310).
+                reinterpret_cast<void(__thiscall*)(void*,void*,void*,int)>(0x61C2E0)(ev,entity,cj,saWeapon?saWeapon:5);
                 reinterpret_cast<void(__thiscall*)(void*,void*,bool)>(0x4AB420)(static_cast<unsigned char*>(brain)+0x68,ev,false);
-                reinterpret_cast<void(__thiscall*)(void*)>(0x4B1990)(ev);
+                reinterpret_cast<void(__thiscall*)(void*)>(0x61C310)(ev);
             }
         };
         notifyOccupant(at<void*>(entity,0x460));
@@ -801,9 +802,19 @@ static void combatFinish(){
             const int kind=at<int>(p,0x598);const float harm=before-at<float>(p,0x540)+armourBefore-at<float>(p,0x548);
             const int striker=combatStrikeBone(int(hit[12]));
             const bool hand=(striker>=22&&striker<=26)||(striker>=32&&striker<=36);
-            if(hit[14]==0&&hit[3]>0&&(weapon==5||(weapon==0&&hand))){
+            const bool counter=hit[15]!=0;
+            if(hit[14]==0&&hit[3]>0&&(weapon==5||(weapon==0&&(hand||counter)))){
                 const V point=hit[15]==0?V{hit[4],hit[5],hit[6]}:position(p)+V{0,0,.9f};
                 playIvMeleeImpact(weapon,part,point,target);
+                if(before>0.f){
+                    V bloodPos=point;
+                    const V delta=position(by)-position(p);
+                    V bloodDir=length(delta)>1e-4f?normalized(delta)*2.f:V{0.f,0.f,2.f};
+                    const float rawLight=at<float>(p,0x12C);
+                    const float brightness=std::isfinite(rawLight)?std::clamp(rawLight,.2f,1.f):.8f;
+                    reinterpret_cast<void(__thiscall*)(void*,V*,V*,int,float)>(0x49EB00)(
+                        reinterpret_cast<void*>(0xA9AE00),&bloodPos,&bloodDir,8,brightness);
+                }
             }
             if(hit[15]==0&&p!=player()&&(kind==4||kind==5)&&at<unsigned char>(p,0x484)==1&&beforeIntent.type<0&&harm>0&&at<float>(p,0x540)>0){
                 const int sourceKind=at<int>(by,0x598);const unsigned bit=sourceKind>=0&&sourceKind<32?1u<<sourceKind:0;

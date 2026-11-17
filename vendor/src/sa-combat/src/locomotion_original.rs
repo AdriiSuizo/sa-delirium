@@ -311,7 +311,7 @@ fn pick(clips: &Clips, p: &mut Player, before: f32, wanted: f32, set: usize, dt:
     }
     if let Some(s) = &p.start {
         let advance = step(s.key);
-        playing.push(movestop::PickClip { id: s.id, phase: s.phase, flags: 0x10, rate: s.rate, step: advance, time: s.phase, advance,
+        playing.push(movestop::PickClip { id: s.id, phase: s.phase, flags: 0x10, rate: s.rate, step: advance, time: (s.phase - advance).max(0.0), advance,
                                           length: 1.0, ..Default::default() });
     }
     let current = playing.iter().find(|c| (movestart::WSTART..=movestart::RUNSTART_R_180).contains(&c.id)).copied();
