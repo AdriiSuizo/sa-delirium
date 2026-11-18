@@ -217,7 +217,7 @@ static bool combatQueryPose(void*p,std::vector<T>&pose);
 static void combatPrepare();
 static void combatTick(float dt);
 static void combatFinish();
-static void combatClear();
+static void combatClear(bool clearNiko=true);
 static bool combatDelivering=false;
 struct AuthoredMeleeDamage {void* victim=nullptr;void* source=nullptr;int weapon=0,piece=0;float amount=0;};
 static AuthoredMeleeDamage authoredMeleeDamage;
@@ -787,8 +787,8 @@ static void acceptedDamage(DamageEvent* hitEvent,void*p){
     if(combatDelivering)return; // authored sweep delivers native damage once
     const float amount=hitEvent->response.health+hitEvent->response.armour;
     watchSessionPed(p);watchSessionPed(hitEvent->source);
-    event("native_damage_decision",reference(p),at<short>(p,0x22),"stage=damage_calculation attacker="+std::to_string(reference(hitEvent->source))+" vehicle="+std::to_string(vehicleRef(hitEvent->source))+" weapon="+std::to_string(hitEvent->weapon)+" piece="+std::to_string(hitEvent->piece)+" native_anim="+std::to_string(hitEvent->anim)+" native_group="+std::to_string(hitEvent->animGroup)+" damage="+std::to_string(amount)+" protected="+std::to_string(cutscene()||(protectMissions&&scriptMissionActive())));
-    const char* skip=!ready?"engine_not_ready":!detectImpacts?"impact_detection_disabled":!playing()?"not_playing":cutscene()?"cutscene":(protectMissions&&scriptMissionActive())?"mission_or_phone":!std::isfinite(amount)?"invalid_damage":amount<=0?"no_damage":nullptr;
+    event("native_damage_decision",reference(p),at<short>(p,0x22),"stage=damage_calculation attacker="+std::to_string(reference(hitEvent->source))+" vehicle="+std::to_string(vehicleRef(hitEvent->source))+" weapon="+std::to_string(hitEvent->weapon)+" piece="+std::to_string(hitEvent->piece)+" native_anim="+std::to_string(hitEvent->anim)+" native_group="+std::to_string(hitEvent->animGroup)+" damage="+std::to_string(amount)+" protected="+std::to_string(cutscene()||(protectMissions&&authoredMissionProtected())));
+    const char* skip=!ready?"engine_not_ready":!detectImpacts?"impact_detection_disabled":!playing()?"not_playing":cutscene()?"cutscene":(protectMissions&&authoredMissionProtected())?"mission_or_phone":!std::isfinite(amount)?"invalid_damage":amount<=0?"no_damage":nullptr;
     if(skip){event("damage_kept_native",reference(p),at<short>(p,0x22),skip);return;}
     const bool isPlayer=p==player();const int weapon=hitEvent->weapon;
     const bool playerImpact=isPlayer&&playerVehicleImpacts&&playerRoadDamage(weapon,vehicleRef(hitEvent->source)>=0)&&playerGroundVehicle(at<int>(hitEvent->source,0x594));
@@ -1182,11 +1182,10 @@ static void simulatePhysicsFrame(){
     }
     lastTickStart=before.QuadPart;
     unsigned now=gameTime();
-    if(!playing()||!player()||cutscene()||(protectMissions&&scriptMissionActive())||lastArea!=area()||(lastTime&&now<lastTime)){
+    if(!playing()||!player()||cutscene()||(protectMissions&&authoredMissionProtected())||lastArea!=area()||(lastTime&&now<lastTime)){
         const char* reason=!playing()?"game_not_playing":!player()?"player_unavailable":cutscene()?"cutscene_boundary":
-            (protectMissions&&scriptMissionActive())?"mission_boundary":lastArea!=area()?"area_boundary":"game_time_reset";
-        const bool keepNiko=playing()&&player()&&!cutscene()&&lastArea==area()&&(!lastTime||now>=lastTime)&&area()!=0;
-        clear(reason);combatClear(!keepNiko);exitTransits.clear();lastArea=area();lastTime=now;
+            (protectMissions&&authoredMissionProtected())?"mission_boundary":lastArea!=area()?"area_boundary":"game_time_reset";
+        clear(reason);combatClear();exitTransits.clear();lastArea=area();lastTime=now;
     }else{
         // Native movement and NM must consume the same simulated interval.
         // CTimer milliseconds can advance farther than the capped movement
@@ -1414,7 +1413,7 @@ static void finishPhysicsFrame(){
     physicsFrameCompletions++;
     FrameCostProfile cost("finish",int(agents.size()),int(pending.size()));
     if(evaluatedPedFrame!=frame){evaluatedPeds.clear();evaluatedPedFrame=frame;}
-    if(playing()&&player()&&!cutscene()&&!(protectMissions&&scriptMissionActive())){
+    if(playing()&&player()&&!cutscene()&&!(protectMissions&&authoredMissionProtected())){
         evaluateOffscreenPalettes();
         finishMeleeContacts();
         processVehicleEntries();
@@ -1516,7 +1515,7 @@ static void __cdecl process(){
     tickWindscreenEjection();
     verifyOriginalGroundNativeEnd();
     captureMeleeFrames();captureFootSupportFrame();captureRoadFrames();cost.lap(2);
-    if(!playing()||!player()||cutscene()||(protectMissions&&scriptMissionActive())||lastArea!=area()||(lastTime&&gameTime()<lastTime)){
+    if(!playing()||!player()||cutscene()||(protectMissions&&authoredMissionProtected())||lastArea!=area()||(lastTime&&gameTime()<lastTime)){
         physicsFrame.reset();simulatePhysicsFrame();return;
     }
     processStandingContacts(combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C)));
@@ -1528,7 +1527,7 @@ static void __cdecl process(){
 static bool(__thiscall* originalPedFrictionSingle)(void*,float,ColPoint*)=nullptr;
 static bool(__thiscall* originalPedFrictionPair)(void*,void*,float,ColPoint*)=nullptr;
 static bool originalPedMotorStepActive(){
-    return originalPedMotorEnabled&&ready&&playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive());
+    return originalPedMotorEnabled&&ready&&playing()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());
 }
 static bool pedWallFrictionSuppressed(void*ped,const ColPoint*point){
     if(!originalPedMotorStepActive()||!ped||!point)return false;
@@ -1554,7 +1553,7 @@ static bool __fastcall pedFrictionPair(void*self,void*,void*other,float limit,Co
 }
 
 extern "C" __declspec(dllexport) int __cdecl DeliriumSA_ProbeHit(int targetRef){
-    if(!ready)return -11;if(!playing())return -12;if(cutscene())return -13;if(protectMissions&&scriptMissionActive())return -14;
+    if(!ready)return -11;if(!playing())return -12;if(cutscene())return -13;if(protectMissions&&authoredMissionProtected())return -14;
     void* target=pedFromRef(targetRef);if(!validPed(target))return -15;
     pending[targetRef]={{0,28,2},{0,1,0},gameTime(),10,true};return 0;
 }
@@ -1854,7 +1853,7 @@ static DWORD WINAPI setup(void*){
     if(!installBikeRenderPhase(&finishPhysicsFrame,&physicsFrameNeedsCompletion)){status="physics_frame_barrier_install_failed";event(status);report();return 0;}
     if(!installBikePoseSampling()){status="bike_pose_sampling_install_failed";event(status);report();return 0;}
     initializeNativePairAudit();
-    original_ped_motor_branch::allow=[](){return playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive());};
+    original_ped_motor_branch::allow=[](){return playing()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());};
     if(!installOriginalPedMotor()){status="original_ped_motor_install_failed";event(status);report();return 0;}
     if(!installNativeGroundAudit()){status="native_ground_audit_install_failed";event(status);report();return 0;}
     if(!installOriginalGroundHost()){status="original_ground_host_install_failed";event(status);report();return 0;}

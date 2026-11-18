@@ -11,11 +11,12 @@ static float nikoState[8]{};
 static std::vector<float> nikoPose;
 static bool nikoLastRejectWasPureJump=false,nikoJumpSuspended=false,nikoLastRejectWasGunAim=false,nikoAimSuspended=false;
 static unsigned nikoJumpResumedAt=0;
+static float nikoPreAimRatio=0.f;
 static std::vector<T> nikoJumpLandLocal;
 static void nikoClear(){
     if(nikoMovement)nm_locomotion_destroy(nikoMovement);
     nikoMovement=nullptr;nikoRig.reset();nikoRef=-1;nikoArea=-1;nikoActive=false;nikoFrame=UINT32_MAX;
-    nikoLastRejectWasPureJump=false;nikoJumpSuspended=false;nikoLastRejectWasGunAim=false;nikoAimSuspended=false;nikoJumpResumedAt=0;nikoJumpLandLocal.clear();
+    nikoLastRejectWasPureJump=false;nikoJumpSuspended=false;nikoLastRejectWasGunAim=false;nikoAimSuspended=false;nikoJumpResumedAt=0;nikoPreAimRatio=0.f;nikoJumpLandLocal.clear();
 }
 static bool nikoIsJumpOrAirTask(int task,unsigned char airFlags){
     if(task==TASK_SIMPLE_JUMP||task==TASK_COMPLEX_JUMP||
@@ -104,18 +105,19 @@ static void nikoUpdatePosition(void*p){
     if(!nikoEligible(p)){
         const bool pureJump=(nikoActive||nikoJumpSuspended)&&nikoLastRejectWasPureJump;
         const bool gunAim=nikoLastRejectWasGunAim;
+        const bool keepAimSuspend=gunAim||(nikoAimSuspended&&!pureJump&&nikoMovement&&(nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_STAND_STILL||nikoTask==TASK_SIMPLE_GO_TO_POINT));
         if(nikoActive){
             event("niko_movement_yield",reference(p),nikoModel,"native_task="+std::to_string(nikoTask)+" support_flags="+std::to_string(at<unsigned char>(p,0x46C))+" air_flags="+std::to_string(at<unsigned char>(p,0x46D))+" jump_suspend="+std::to_string(pureJump));
             if(nikoMovement)nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),pureJump?-2.f:-1.f);
             nikoJumpSuspended=pureJump;nikoAimSuspended=gunAim&&!pureJump;
-            if(!pureJump&&!nikoAimSuspended)nikoJumpLandLocal.clear();
+            if(!pureJump&&!nikoAimSuspended){nikoJumpLandLocal.clear();nikoPreAimRatio=0.f;}
         }else{
             if(nikoJumpSuspended&&!pureJump){
                 if(nikoMovement)nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),-1.f);
                 nikoJumpSuspended=false;
             }
-            nikoAimSuspended=gunAim&&!nikoJumpSuspended;
-            if(!nikoJumpSuspended&&!nikoAimSuspended)nikoJumpLandLocal.clear();
+            nikoAimSuspended=!nikoJumpSuspended&&keepAimSuspend;
+            if(!nikoJumpSuspended&&!nikoAimSuspended){nikoJumpLandLocal.clear();nikoPreAimRatio=0.f;}
         }
         nikoActive=false;return;
     }
@@ -135,16 +137,34 @@ static void nikoUpdatePosition(void*p){
             event("niko_movement_registered",nikoRef,nikoModel,"source=380c8cb7d49a native_collision=1");
         }catch(const std::exception&e){event("niko_rig_error",reference(p),0,e.what());nikoClear();return;}
     }
+    float padPush=0.f;bool padWalkMode=false;
+    if(nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_STAND_STILL){
+        if(auto*pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0)){
+            const float x=reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,y=reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f;
+            padPush=std::min(1.f,std::sqrt(x*x+y*y));
+            const bool padActive=nikoPadActive();
+            padWalkMode=!padActive&&nikoKeyboardWalk(pad,padPush);
+            if(padPush>0.f&&!padActive)padPush=1.f;
+        }
+    }
     if(wasAimSuspended&&nikoMovement){
         const V vel=at<V>(p,0x44);const float horiz=std::hypot(vel.x,vel.y)*50.f;
         auto*pd=at<void*>(p,0x480);const float nativeBlend=pd?std::clamp(at<float>(pd,0x14),0.f,3.f):0.f;
-        if(horiz>=0.45f||nativeBlend>=0.35f||at<int>(p,0x534)>=4){
-            const float nativeRatio=std::clamp(std::max(nativeBlend,horiz>=2.1f?2.f:1.f),0.85f,2.f);
-            nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),-3.f-nativeRatio);
+        const bool stickMoving=padPush>0.1f;
+        if(stickMoving||horiz>=0.30f||nativeBlend>=0.25f||at<int>(p,0x534)>=4){
+            float resumeRatio=std::max(nativeBlend,horiz>=2.0f?2.f:1.f);
+            if(stickMoving){
+                if(padWalkMode)resumeRatio=std::clamp(std::max(resumeRatio,1.f),0.85f,1.25f);
+                else resumeRatio=std::clamp(std::max({resumeRatio,nikoPreAimRatio,1.85f}),1.5f,2.5f);
+            }else{
+                resumeRatio=std::clamp(std::max(resumeRatio,horiz>=1.5f?1.5f:1.f),0.85f,2.f);
+            }
+            nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),-3.f-resumeRatio);
             nikoJumpResumedAt=gameTime();
         }else{
             nikoJumpLandLocal.clear();
         }
+        nikoPreAimRatio=0.f;
     }
     const float dt=combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C));
     if(dt<=0)return;
@@ -177,6 +197,7 @@ static void nikoUpdatePosition(void*p){
         const int stepped=nm_locomotion_step(combat,nikoMovement,wanted,at<float>(p,0x55C),nikoActive?nikoState[0]:at<float>(p,0x558),crouch,0,gameTime(),dt);
         if(!ok(stepped)){nikoActive=false;return;}
         nikoActive=nm_locomotion_pose(nikoMovement,nikoPose.data(),int(nikoRig->ids.size()),nikoState)==1;nikoFrame=frame;
+        if(nikoActive)nikoPreAimRatio=std::max(nikoState[3],wanted>=1.f?wanted:0.f);
     }
     if(!nikoActive)return;
     const float yaw=nikoState[0],c=std::cos(yaw),s=std::sin(yaw),scale=combatMotionScale(dt,*reinterpret_cast<float*>(0xB7CB5C));

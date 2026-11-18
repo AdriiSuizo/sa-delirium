@@ -40,7 +40,7 @@ static bool combatProbeAlternateSent=false;
 static bool combatProbeFatalCounter=false;
 static unsigned combatProbeGymStart=0,combatProbeGymUntil=0;static int combatProbeGymRef=-1;static unsigned char combatProbeGymOriginal=4;
 static bool combatProbeGymPassive=false;
-static bool combatAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}
+static bool combatAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());}
 static int combatWeapon(void*p){const unsigned slot=at<unsigned char>(p,0x718);return slot<13?at<int>(p,0x5A0+slot*0x1C):-1;}
 static bool combatResponseActive(void*p){
     const int ref=reference(p);const auto physical=agents.find(ref);
@@ -286,7 +286,7 @@ static void initializeCombat(){
     if(!ok(nm_combat_enable(combat,data.c_str()))){nm_combat_destroy(combat);combat=nullptr;return;}
     event("combat_loaded",-1,-1,"controller=LSC4_380c8cb7d49a authored_assets=IV target_identity=pool_generation next_step_requests=1 native_guns=1");
 }
-static void combatClear(bool clearNiko=true){
+static void combatClear(bool clearNiko){
     if(clearNiko)nikoClear();
     combatFrameReady=false;
     if(combat)nm_combat_remove(combat,UINT32_MAX);
@@ -661,38 +661,67 @@ static void combatCheckPlayerVehicleStrike(void*cj,const CombatActor&a,bool hitP
     if(struck||(int(a.state[7])&3)==0||!a.rig||a.pose.size()!=a.rig->ids.size())return;
     const int held=combatWeapon(cj),wep=clubWeapon(held)?held:0;const bool club=wep!=0;
     const V origin=position(cj),fwd=matrix(cj)->up;
-    struct Seg{int fromId,toId;float reach;};
-    const Seg segs[]={{23,24,club?.55f:.22f},{33,34,.22f},{53,54,.22f},{43,44,.22f}};
+    const auto rayCar=[&](V from,V to,ColPoint&cp,void*&entity){
+        if(!finite(from)||!finite(to)||length(to-from)<1e-4f)return false;
+        if(!originalLineOfSight(from,to,cp,entity,false,true,false,false,false,false,false,false))return false;
+        return entity&&(at<unsigned char>(entity,0x36)&7)==2&&vehicleRef(entity)>=0&&matrix(entity)&&at<void*>(entity,0x18)&&finite(cp.point)&&dot(cp.point-origin,fwd)>.05f;
+    };
+    struct Seg{int fromId,toId;float reach;bool chestStart;};
+    const Seg segs[]={
+        {23,24,club?.55f:.30f,false},{33,34,.30f,false},{53,54,.30f,false},{43,44,.30f,false},
+        {22,24,club?.55f:.32f,false},{32,34,.32f,false},{3,24,club?.55f:.30f,true},{3,34,.30f,true}
+    };
     for(const auto&s:segs){
         const int fi=a.rig->index(s.fromId),ti=a.rig->index(s.toId);
         if(fi<0||ti<0)continue;
-        const V from=a.pose[fi].p,hand=a.pose[ti].p;
-        if(!finite(from)||!finite(hand)||dot(hand-origin,fwd)<=.15f)continue;
+        V from=a.pose[fi].p;const V hand=a.pose[ti].p;
+        if(!finite(from)||!finite(hand)||dot(hand-origin,fwd)<=(s.chestStart?.05f:.12f))continue;
+        if(s.chestStart){from=V{origin.x-fwd.x*.10f,origin.y-fwd.y*.10f,hand.z};}
         const V dir=normalized(hand-from);if(!finite(dir))continue;
         ColPoint cp{};void*entity=nullptr;
-        if(!originalLineOfSight(from,hand+dir*s.reach,cp,entity,false,true,false,false,false,false,false,false))continue;
-        if(!entity||vehicleRef(entity)<0||!matrix(entity))continue;
+        if(!rayCar(from,hand+dir*s.reach,cp,entity))continue;
         struck=true;
         V push=normalized(cp.point-from);if(!finite(push))push=fwd;
         const float impulseNs=club?85.f:45.f;
         at<unsigned char>(entity,0xB8)=0;
         reinterpret_cast<void(__thiscall*)(void*,V,V,bool)>(0x542B50)(entity,push*(impulseNs*.02f),cp.point-position(entity),true);
         const auto*handling=at<unsigned char*>(entity,0x384);
-        const float vehMass=handling&&*reinterpret_cast<const float*>(handling+0x4)>0.f
-            ?*reinterpret_cast<const float*>(handling+0x4):std::max(100.f,at<float>(entity,0x8C));
+        const float rawMass=handling&&std::isfinite(*reinterpret_cast<const float*>(handling+0x4))&&*reinterpret_cast<const float*>(handling+0x4)>0.f
+            ?*reinterpret_cast<const float*>(handling+0x4):at<float>(entity,0x8C);
+        const float vehMass=std::isfinite(rawMass)&&rawMass>100.f?rawMass:100.f;
         const bool kick=s.fromId>=41;
         const int saWeapon=wep?wep:(held==1?1:0);
-        const float strikeDamage=club?(bladeWeapon(held)?14.f:18.f):((kick?9.f:6.f)*(held==1?1.5f:1.f));
-        const float damageIntensity=std::max(10.f,vehMass*strikeDamage*0.01f);
+        const float strikeScale=club?(bladeWeapon(held)?.55f:.85f):((kick?.62f:.48f)*(held==1?1.35f:1.f));
+        const float damageIntensity=std::max(160.f,vehMass*strikeScale);
+        unsigned short component=cp.surfaces[5];
+        if(component<1||(component>10&&component!=19)){
+            M worldToCar{};
+            if(affineInverse(*matrix(entity),worldToCar)){
+                const V local=point(worldToCar,cp.point);
+                const auto*col=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(entity);
+                const float xMid=col?(col->box.min.x+col->box.max.x)*.5f:0.f;
+                const float zMid=col?(col->box.min.z+col->box.max.z)*.48f:0.f;
+                const float zTop=col?col->box.min.z+(col->box.max.z-col->box.min.z)*.62f:.55f;
+                const float yFront=col?col->box.max.y*.55f:1.1f;
+                const float yRear=col?col->box.min.y*.55f:-1.1f;
+                if(local.y>yFront)component=local.z<zMid?1:9;
+                else if(local.y<yRear)component=local.z<zMid?2:10;
+                else if(local.y>=0.f&&local.z>zTop)component=19;
+                else if(local.y>=0.f)component=local.x<xMid?5:6;
+                else component=local.x<xMid?7:8;
+            }else component=5;
+        }
         const float healthBefore=at<float>(entity,0x4C0);
         V colPos=cp.point,colDir=push;
         using VehicleDamageFn=void(__thiscall*)(void*,float,unsigned short,void*,V*,V*,int);
         if(auto**vt=at<VehicleDamageFn*>(entity,0);vt&&vt[0xE0/4]){
-            vt[0xE0/4](entity,damageIntensity,cp.surfaces[4],cj,&colPos,&colDir,saWeapon);
+            vt[0xE0/4](entity,damageIntensity,component,cj,&colPos,&colDir,saWeapon);
         }
         reinterpret_cast<void(__cdecl*)(int,void*,void*)>(0x532010)(0x15,entity,cj);
         const auto notifyOccupant=[&](void*occupant){
-            if(!occupant||occupant==cj||at<float>(occupant,0x540)<=0.f)return;
+            if(!occupant||occupant==cj)return;
+            const int occRef=reference(occupant);
+            if(occRef<0||pedFromRef(occRef)!=occupant||!matrix(occupant)||at<float>(occupant,0x540)<=0.f)return;
             if(void*brain=at<void*>(occupant,0x47C)){
                 alignas(4) unsigned char ev[0x20]{};
                 // CEventVehicleDamage (0x4B18D0) leaves purecall at GetEventType; use concrete CEventVehicleDamageWeapon (0x61C2E0/0x61C310).
@@ -702,23 +731,29 @@ static void combatCheckPlayerVehicleStrike(void*cj,const CombatActor&a,bool hitP
             }
         };
         notifyOccupant(at<void*>(entity,0x460));
-        const unsigned passengers=std::min<unsigned>(at<unsigned char>(entity,0x488),8u);
-        for(unsigned pi=0;pi<passengers;pi++)notifyOccupant(at<void*>(entity,0x464+pi*4));
+        for(unsigned pi=0;pi<8u;pi++)notifyOccupant(at<void*>(entity,0x464+pi*4));
         const float healthAfter=at<float>(entity,0x4C0);
         if(healthAfter<healthBefore){
             at<unsigned char>(entity,0x508)=static_cast<unsigned char>(saWeapon);
-            auto&lastDamager=at<void*>(entity,0x50C);lastDamager=cj;
-            reinterpret_cast<void(__thiscall*)(void*,void**)>(0x571B70)(cj,&lastDamager);
+            auto&lastDamager=at<void*>(entity,0x50C);
+            if(lastDamager&&lastDamager!=cj)
+                reinterpret_cast<void(__thiscall*)(void*,void**)>(0x571A00)(lastDamager,&lastDamager);
+            if(lastDamager!=cj){
+                lastDamager=cj;
+                reinterpret_cast<void(__thiscall*)(void*,void**)>(0x571B70)(cj,&lastDamager);
+            }
         }
-        const unsigned char surf=(cp.surfaces[3]>0&&cp.surfaces[3]<179)?cp.surfaces[3]:63u;
+        const unsigned char surf=(cp.surfaces[4]>0&&cp.surfaces[4]<179)?cp.surfaces[4]:63u;
+        // 0x41..0x43 run CAEPedAudioEntity's vehicle-collision SFX (0x506EB0) and weapon melee thud; 0x40/0x44 pass 0 volume and skip SFX 58.
         reinterpret_cast<void(__thiscall*)(void*,int,float,float,void*,unsigned char,int,int)>(0x4E2BB0)(
-            static_cast<unsigned char*>(cj)+0x138,kick?0x44:0x40,0.f,1.f,entity,surf,0,0);
+            static_cast<unsigned char*>(cj)+0x138,kick?0x43:0x42,0.f,1.f,entity,surf,0,0);
         reinterpret_cast<void(__thiscall*)(void*,V*,V*,int)>(0x49F670)(
             reinterpret_cast<void*>(0xA9AE00),&colPos,&colDir,4);
         event("combat_vehicle_contact",vehicleRef(entity),at<short>(entity,0x22),
               "weapon="+std::to_string(wep)+" sa_weapon="+std::to_string(saWeapon)+" result="+std::to_string(res)+
-              " damage_intensity="+std::to_string(damageIntensity)+" health_before="+std::to_string(healthBefore)+
-              " health_after="+std::to_string(healthAfter)+" surface="+std::to_string(int(surf)));
+              " component="+std::to_string(component)+" damage_intensity="+std::to_string(damageIntensity)+
+              " health_before="+std::to_string(healthBefore)+" health_after="+std::to_string(healthAfter)+
+              " surface="+std::to_string(int(surf)));
         break;
     }
 }
@@ -802,18 +837,20 @@ static void combatFinish(){
             const int kind=at<int>(p,0x598);const float harm=before-at<float>(p,0x540)+armourBefore-at<float>(p,0x548);
             const int striker=combatStrikeBone(int(hit[12]));
             const bool hand=(striker>=22&&striker<=26)||(striker>=32&&striker<=36);
+            const bool foot=(striker>=42&&striker<=46)||(striker>=52&&striker<=56);
             const bool counter=hit[15]!=0;
-            if(hit[14]==0&&hit[3]>0&&(weapon==5||(weapon==0&&(hand||counter)))){
-                const V point=hit[15]==0?V{hit[4],hit[5],hit[6]}:position(p)+V{0,0,.9f};
-                playIvMeleeImpact(weapon,part,point,target);
+            if(hit[14]==0&&hit[3]>0&&(clubWeapon(weapon)||(weapon==0&&(hand||foot||counter)))){
+                const V rawPoint{hit[4],hit[5],hit[6]};
+                const V point=finite(rawPoint)&&length(rawPoint-position(p))<2.5f?rawPoint:position(p)+V{0,0,.2f};
+                playIvMeleeImpact(weapon?(bladeWeapon(weapon)?0:5):0,part,point,target);
                 if(before>0.f){
                     V bloodPos=point;
                     const V delta=position(by)-position(p);
-                    V bloodDir=length(delta)>1e-4f?normalized(delta)*2.f:V{0.f,0.f,2.f};
+                    V bloodDir=length(delta)>1e-4f?normalized(delta)*2.f+V{0.f,0.f,.5f}:V{0.f,0.f,2.f};
                     const float rawLight=at<float>(p,0x12C);
-                    const float brightness=std::isfinite(rawLight)?std::clamp(rawLight,.2f,1.f):.8f;
+                    const float brightness=std::isfinite(rawLight)?std::clamp(rawLight,.35f,1.f):.85f;
                     reinterpret_cast<void(__thiscall*)(void*,V*,V*,int,float)>(0x49EB00)(
-                        reinterpret_cast<void*>(0xA9AE00),&bloodPos,&bloodDir,8,brightness);
+                        reinterpret_cast<void*>(0xA9AE00),&bloodPos,&bloodDir,counter?12:8,brightness);
                 }
             }
             if(hit[15]==0&&p!=player()&&(kind==4||kind==5)&&at<unsigned char>(p,0x484)==1&&beforeIntent.type<0&&harm>0&&at<float>(p,0x540)>0){

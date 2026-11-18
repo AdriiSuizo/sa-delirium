@@ -15,7 +15,7 @@ struct DrunkWatch {bool fallen=false,rising=false,up=false;unsigned t=0,cap=0;};
 static DrunkWatch drunkWatch;
 static constexpr unsigned drunkRagdollMs=180000,drunkFadeMs=10000; // level 5 (0x4BA0) and the sober-up's -10,000 (0x4A88)
 static unsigned char* drunkPlayerData(){void*p=player();return p?at<unsigned char*>(p,0x480):nullptr;}
-static bool drunkMission(){return protectMissions&&scriptMissionActive();}
+static bool drunkMission(){return protectMissions&&authoredMissionProtected();}
 static bool drunkActive(unsigned now){return drunkEnd&&now<drunkEnd;}
 static void __cdecl drunkScripts(){
     auto*d=drunkPlayerData();const bool manage=drunkReplace&&d&&!drunkMission();

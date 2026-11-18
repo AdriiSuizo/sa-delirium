@@ -133,7 +133,7 @@ static bool resumeNativeBikeFall(Active& a,const char* reason){
     return true;
 }
 static bool bikePhysicalExitEligible(void*ev,void*ped){
-    if(!ready||!detectImpacts||!playing()||cutscene()||(protectMissions&&scriptMissionActive())||!ridingBike(ped))return false;
+    if(!ready||!detectImpacts||!playing()||cutscene()||(protectMissions&&authoredMissionProtected())||!ridingBike(ped))return false;
     void*bike=at<void*>(ev,0x38);
     if(vehicleRef(bike)<0||at<void*>(ped,0x58C)!=bike||(at<unsigned>(bike,0x40)&0x08000100u))return false;
     void*actor=at<void*>(ev,0x30);const int actorRef=reference(actor);

@@ -24,7 +24,7 @@ static bool bodyVehicle(void* entity) {
 
 static State* state(void* car) {
     if (!enabled || !bodyVehicle(car) || !playing() || cutscene() ||
-        (protectMissions && scriptMissionActive()) || !matrix(car) || matrix(car)->at.z < .52f)
+        (protectMissions && authoredMissionProtected()) || !matrix(car) || matrix(car)->at.z < .52f)
         return nullptr;
     const int ref = vehicleRef(car);
     if (ref < 0) return nullptr;

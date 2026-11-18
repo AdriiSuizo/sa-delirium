@@ -115,7 +115,7 @@ static void tick(unsigned now){
         if(found==agents.end()||!found->second->ped||pedFromRef(it->first)!=found->second->ped)it=states.erase(it);
         else ++it;
     }
-    if(!ready||!playing()||cutscene()||(protectMissions&&scriptMissionActive()))return;
+    if(!ready||!playing()||cutscene()||(protectMissions&&authoredMissionProtected()))return;
     for(auto& [ref,a]:agents){
         auto* ped=a->ped;
         if(!ped||!a->agent||a->corpseResting||!matrix(ped)||inVehicle(ped))continue;

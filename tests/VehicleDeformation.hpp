@@ -62,7 +62,7 @@ static void setEnabled(bool value) {
 }
 
 static bool allowed() {
-    return enabled && playing() && !cutscene() && !(protectMissions && scriptMissionActive());
+    return enabled && playing() && !cutscene() && !(protectMissions && authoredMissionProtected());
 }
 
 static bool supported(void* car) {
@@ -165,21 +165,27 @@ static void record(void* car, int ref, V worldPoint, V worldDirection, float imp
 }
 
 static void __fastcall damage(void* car, void*, float intensity, int component, void* source, V* contact, V* direction, int weapon) {
-    const int ref = intensity == 0.f && allowed() && supported(car) ? vehicleRef(car) : -1;
+    const bool nativeCollision = intensity == 0.f;
+    const bool authoredHit = !nativeCollision && contact && direction && intensity > 0.f &&
+        finite(*contact) && finite(*direction) && length(*direction) > 1e-4f && source;
+    const int ref = (nativeCollision || authoredHit) && allowed() && supported(car) ? vehicleRef(car) : -1;
     const float before = ref >= 0 ? at<float>(car, 0x4C0) : 0.f;
     const float impulse = ref >= 0 ? at<float>(car, 0xD8) : 0.f;
     const V hit = ref >= 0 ? at<V>(car, 0xEC) : V{};
     const V normal = ref >= 0 ? at<V>(car, 0xE0) : V{};
     const float mass = ref >= 0 ? at<float>(car, 0x8C) : 0.f;
     V edge{};
-    const bool corner = ref >= 0 && queueCornerImpact && before > 0.f &&
+    const bool corner = nativeCollision && ref >= 0 && queueCornerImpact && before > 0.f &&
         (at<unsigned char>(car, 0x42A) & 0x20u) && !(at<unsigned>(car, 0x40) & (1u << 20)) &&
         std::isfinite(mass) && mass > 0.f && std::isfinite(impulse) && impulse * 50.f / mass >= 2.f &&
         collisionCorner(at<void*>(car, 0xDC), hit, normal, edge);
     nativeDamage(car, intensity, component, source, contact, direction, weapon);
     if (ref < 0 || vehicleFromRef(ref) != car || !supported(car)) return;
     const float lost = before - at<float>(car, 0x4C0);
-    if (corner || (std::isfinite(lost) && lost > 1.f))
+    if (authoredHit && std::isfinite(lost) && lost > .5f) {
+        const float dentImpulse = std::clamp(intensity * .28f, 160.f, 450.f) * .02f;
+        record(car, ref, *contact, *direction, dentImpulse, false);
+    } else if (corner || (nativeCollision && std::isfinite(lost) && lost > 1.f))
         record(car, ref, corner ? edge : hit, normal, impulse, corner);
 }
 

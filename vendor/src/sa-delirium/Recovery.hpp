@@ -5,7 +5,7 @@
 // the manager has replaced it, even if the ped pool generation still matches.
 static void* taskManager(void*p){auto*i=at<void*>(p,0x47C);return i?static_cast<unsigned char*>(i)+4:nullptr;}
 static void* physicalTask(void*p){auto*m=taskManager(p);return m?at<void*>(m,0):nullptr;}
-static bool recoveryAllowed(){return ready&&applyBones&&playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}
+static bool recoveryAllowed(){return ready&&applyBones&&playing()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());}
 static ShotDamageReceipt shotReceipt(const DamageEvent&d){return {d.time,reinterpret_cast<uintptr_t>(d.source),d.weapon,d.piece};}
 static Active* shotOwner(void*p){
     if(!recoveryAllowed()||p==player()||!validPed(p,true))return nullptr;

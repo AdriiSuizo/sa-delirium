@@ -46,7 +46,7 @@ static void __fastcall physicalDamageResponse(void*handler,void*,DamageEvent*d,v
         auto&body=*a->second;const auto&hit=body.roadDamage;
         f.owner=physicalDeathIdentity(body);f.accepted={hit.time,hit.vehicle,hit.weapon,hit.piece};
         f.delivered={d->time,vehicleRef(d->source),d->weapon,d->piece};
-        f.enabled=ready&&playing();f.protectedContext=cutscene()||(protectMissions&&scriptMissionActive());
+        f.enabled=ready&&playing();f.protectedContext=cutscene()||(protectMissions&&authoredMissionProtected());
         f.inVehicle=inVehicle(p);f.preview=body.preview;f.mounted=body.mounted;
         f.impact=body.kind==Reaction::Impact;f.healthZero=at<float>(p,0x540)<=0||(road&&d->response.zero);
         f.calculated=d->response.calculated;f.killed=d->response.zero;

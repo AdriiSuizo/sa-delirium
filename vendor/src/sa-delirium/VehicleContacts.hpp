@@ -56,7 +56,7 @@ static void captureVehicleVelocities(){
 }
 static bool roadCanReplaceAnimation(void*ped,void*car){
     if(!ready||!applyBones||!detectImpacts||!playing()||cutscene()||
-       (protectMissions&&scriptMissionActive())||ped==player()||!validPed(ped,true))return false;
+       (protectMissions&&authoredMissionProtected())||ped==player()||!validPed(ped,true))return false;
     const int carRef=vehicleRef(car);
     if(carRef<0||!playerGroundVehicle(at<int>(car,0x594)))return false;
     const auto prior=beforeVehicleVelocity.find(carRef);
@@ -76,7 +76,7 @@ static bool roadHasImpact(int ref,int carRef){
 }
 
 static bool roadReplacesDamageAnimation(const DamageEvent&damage,void*ped){
-    if(!applyBones||!ready||!playing()||cutscene()||(protectMissions&&scriptMissionActive()))return false;
+    if(!applyBones||!ready||!playing()||cutscene()||(protectMissions&&authoredMissionProtected()))return false;
     const int ref=reference(ped);
     const RoadDamageReceipt delivered{damage.time,vehicleRef(damage.source),damage.weapon,damage.piece};
     const auto matches=[&](const RoadDamageReceipt&accepted){
@@ -135,7 +135,7 @@ static RoadContact beforeRoadContact(void*self,void*other,const ColPoint&point){
 }
 static void acceptRoadContact(const RoadContact& hit,unsigned path){
     if(!hit.ped||!finite(hit.relative)||hit.closing<.65f||length(hit.relative)>80.f||
-       !playing()||cutscene()||(protectMissions&&scriptMissionActive()))return;
+       !playing()||cutscene()||(protectMissions&&authoredMissionProtected()))return;
     void*ped=hit.ped;
     void*car=hit.car;
     const int ref=reference(ped),carRef=vehicleRef(car);
@@ -177,7 +177,7 @@ static bool boardingGripActive(const Active&a){
 // logs/contact-rework-20261029.json. ApplyForce is filtered to one verified call.
 static void __fastcall carPedResponse(void*ped,void*,void*car,float intensity,bool deadAnimation){
     const int carRef=vehicleRef(car),pedRef=reference(ped);
-    const bool eligible=ready&&detectImpacts&&playing()&&!cutscene()&&!(protectMissions&&scriptMissionActive())&&carRef>=0&&pedRef>=0&&at<int>(car,0x594)==0&&validPed(ped,true,false,ped==player()&&playerVehicleImpacts);
+    const bool eligible=ready&&detectImpacts&&playing()&&!cutscene()&&!(protectMissions&&authoredMissionProtected())&&carRef>=0&&pedRef>=0&&at<int>(car,0x594)==0&&validPed(ped,true,false,ped==player()&&playerVehicleImpacts);
     if(eligible)if(auto a=agents.find(pedRef);a!=agents.end()&&a->second->vehicle==carRef&&boardingGripActive(*a->second)){
         // IV get-in state 31 uses its own dt*6.5 drag damage while holding.
         // SA's capsule-based KillPedWithCar must not additionally kill/launch

@@ -104,24 +104,26 @@ impl<'a> Clips<'a>{
     assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&bytes)));
     let bank=Bank::load(std::path::Path::new(&std::env::var("NM_TEST_COMBAT").expect("movement assets"))).unwrap();
     let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
-    let mut p=Locomotion::new(rig.clone(),0.);let mut t=0u32;let dt=1./60.;
-    for _ in 0..10{t+=17;let h=p.state()[0];p.step(&bank,0.,h,h,false,0,t,dt).unwrap();}
-    let mut prev=p.pose.clone();let mut prev_v=p.state()[2];
-    let(mut max_dp_at_cut,mut max_dv_at_cut)=(0.0f32,0.0f32);let mut saw_walk=false;
-    for _ in 0..50{
-        t+=17;let h=p.state()[0];
-        let prev_key=p.key.clone();
-        p.step(&bank,1.,0.,h,false,0,t,dt).unwrap();
-        let st=p.state();
-        let dp=prev.iter().zip(&p.pose).fold(0.0f32,|m,(a,b)|m.max(a.p.distance(b.p)));
-        let dv=(st[2]-prev_v).abs();
-        if p.key=="move_player/walk"&&prev_key.contains("wstart"){saw_walk=true;max_dp_at_cut=max_dp_at_cut.max(dp);max_dv_at_cut=max_dv_at_cut.max(dv);}
-        if p.key=="move_player/walk"{max_dv_at_cut=max_dv_at_cut.max(dv);}
-        prev=p.pose.clone();prev_v=st[2];
+    for (step_ms, dt, steps) in [(17u32, 1./60., 60usize), (7u32, 1./144., 160usize)] {
+        let mut p=Locomotion::new(rig.clone(),0.);let mut t=0u32;
+        for _ in 0..10{t+=step_ms;let h=p.state()[0];p.step(&bank,0.,h,h,false,0,t,dt).unwrap();}
+        let mut prev=p.pose.clone();let mut prev_v=p.state()[2];
+        let(mut max_dp_at_cut,mut max_dq_at_cut,mut max_dv_at_cut)=(0.0f32,0.0f32,0.0f32);let mut saw_walk=false;
+        for _ in 0..steps{
+            t+=step_ms;let h=p.state()[0];
+            p.step(&bank,1.,0.,h,false,0,t,dt).unwrap();
+            let st=p.state();
+            let dp=prev.iter().zip(&p.pose).fold(0.0f32,|m,(a,b)|m.max(a.p.distance(b.p)));
+            let dq=prev.iter().zip(&p.pose).fold(0.0f32,|m,(a,b)|m.max(a.q.angle_between(b.q)));
+            let dv=(st[2]-prev_v).abs();
+            if p.key=="move_player/walk"{saw_walk=true;max_dp_at_cut=max_dp_at_cut.max(dp);max_dq_at_cut=max_dq_at_cut.max(dq);max_dv_at_cut=max_dv_at_cut.max(dv);}
+            prev=p.pose.clone();prev_v=st[2];
+        }
+        assert!(saw_walk);
+        assert!(max_dp_at_cut<(dt*5.5).max(0.045),"dt={dt}: wstart->walk pose jumped: dp={max_dp_at_cut}");
+        assert!(max_dq_at_cut<(dt*9.0).max(0.14),"dt={dt}: wstart->walk rotation jumped: dq={max_dq_at_cut}");
+        assert!(max_dv_at_cut<(dt*15.0).max(0.16),"dt={dt}: wstart->walk velocity jumped: dv={max_dv_at_cut}");
     }
-    assert!(saw_walk);
-    assert!(max_dp_at_cut<0.055,"wstart->walk pose jumped: dp={max_dp_at_cut}");
-    assert!(max_dv_at_cut<0.25,"wstart->walk velocity jumped: dv={max_dv_at_cut}");
  }
 }
 #[cfg(test)]mod continuity_unit_tests{
@@ -242,7 +244,7 @@ impl Locomotion{
         p.phase=gait_step(&clips,gait_ratio(p.ratio,p.state),p.turn_col,p.phase,set,slope,dt);gait_left(p,dt);
         let late=p.yaw_was[0];p.yaw_was=[p.yaw_was[1],0.];
         for(step,w)in [stop(&clips,p,set,dt),start(&clips,p,wanted,set,dt),turn(&clips,p,wanted,set,dt)].into_iter().flatten(){v=v.lerp(step,w);}
-        if wanted>0.&&p.start.is_none()&&p.stop.is_none()&&p.turn.is_none()&&p.forced.is_none()&&dt>0.{
+        if wanted>0.&&p.start.as_ref().is_none_or(|s|s.rate<0.)&&p.stop.is_none()&&p.turn.is_none()&&p.forced.is_none()&&dt>0.{
             let prev_speed=self.velocity.length();
             let target_speed=v.length();
             let max_dv=(8.+4.*(wanted-1.).max(0.))*dt;
@@ -259,7 +261,7 @@ impl Locomotion{
         if let Some((old,t))=self.fade{let t=t+dt/0.2;if t>=1.{self.fade=None}else{self.fade=Some((old,t));let old=bank.retarget_mix(&self.rig,&samples(gait_ratio(p.ratio,p.state),p.phase,old)).ok_or("old gait unavailable")?;pose=self.rig.blend(&old,&pose,t,0);}}
         if let Some(s)=&p.stop{if s.rate>0.&&s.weight<1.{list=samples(s.from.0,s.from.1,set);pose=bank.retarget_mix(&self.rig,&list).ok_or("stop underlay unavailable")?;}let over=bank.retarget(&self.rig,s.key,s.phase,movement_flags(s.key).ok_or("unknown movement flags")?).ok_or("stop unavailable")?;pose=self.rig.blend(&pose,&over,s.weight,0);}
         for layer in [p.start.as_ref().map(|s|(s.key,s.phase,s.weight)),p.spot.as_ref().map(|s|(s.key,s.phase,s.weight)),p.turn.as_ref().map(|s|(s.key,s.phase,s.weight))].into_iter().flatten(){let over=bank.retarget(&self.rig,layer.0,layer.1,movement_flags(layer.0).ok_or("unknown transition flags")?).ok_or("transition unavailable")?;pose=self.rig.blend(&pose,&over,layer.2,0);}
-        self.key=p.turn.as_ref().map(|s|s.key).or(p.start.as_ref().map(|s|s.key)).or(p.stop.as_ref().map(|s|s.key)).or(p.spot.as_ref().map(|s|s.key)).unwrap_or_else(||list.iter().max_by(|a,b|a.2.total_cmp(&b.2)).unwrap().0).into();
+        self.key=p.turn.as_ref().map(|s|s.key).or(p.start.as_ref().filter(|s|s.rate>0.).map(|s|s.key)).or(p.stop.as_ref().map(|s|s.key)).or(p.spot.as_ref().map(|s|s.key)).unwrap_or_else(||list.iter().max_by(|a,b|a.2.total_cmp(&b.2)).unwrap().0).into();
         self.pose=pose;self.velocity=v;self.elapsed+=dt;self.last_heading=p.heading;Ok(())
     }
 }

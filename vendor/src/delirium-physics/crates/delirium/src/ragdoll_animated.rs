@@ -132,6 +132,11 @@ impl Ragdoll {
             }
             let Some((fraction,normal))=first else{moved+=remaining;break};
             moved+=remaining*fraction;remaining*=1.-fraction;hits+=1;
+            // A horizontal root repair keeps native support for Z. A wall that
+            // leans slightly (or a two-triangle seam) must constrain only the
+            // horizontal component, otherwise every tangent leaves the +-Z
+            // planes and the slide collapses to zero along the wall.
+            let normal=if wish.z==0.&&normal.z.abs()<0.7{let h=Vec3::new(normal.x,normal.y,0.).normalize_or_zero();if h==Vec3::ZERO{normal}else{h}}else{normal};
             // Nearly parallel is not equivalent to the finite-precision
             // halfspace already retained. If this normal rejects the current
             // direction, discarding it here lets slide return that same
@@ -182,6 +187,19 @@ impl Ragdoll {
    assert_eq!(a,b,"shape={shape:?} z={z} angle={angle} wish={wish:?}");cases+=1;
   }}}}}assert_eq!(cases,360);
  }
+  #[test]fn horizontal_slide_keeps_tangent_speed_along_leaning_and_seamed_walls(){
+   super::super::moving_obstacle_regression::constants();
+   for lean in [0.0f32,0.08,0.18]{
+    let mut world=Collision::default();
+    world.add(&[[0.5,-4.,0.],[0.5,0.,0.],[0.5+lean*3.,0.,3.],[0.5+lean*3.,-4.,3.]],&[[0,1,2],[0,2,3]],&[0,0]);
+    world.add(&[[0.5,0.,0.],[0.52,4.,0.],[0.52+lean*3.,4.,3.],[0.5+lean*3.,0.,3.]],&[[0,1,2],[0,2,3]],&[0,0]);
+    let rig=[(gjk::Shape::Capsule(0.4,0.2),Vec3::new(0.28,-0.3,0.9),Mat3::IDENTITY,Vec3::splat(0.6))];
+    let wish=Vec3::new(0.05,0.12,0.);
+    let (moved,_)=Ragdoll::sweep_shapes_translation(&rig,&world,&[],wish);
+    assert!(moved.z.abs()<1.0e-6,"lean={lean}: horizontal repair moved vertically {moved:?}");
+    assert!(moved.y>0.09,"lean={lean}: wall graze lost tangential motion {moved:?}");
+   }
+  }
  #[test]fn rotation_bounds_contain_every_sampled_support_with_margin(){
   super::super::moving_obstacle_regression::constants();
   for shape in [gjk::Shape::Capsule(1.5,0.2),gjk::Shape::Box(Vec3::new(0.1,2.,0.3),0.05)]{

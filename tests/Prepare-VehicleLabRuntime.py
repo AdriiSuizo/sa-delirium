@@ -36,10 +36,10 @@ if not args.shipping:
     shutil.copyfile(here / "VehicleSpeedProbe.hpp", args.out / "VehicleSpeedProbe.hpp")
 combat = args.out / "CombatRuntime.hpp"
 combat_source = replace_once(combat.read_text(encoding="utf-8"),
-    'static bool combatAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}',
+    'static bool combatAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());}',
     'static bool ivCombatEnabled=false,ivLocomotionEnabled=false;\n'
-    'static bool authoredGameplayAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&scriptMissionActive());}\n'
-    'static bool nikoMovementAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&(!(protectMissions&&scriptMissionActive())||area()!=0);}\n'
+    'static bool authoredGameplayAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());}\n'
+    'static bool nikoMovementAllowed(){return combat&&ready&&playing()&&player()&&!cutscene()&&!(protectMissions&&authoredMissionProtected());}\n'
     'static bool combatAllowed(){return ivCombatEnabled&&authoredGameplayAllowed();}')
 combat_source = replace_once(combat_source,
     '    if(!GetPrivateProfileIntA("Combat","Enabled",0,ini.c_str()))return;',

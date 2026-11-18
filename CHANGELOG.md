@@ -1,5 +1,35 @@
 # Historial / Changelog
 
+## 0.5.0 · solución a fondo de crashes al golpear autos, GYM/interiores, techo de vehículos, inicio con Alt, fricción en paredes, contraataques, apuntado a 1 mano y coches bajos / deep fix for vehicle-strike crashes, gyms/interiors, car climbing, Alt walk start, wall friction, counterattacks, 1-handed aim jog & low cars
+
+### Español
+
+- **Golpes a vehículos sin crashes (`R6025`/`CReference`) y con daño, audio y abolladura reales (`CombatRuntime` / `VehicleDeformation`)**:
+  - Se libera de forma segura la referencia previa en `lastDamager` (`0x50C`) mediante `CleanUpOldReference` (`0x571A00`) antes de registrar el nuevo atacante (`0x571B70`) y se validan `occRef` y las matrices de conductor (`0x460`) y los 8 pasajeros (`0x464`) antes de emitir eventos.
+  - Se añaden trazos de respaldo desde hombro y pecho a corta distancia y se amplía el alcance desarmado; se escala `damageIntensity` según la masa del vehículo (`>= 160.0` y proporción por encima del umbral nativo `0.35 * mass`) para aplicar daño y deformación de paneles (`1..10, 19`) más abolladura de malla en tiempo real (`dentMap`), y se corrige la llamada a `0x4E2BB0` (`0x42`/`0x43`) para reproducir el sonido metálico/superficie del coche.
+- **Movimiento GTA IV, combate y físicas dentro de gimnasios e interiores (`ABI` / `Adapter` / `CombatRuntime` / `Prepare-VehicleLabRuntime` y módulos asociados)**: se sustituye el bloqueo directo de `scriptMissionActive()` por `authoredMissionProtected()` (`scriptMissionActive() && (area() == 0 || onMission())`) en todas las puertas de juego, eliminando el parche parcial `keepNiko` para que `GYMLS`/interiores mantengan las animaciones y el desplazamiento IV sin congelarse.
+- **Subir y permanecer sobre coches (`ragdoll_external_ground`)**: en `pair`, se omiten colisiones externas no peatonales sobre superficies transitables (`n.z > 0.35`, incluidos parabrisas inclinados, capó y techo) para evitar que CJ sea empujado al suelo al saltar encima de un auto.
+- **Rozamiento lateral con paredes o estructuras (`ragdoll_animated`)**: en `sweep_shapes_translation`, durante movimiento horizontal (`wish.z == 0.`) las normales de muros inclinados o con costura entre triángulos (`n.z.abs() < 0.7`) se proyectan al plano horizontal para no chocar con los planos verticales y conservar la velocidad tangencial.
+- **Inicio al caminar con `Alt` desde parado sin tirón (`sa-combat/locomotion` / `locomotion_original`)**: al terminar `wstart`/`runstart`, la transición pasa a desvanecimiento suave (`-movestop::BLEND_OUT`) manteniendo el suavizado `max_dv` y evitando la caída de velocidad en el último paso del clip tanto a 60 Hz como a altas tasas de fotogramas (144 Hz).
+- **Contraataques con audio y sangre a la altura correcta (`CombatRuntime`)**: los contraataques tras esquivar (`counter`), patadas y armas cuerpo a cuerpo entran en el filtro de impacto, reproducen `bat.wav` en armas contundentes y generan partículas de sangre desde el punto de contacto real `hit[4..6]` (altura del pecho).
+- **Continuidad de trote al soltar apuntado con armas de una mano (`NikoMovement`)**: se registra `nikoPreAimRatio` y se conserva `nikoAimSuspended` a través de estados transitorios a pie, leyendo el pad antes de reanudar IV para seguir trotando suavemente con pistolas/subfusiles/recortada (`22, 23, 24, 26, 28, 29, 32`) sin repetir clips de inicio.
+- **Coches bajos sin salto al entrar ni pérdida de giro en curva (`vehicle_lab`)**: captura de `rest_bias` al estacionar nivelado, tope progresivo de suspensión (`bump_stop_compression`), escalado `low_scale`, mayor transferencia antivuelco en ejes y recuperación de balanceo para deportivos bajos y *lowriders*.
+- **Unificación de firma para compilación shipping (`Adapter` / `CombatRuntime`)**: corregida la sobrecarga ambigua de `combatClear(bool clearNiko=true)` entre la declaración adelantada y su definición al compilar `DeliriumSA.asi`.
+
+### English
+
+- **Crash-free, real-damage vehicle melee strikes (`CombatRuntime` / `VehicleDeformation`)**:
+  - Calls `CleanUpOldReference` (`0x571A00`) on `lastDamager` (`0x50C`) before assigning `0x571B70` and validates `occRef` + ped matrices across the driver (`0x460`) and all 8 passenger slots (`0x464`) to eliminate `R6025` / `CReference` corruption crashes.
+  - Adds shoulder/chest close-range backup rays and extended unarmed reach; scales `damageIntensity` with vehicle mass (`>= 160.0` and above `0.35 * mass`) with inferred vehicle components (`1..10, 19`) and real-time `dentMap` mesh deformation; and passes valid strike event/surface arguments to `0x4E2BB0` (`0x42`/`0x43`) for metallic/car collision SFX.
+- **Consistent GTA IV locomotion, combat, and physics inside gyms and interiors (`ABI` / `Adapter` / `CombatRuntime` / `Prepare-VehicleLabRuntime` & bridges)**: replaces direct `scriptMissionActive()` gameplay gates with `authoredMissionProtected()` (`scriptMissionActive() && (area() == 0 || onMission())`), removing the `keepNiko` bandaid so `GYMLS` and interiors keep full IV animations and displacement without stalling.
+- **Jumping onto vehicles (`ragdoll_external_ground`)**: skips non-animated-ped external pair forces over walkable surfaces (`n.z > 0.35`, covering hoods, roofs, and sloped windshields) so CJ stays cleanly atop cars.
+- **No wall-grazing slowdown (`ragdoll_animated`)**: projects sloped or seamed wall normals (`n.z.abs() < 0.7`) onto the horizontal plane during horizontal sweeps (`wish.z == 0.`) in `sweep_shapes_translation` so tangential speed stays preserved instead of collapsing.
+- **Twitch-free `Alt` walk start at 60 Hz & high FPS (`sa-combat/locomotion` / `locomotion_original`)**: fades out completed `wstart`/`runstart` clips via `-movestop::BLEND_OUT` with `max_dv` slew smoothing and fixes final-step clamping at both 60 Hz and 144 Hz.
+- **Counterattack impact audio & chest-level blood (`CombatRuntime`)**: restores impact audio (`bat.wav` for clubs) and native blood FX at the actual `hit[4..6]` chest contact point for dodge counterattacks, kicks, and melee weapons.
+- **1-handed gun aim-release jog continuity (`NikoMovement`)**: preserves `nikoPreAimRatio` and `nikoAimSuspended` across transient on-foot states and reads pad walk/push inputs before resuming IV locomotion on 1-handed firearms (`22, 23, 24, 26, 28, 29, 32`).
+- **Low-car ride height, hop-free entry & cornering (`vehicle_lab`)**: captures stationary `rest_bias` on level spawns, tightens progressive bump-stop compression, adds `low_scale` stiffness, strengthens axle anti-roll transfer, and boosts roll recovery beyond `0.020` for low sports cars and lowriders (*Remington 534*).
+- **Shipping compile signature fix (`Adapter` / `CombatRuntime`)**: resolves the ambiguous `combatClear(bool clearNiko=true)` forward-declaration overload when compiling `DeliriumSA.asi` with `--shipping`.
+
 ## 0.4.9 · continuidad al soltar apuntado, daño/audio al golpear autos, altura/giro de suspensión y movimiento IV en interiores / aim-release continuity, vehicle punch damage & audio, SA ride-height/cornering & interior IV locomotion
 
 ### Español

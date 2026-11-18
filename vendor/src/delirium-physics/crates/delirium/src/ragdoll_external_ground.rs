@@ -158,6 +158,11 @@ fn actual_other(metadata:ExternalGroundBody)->OtherBody {
 pub(super) fn pair(group:&mut Group,a:&Obstacle,b:&Obstacle,child:usize,point:Vec3,n:Vec3)->bool{
     let id=a.owner.unwrap();if !group.ground_claimed(id){
         if a.filter.animated_ped()&&a.parts.len()==4{
+            // An unclaimed animated ped standing on a vehicle (support-facing
+            // normal) keeps SA's native standing. The owner pair fought it and
+            // launched CJ off hoods and roofs (S1: 63..100 N s upward). Side
+            // contacts with the same vehicle still produce real rows.
+            if !b.filter.animated_ped()&&n.z>0.35{return false;}
             if child==1{return false;}
             if child==3{
                 let heavy_or_fixed=b.owner.and_then(|bid|group.external.owners.get(&bid)).is_none_or(|o|{

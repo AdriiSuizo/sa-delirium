@@ -340,7 +340,12 @@ fn pick(clips: &Clips, p: &mut Player, before: f32, wanted: f32, set: usize, dt:
         }
     }
     if o.removed {
-        (p.start, p.phase) = (None, 0.0);
+        if let Some(s) = p.start.as_mut() {
+            s.rate = -movestop::BLEND_OUT;
+        } else {
+            p.start = None;
+        }
+        p.phase = 0.0;
     }
     if let (Some(id), Some(phase)) = (o.ask, o.phase) {
         if let Some(&(id, key)) = stops.iter().find(|s| s.0 == id) {
@@ -357,7 +362,15 @@ fn stop(clips: &Clips, p: &mut Player, set: usize, dt: f32) -> Option<(Vec2, f32
         s.rate = -movestop::BLEND_OUT;
     }
     let next = (s.phase + step).min(1.0);
-    let out = (dt > 0.0).then(|| (mover(anim, next) - mover(anim, s.phase)).truncate() / dt);
+    let reached_end = s.phase + step >= 1.0;
+    let out = if s.phase >= 1.0 || dt <= 0.0 {
+        None
+    } else if reached_end && step > 0.0 && step < 1.0 {
+        let from = (1.0 - step).max(0.0);
+        Some((mover(anim, 1.0) - mover(anim, from)).truncate() / dt)
+    } else {
+        Some((mover(anim, next) - mover(anim, s.phase)).truncate() / dt)
+    };
     s.phase = next;
     s.weight = (s.weight + s.rate * dt).clamp(0.0, 1.0);
     let out = out.map(|m| (m, s.weight));
@@ -493,7 +506,15 @@ fn start(clips: &Clips, p: &mut Player, wanted: f32, set: usize, dt: f32) -> Opt
         s.rate = -movestart::BLEND_IN;
     }
     let next = (s.phase + step).min(1.0);
-    let out = (dt > 0.0).then(|| (mover(anim, next) - mover(anim, s.phase)).truncate() / dt);
+    let reached_end = s.phase + step >= 1.0;
+    let out = if s.phase >= 1.0 || dt <= 0.0 {
+        None
+    } else if reached_end && step > 0.0 && step < 1.0 {
+        let from = (1.0 - step).max(0.0);
+        Some((mover(anim, 1.0) - mover(anim, from)).truncate() / dt)
+    } else {
+        Some((mover(anim, next) - mover(anim, s.phase)).truncate() / dt)
+    };
     if s.rate > 0.0 && dt > 0.0 {
         let spin = if s.fixed(goal) { s.spin } else { 0.0 };
         p.heading += spin.mul_add(dt, lsc4_combat::actiontable::wrap(mover_yaw(anim, next) - mover_yaw(anim, s.phase)));

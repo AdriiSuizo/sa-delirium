@@ -213,7 +213,7 @@ static void castPellets(void* weapon,Round& fired,const Profile& spec){
 static thread_local bool ragdollFiring=false;
 static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,void* target,V* end,V* alt){
     const int id=at<int>(weapon,0);
-    if(!ready||!firearmDamage(id)||!playing()||cutscene()||(protectMissions&&scriptMissionActive()))
+    if(!ready||!firearmDamage(id)||!playing()||cutscene()||(protectMissions&&authoredMissionProtected()))
         return originalFire(weapon,shooter,start,muzzle,target,end,alt);
     if(!ragdollFiring&&(player_cover::blocksBullet(shooter)||!player_cover::blindReady(shooter)||police_cover::holdsFire(shooter)))return false;
     const auto& spec=profile(id);

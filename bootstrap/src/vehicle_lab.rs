@@ -304,6 +304,7 @@ pub struct Car {
     tyres: [Tyre; 4],
     treads: [Tread; 4],
     compression: [f32; 4],
+    rest_bias: [f32; 4],
     grounded: [bool; 4],
     gearbox: Transmission,
     handling: Handling,
@@ -323,13 +324,13 @@ fn sa_rest_fraction(load_share: f32, front: bool, sa_force: f32, sa_bias: f32) -
 
 fn bump_stop_compression(x: f32, rest: f32, travel: f32) -> f32 {
     let avail = (travel - rest).max(0.06);
-    let knee = (avail * 0.35).min(0.045);
+    let knee = (avail * 0.18).clamp(0.021, 0.032);
     let over = ((x - rest) - knee).max(0.0);
     if over <= 0.0 {
         return x.min(travel);
     }
-    let scale = over / (avail - knee).max(0.04);
-    (x + avail * 1.8 * scale * scale).min(travel)
+    let scale = over / (avail - knee).max(0.035);
+    (x + avail * 2.6 * scale * scale).min(travel)
 }
 
 impl Car {
@@ -339,6 +340,7 @@ impl Car {
             tyres: std::array::from_fn(|i| Tyre::new(i < 2, 0.25)),
             treads: [Tread::default(); 4],
             compression: [f32::NAN; 4],
+            rest_bias: [0.0; 4],
             grounded: [false; 4],
             gearbox: Transmission::default(),
             suspension: None,
@@ -395,7 +397,12 @@ impl Car {
             if !(0.02..=2.0).contains(&stroke) {
                 return None;
             }
-            let stiffness_scale = (profile.stroke / stroke).clamp(1.0, 2.5);
+            let mean_avail = frame.contacts.iter().enumerate().map(|(i, c)| {
+                let f = sa_rest_fraction(c.load_share, i < 2, self.sa_suspension_force, self.sa_suspension_bias);
+                c.travel * (1.0 - f)
+            }).sum::<f32>() * 0.25;
+            let low_scale = (0.14 / mean_avail.max(0.05)).clamp(1.0, 2.2);
+            let stiffness_scale = (profile.stroke / stroke).max(low_scale).clamp(1.0, 2.8);
             self.handling.suspension_force = profile.spring * stiffness_scale;
             self.handling.suspension_comp_damp =
                 profile.compression_damping * stiffness_scale.sqrt();
@@ -618,7 +625,18 @@ impl Car {
                 self.sa_suspension_force,
                 self.sa_suspension_bias,
             );
-            let rest = ground.travel * rest_frac;
+            let base_rest = ground.travel * rest_frac;
+            let parked_level = speed.abs() < 0.5
+                && frame.velocity[0].hypot(frame.velocity[1]) < 0.5
+                && frame.velocity[2].abs() < 0.85
+                && frame.contacts.iter().all(|c| c.supported != 0 && c.normal[2] > 0.90);
+            if frame.reseed_contacts & RESEED_WHEELS != 0 && parked_level && supported {
+                let max_trim = (ground.travel * 0.14).min(0.045);
+                self.rest_bias[i] = (compression - base_rest).clamp(-max_trim, max_trim);
+            } else if speed.abs() > 3.0 {
+                self.rest_bias[i] *= (1.0 - dt * 0.15).max(0.0);
+            }
+            let rest = (base_rest + self.rest_bias[i]).clamp(0.04 * ground.travel, 0.82 * ground.travel);
             let raw_prev = if previous.is_finite() {
                 previous
             } else {
@@ -650,13 +668,16 @@ impl Car {
 
         // Couple each axle's two planted struts. This adds resistance
         // to opposite wheel travel (body roll) without stiffening heave or
-        // pitch. Wheel loads and available stroke remain chassis-specific.
+        // pitch. Low-clearance chassis receive stronger anti-roll so cornering
+        // keeps outer COL skirts off the asphalt and preserves steering grip.
         for axle in [0, 2] {
             if frame.contacts[axle..axle + 2].iter().all(|c| c.supported != 0 && c.normal[2] > 0.85) {
                 let (left, right) = calls.struts[axle..axle + 2].split_at_mut(1);
                 let (left, right) = (&mut left[0], &mut right[0]);
+                let mean_avail = 0.5 * ((left.spring.travel - left.spring.rest) + (right.spring.travel - right.spring.rest));
+                let arb = if mean_avail < 0.18 { 0.58 } else { 0.44 };
                 let transfer = |l: f32, r: f32| {
-                    (0.25 * (l - r)).clamp(
+                    (arb * (l - r)).clamp(
                         -l.min(right.spring.travel - r).max(0.0),
                         r.min(left.spring.travel - l).max(0.0),
                     )
@@ -703,12 +724,12 @@ impl Car {
             // Keep measuring lean when the inner tyres lift. Dropping the
             // correction at two planted tyres lets the roll build unchecked.
             let lean = dot(side, normal_sum) / dot(normal_sum, normal_sum).sqrt();
-            let excess_lean = (lean.abs() - 0.035).max(0.0).copysign(lean);
+            let excess_lean = (lean.abs() - 0.020).max(0.0).copysign(lean);
             // Keep the lean under load without allowing low chassis COL to scrape
             // the tarmac in corners. Dampen roll velocity cleanly.
-            let roll_acceleration = 2.8 * lean
-                + (50.0 + 55.0 * road_assist) * excess_lean
-                - (1.5 + 0.6 * road_assist) * dot(spin, roll_axis);
+            let roll_acceleration = 4.2 * lean
+                + (125.0 + 95.0 * road_assist) * excess_lean
+                - (2.6 + 1.2 * road_assist) * dot(spin, roll_axis);
             for axis in 0..3 {
                 body_torque[axis] += roll_axis[axis] * inertia[1] * roll_acceleration;
             }
@@ -1415,11 +1436,11 @@ mod tests {
         let bytes = std::fs::read(root.join("DeliriumSA-local-v3/iv-vehicle-handling.dat")).unwrap();
         let _ = IV_HANDLING.set(vehicles::read_handling(&String::from_utf8_lossy(&bytes)));
 
-        for (model, drive, sa_force, sa_bias, travel) in [
-            (411u32, 52u32, 1.2f32, 0.50f32, 0.35f32), // Infernus
-            (429, 82, 1.6, 0.50, 0.45),                // Banshee
-            (558, 82, 1.3, 0.50, 0.38),                // Uranus
-            (534, 82, 0.5, 0.40, 0.20),                // Remington
+        for (model, drive, sa_force, sa_bias, travel, z_trim) in [
+            (411u32, 52u32, 1.2f32, 0.50f32, 0.35f32, 0.0f32),  // Infernus
+            (429, 82, 1.6, 0.50, 0.45, 0.0),                    // Banshee
+            (558, 82, 1.3, 0.50, 0.38, -0.022),                 // Uranus lowered parked trim
+            (534, 82, 0.5, 0.40, 0.20, -0.020),                 // Remington lowered parked trim
         ] {
             let ptr = sa_vehicle_lab_create(1500.0, model, drive, 4.5, 1.2, 55.0, 5, 30.0, sa_force, sa_bias);
             assert!(!ptr.is_null(), "create {model}");
@@ -1428,7 +1449,7 @@ mod tests {
             let eq_r = sa_rest_fraction(0.25, false, sa_force, sa_bias);
             let top_f = (1.0 - eq_f) * travel;
             let top_r = (1.0 - eq_r) * travel;
-            let mut z = 0.34 + 0.5 * (top_f + top_r);
+            let mut z = 0.34 + 0.5 * (top_f + top_r) + z_trim;
             let pitch_sin = ((top_f - top_r) / 2.6).clamp(-0.2, 0.2);
             let pitch_cos = (1.0 - pitch_sin * pitch_sin).sqrt();
             let z0 = z;
@@ -1506,16 +1527,17 @@ mod tests {
         let bytes = std::fs::read(root.join("DeliriumSA-local-v3/iv-vehicle-handling.dat")).unwrap();
         let _ = IV_HANDLING.set(vehicles::read_handling(&String::from_utf8_lossy(&bytes)));
 
-        for (model, drive, sa_force, travel, sa_col_clr) in [
-            (411u32, 52u32, 1.2f32, 0.35f32, 0.112f32), // Infernus
-            (451, 82, 1.2, 0.35, 0.112),                // Turismo
-            (558, 82, 1.3, 0.38, 0.076),                // Uranus
-            (541, 82, 1.0, 0.35, 0.062),                // Bullet
+        for (model, drive, sa_force, sa_bias, travel, sa_col_clr) in [
+            (411u32, 52u32, 1.2f32, 0.5f32, 0.35f32, 0.112f32), // Infernus
+            (451, 82, 1.2, 0.5, 0.35, 0.112),                   // Turismo
+            (558, 82, 1.3, 0.5, 0.38, 0.076),                   // Uranus
+            (541, 82, 1.0, 0.5, 0.35, 0.062),                   // Bullet
+            (534, 82, 0.5, 0.4, 0.20, 0.065),                   // Remington lowrider
         ] {
-            let ptr = sa_vehicle_lab_create(1450.0, model, drive, 4.4, 1.2, 58.0, 5, 30.0, sa_force, 0.5);
+            let ptr = sa_vehicle_lab_create(1450.0, model, drive, 4.4, 1.2, 58.0, 5, 30.0, sa_force, sa_bias);
             assert!(!ptr.is_null(), "create {model}");
             let mut car = unsafe { Box::from_raw(ptr) };
-            let eq = sa_rest_fraction(0.25, true, sa_force, 0.5);
+            let eq = sa_rest_fraction(0.25, true, sa_force, sa_bias);
             let mut z = 0.34 + (1.0 - eq) * travel;
             let z0 = z;
             let mut vel = [0.0f32, 22.0, -0.40, 0.0];

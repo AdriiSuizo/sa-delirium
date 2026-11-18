@@ -47,5 +47,6 @@ inline bool scriptMissionActive(){return *reinterpret_cast<bool*>(0xA444B1);}
 inline bool playing(){return *reinterpret_cast<int*>(0xC8D4C0)==9&&!*reinterpret_cast<bool*>(0xBA67A4);}
 inline unsigned gameTime(){return *reinterpret_cast<unsigned*>(0xB7CB84);}
 inline int area(){return *reinterpret_cast<int*>(0xB72914);}
+inline bool authoredMissionProtected(){return scriptMissionActive()&&(area()==0||onMission());}
 inline bool cutscene(){return *reinterpret_cast<bool*>(0xB5F852);}
 inline void teleport(void*p,V v){reinterpret_cast<void(__thiscall*)(void*,V,bool)>((*reinterpret_cast<void***>(p))[14])(p,v,false);}
