@@ -1538,8 +1538,11 @@ static bool pedWallFrictionSuppressed(void*ped,const ColPoint*point){
 }
 static bool frictionStructureOther(void*other){
     if(!other)return false;
-    if((at<unsigned char>(other,0x40)&4)!=0)return true;
     const unsigned char kind=at<unsigned char>(other,0x36)&7;
+    if(kind==1)return true;
+    if(kind==3)return false;
+    if((at<unsigned char>(other,0x1C)&4)!=0)return true;
+    if((at<unsigned char>(other,0x40)&0x64)!=0)return true;
     return kind==4||(kind==2&&length(at<V>(other,0x44))<.05f);
 }
 static bool __fastcall pedFrictionSingle(void*self,void*,float limit,ColPoint*point){

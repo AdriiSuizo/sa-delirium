@@ -476,6 +476,33 @@ static class PortablePackageTests {
             "Restore removes only the recorded fallback launcher");
         Assert(File.Exists(Path.Combine(restored.RetainedProfile,"gta_sa.exe")),
             "Restore retains the installed game profile");
+        // Pre-existing shortcut file when WScript.Shell returns E_NOTIMPL must neither
+        // abort Install nor break Restore, and must leave the pre-existing file untouched.
+        var existingLink=Path.Combine(links,Standalone.ShortcutName);
+        File.WriteAllText(existingLink,"pre-existing link");
+        var destination2=Path.Combine(folder,"SA-Delirium-ExistingLink");
+        var priorReader=Standalone.ShortcutReader;
+        Receipt receipt2=null;
+        try {
+            Standalone.ShortcutReader=delegate(string link) {
+                throw new NotImplementedException("Synthetic WScript.Shell E_NOTIMPL on read");
+            };
+            Standalone.ShortcutWriter=delegate(string link,string target,string working) {
+                throw new NotImplementedException("Synthetic WScript.Shell E_NOTIMPL on write");
+            };
+            receipt2=Standalone.Install(index,prepared,game,destination2,new[]{links},delegate{},delegate{return false;});
+            Assert(receipt2!=null && receipt2.State=="installed","E_NOTIMPL while inspecting an existing shortcut must not abort install");
+            Assert(File.ReadAllText(existingLink)=="pre-existing link","Pre-existing shortcut file remains untouched");
+            Assert(receipt2.FallbackLaunchers!=null && receipt2.FallbackLaunchers.Length==1,"Fallback launcher created despite pre-existing link E_NOTIMPL");
+            receipt2.Shortcuts=new[]{existingLink};
+            Json.Write(Path.Combine(destination2,Engine.ReceiptName),receipt2);
+            var restored2=Standalone.Restore(destination2);
+            Assert(restored2.State=="restored" && File.ReadAllText(existingLink)=="pre-existing link",
+                "Restore tolerates E_NOTIMPL on ShortcutReader without deleting unverified link");
+        } finally {
+            Standalone.ShortcutReader=priorReader;
+            Standalone.ShortcutWriter=prior;
+        }
         results.Add("standalone-shortcut-e-notimpl-fallback");
     }
     // Full preparation with test doubles for the ISO importer and probe:

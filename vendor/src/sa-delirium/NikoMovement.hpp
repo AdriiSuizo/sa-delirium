@@ -137,24 +137,26 @@ static void nikoUpdatePosition(void*p){
             event("niko_movement_registered",nikoRef,nikoModel,"source=380c8cb7d49a native_collision=1");
         }catch(const std::exception&e){event("niko_rig_error",reference(p),0,e.what());nikoClear();return;}
     }
-    float padPush=0.f;bool padWalkMode=false;
-    if(nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_STAND_STILL){
-        if(auto*pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0)){
+    void*pad=nullptr;float padRawPush=0.f,padPush=0.f;bool padActive=false,padWalkMode=false;
+    if(((wasAimSuspended&&nikoMovement)||nikoFrame!=frame)&&(nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT||nikoTask==TASK_SIMPLE_STAND_STILL)){
+        pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
+        if(pad){
             const float x=reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,y=reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f;
-            padPush=std::min(1.f,std::sqrt(x*x+y*y));
-            const bool padActive=nikoPadActive();
-            padWalkMode=!padActive&&nikoKeyboardWalk(pad,padPush);
-            if(padPush>0.f&&!padActive)padPush=1.f;
+            padRawPush=std::min(1.f,std::sqrt(x*x+y*y));
+            padActive=nikoPadActive();
+            padWalkMode=!padActive&&nikoKeyboardWalk(pad,padRawPush);
+            padPush=(padRawPush>0.f&&!padActive)?1.f:padRawPush;
         }
     }
     if(wasAimSuspended&&nikoMovement){
         const V vel=at<V>(p,0x44);const float horiz=std::hypot(vel.x,vel.y)*50.f;
         auto*pd=at<void*>(p,0x480);const float nativeBlend=pd?std::clamp(at<float>(pd,0x14),0.f,3.f):0.f;
         const bool stickMoving=padPush>0.1f;
+        const bool walkIntent=padActive?(padRawPush<=0.65f):padWalkMode;
         if(stickMoving||horiz>=0.30f||nativeBlend>=0.25f||at<int>(p,0x534)>=4){
             float resumeRatio=std::max(nativeBlend,horiz>=2.0f?2.f:1.f);
             if(stickMoving){
-                if(padWalkMode)resumeRatio=std::clamp(std::max(resumeRatio,1.f),0.85f,1.25f);
+                if(walkIntent)resumeRatio=std::clamp(std::max(resumeRatio,1.f),0.85f,1.25f);
                 else resumeRatio=std::clamp(std::max({resumeRatio,nikoPreAimRatio,1.85f}),1.5f,2.5f);
             }else{
                 resumeRatio=std::clamp(std::max(resumeRatio,horiz>=1.5f?1.5f:1.f),0.85f,2.f);
@@ -176,17 +178,13 @@ static void nikoUpdatePosition(void*p){
         if(nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT){
             // Read GInput/SA's mapped controls, without changing CPad. Native
             // scripted go-to tasks retain their explicit movement intention.
-            auto*pad=reinterpret_cast<void*(__cdecl*)(int)>(0x53FB70)(0);
-            if(pad){const float x=reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f,y=reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f;
-                float push=std::min(1.f,std::sqrt(x*x+y*y));
+            if(pad){
+                float push=padPush;
                 bool held=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad),tap=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407F0)(pad);
                 if(tap)event("niko_run_tap",nikoRef,nikoModel,"held="+std::to_string(held));
-                const bool padActive=nikoPadActive();
-                const bool walkMode=!padActive&&nikoKeyboardWalk(pad,push);
                 if(push>0.f&&!padActive){
-                    push=1.f;
                     if(held){tap=true;}
-                    else if(!walkMode){held=true;tap=false;}
+                    else if(!padWalkMode){held=true;tap=false;}
                     else{held=false;tap=false;}
                 }
                 wanted=nm_locomotion_control(nikoMovement,push,tap,held,gameTime(),dt);

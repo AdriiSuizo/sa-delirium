@@ -711,12 +711,14 @@ static void combatCheckPlayerVehicleStrike(void*cj,const CombatActor&a,bool hitP
                 else component=local.x<xMid?7:8;
             }else component=5;
         }
+        const int vehRef=vehicleRef(entity);
         const float healthBefore=at<float>(entity,0x4C0);
         V colPos=cp.point,colDir=push;
         using VehicleDamageFn=void(__thiscall*)(void*,float,unsigned short,void*,V*,V*,int);
         if(auto**vt=at<VehicleDamageFn*>(entity,0);vt&&vt[0xE0/4]){
             vt[0xE0/4](entity,damageIntensity,component,cj,&colPos,&colDir,saWeapon);
         }
+        if(vehicleFromRef(vehRef)!=entity)break;
         reinterpret_cast<void(__cdecl*)(int,void*,void*)>(0x532010)(0x15,entity,cj);
         const auto notifyOccupant=[&](void*occupant){
             if(!occupant||occupant==cj)return;
@@ -843,7 +845,7 @@ static void combatFinish(){
                 const V rawPoint{hit[4],hit[5],hit[6]};
                 const V point=finite(rawPoint)&&length(rawPoint-position(p))<2.5f?rawPoint:position(p)+V{0,0,.2f};
                 playIvMeleeImpact(weapon?(bladeWeapon(weapon)?0:5):0,part,point,target);
-                if(before>0.f){
+                if(before>0.f&&harm>0.f){
                     V bloodPos=point;
                     const V delta=position(by)-position(p);
                     V bloodDir=length(delta)>1e-4f?normalized(delta)*2.f+V{0.f,0.f,.5f}:V{0.f,0.f,2.f};

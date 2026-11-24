@@ -43,8 +43,9 @@ namespace SAPortable {
     public static class Standalone {
         public const string ShortcutName = "SA Delirium.lnk";
         public const string FallbackLauncherName = "SA Delirium.cmd";
-        // Test seam for reproducing an unavailable Windows shortcut COM server.
+        // Test seams for reproducing an unavailable Windows shortcut COM server.
         internal static Action<string,string,string> ShortcutWriter = CreateShortcut;
+        internal static Func<string,string> ShortcutReader = ShortcutTarget;
         static bool IsShortcutNotImplemented(Exception error) {
             for(var current=error;current!=null;current=current.InnerException)
                 if(current is NotImplementedException || unchecked((uint)current.HResult)==0x80004001u)return true;
@@ -141,10 +142,10 @@ namespace SAPortable {
                 foreach (var folder in shortcutFolders ?? new string[0]) {
                     if (String.IsNullOrEmpty(folder) || !Directory.Exists(folder)) continue;
                     var link = Path.Combine(folder, ShortcutName);
-                    // Never overwrite a shortcut that is not ours.
-                    if (File.Exists(link) && !String.Equals(ShortcutTarget(link), exe, StringComparison.OrdinalIgnoreCase)) continue;
                     var existedBefore = File.Exists(link);
                     try {
+                        // Never overwrite a shortcut that is not ours.
+                        if (existedBefore && !String.Equals(ShortcutReader(link), exe, StringComparison.OrdinalIgnoreCase)) continue;
                         ShortcutWriter(link, exe, profile);
                         if(File.Exists(link))created.Add(link);
                     } catch(Exception error) {
@@ -183,10 +184,15 @@ namespace SAPortable {
             var retained = Paths.Inside(destination, receipt.BackupDirectory + "/retained-profile");
             var exe = Path.Combine(profile, "gta_sa.exe");
             // Only shortcuts this install created and that still point here.
-            foreach (var link in receipt.Shortcuts ?? new string[0])
-                if (Path.GetFileName(link).Equals(ShortcutName, StringComparison.OrdinalIgnoreCase) && File.Exists(link) &&
-                    String.Equals(ShortcutTarget(link), exe, StringComparison.OrdinalIgnoreCase))
-                    File.Delete(link);
+            foreach (var link in receipt.Shortcuts ?? new string[0]) {
+                if (!Path.GetFileName(link).Equals(ShortcutName, StringComparison.OrdinalIgnoreCase) || !File.Exists(link)) continue;
+                try {
+                    if (String.Equals(ShortcutReader(link), exe, StringComparison.OrdinalIgnoreCase))
+                        File.Delete(link);
+                } catch (Exception error) {
+                    if (!IsShortcutNotImplemented(error)) throw;
+                }
+            }
             foreach (var launcher in receipt.FallbackLaunchers ?? new string[0]) {
                 if(!Path.GetFileName(launcher).Equals(FallbackLauncherName,StringComparison.OrdinalIgnoreCase) || !File.Exists(launcher))continue;
                 if(File.ReadAllText(launcher,Encoding.UTF8)==FallbackLauncherScript(profile))File.Delete(launcher);

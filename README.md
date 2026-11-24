@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.5.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.5.1-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -47,17 +47,18 @@ SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
 
-## Novedades y correcciones en 0.5.0
+## Novedades y correcciones en 0.5.1
 
-- **Golpes a vehículos sin crashes (`R6025` / `CReference`), con daño, abolladura y audio real**: limpia de forma segura `lastDamager` (`CleanUpOldReference` antes de registrar el nuevo atacante) y valida ocupantes/matrices en conductor y pasajeros; añade trazos cercanos de hombro/pecho, intensidad escalada por masa del auto para abollar paneles y malla en tiempo real (`dentMap`) y sonido metálico/superficie nativo.
-- **Movimiento GTA IV en gimnasios e interiores sin bloqueos**: unifica la detección de misiones reales con `authoredMissionProtected()` (`area() == 0 || onMission()`), conservando locomoción, animaciones y combate IV en gimnasios (`GYMLS`, `GYMSF`, `GYMLV`), galerías de tiro y casinos sin quedarse trotando en el sitio.
-- **Saltar encima de vehículos y rozar paredes**: CJ puede saltar sobre capós, techos y parabrisas (`n.z > 0.35`) sin ser expulsado hasta tocar suelo sólido, y las normales inclinadas o con costuras al rozar paredes dejan de frenar la velocidad tangencial.
-- **Arranque suave con `Alt`, armas de una mano y contraataques**: suavizado al terminar `wstart`/`runstart` tanto a 60 Hz como a 144 Hz sin tirones al caminar con `Alt`; continuidad de trote al soltar el apuntado en armas de una mano (`9mm`, `Silenced`, `Deagle`, recortada, `Uzi`, `MP5`, `Tec-9`); y audio + sangre a la altura del pecho en contraataques.
-- **Suspensión y estabilidad en coches bajos**: compensación de reposo estático (`rest_bias`) para evitar el salto al subir desde parado, tope progresivo de compresión y mayor control antivuelco para deportivos bajos y *lowriders* sin rozar en curva.
+- **Inicio y parada al caminar con `Alt` más limpios**: reduce el fade-out al terminar `wstart`/`runstart` de `1,0 s` a `~0,25 s` y permite disparar `wstop` de inmediato al soltar la tecla sin arrastrar una pose congelada sobre la caminata.
+- **Control por teclado y mando más preciso**: evita sondeos duplicados de `Caps Lock`/`Alt` y `XInput` en el mismo fotograma, y mantiene la caminata al soltar el apuntado si inclinas suavemente el stick del mando (`<= 0.65`).
+- **Mayor seguridad en colisiones y golpes a vehículos**: protege `frictionStructureOther` frente a lecturas fuera de límites en `CBuilding` (`0x38` bytes), valida el puntero del vehículo tras `CVehicle::VehicleDamage` y genera sangre cuerpo a cuerpo solo cuando existe daño real (`harm > 0`).
+- **Instalador más robusto y claro**: mejora el diagnóstico si el `.exe` se descarga corrupto o incompleto (mostrando tamaño y SHA-256 real vs esperado de `portable-tools.zip`), protege la lectura de accesos directos preexistentes ante errores `E_NOTIMPL` de `WScript.Shell` en instalación y restauración, y unifica la protección de misiones en `GravityControl`.
 
-### Resumen de 0.4.8–0.4.9 y base 0.4.0–0.4.7
+### Resumen de 0.5.0, 0.4.8–0.4.9 y base 0.4.0–0.4.7
 
-Esta base mantiene todas las novedades y correcciones de **0.4.9**, **0.4.8**, **0.4.7**, **0.4.6** y **0.4.0** (ver [historial](CHANGELOG.md) para el detalle completo):
+Esta base mantiene todas las novedades y correcciones de **0.5.0**, **0.4.9**, **0.4.8**, **0.4.7**, **0.4.6** y **0.4.0** (ver [historial](CHANGELOG.md) para el detalle completo):
+
+- **Estabilidad y mejoras de 0.5.0**: golpes a vehículos sin crashes (`R6025`/`CReference`) con daño, abolladura en tiempo real (`dentMap`) y audio nativo; movimiento GTA IV en gimnasios e interiores (`authoredMissionProtected()`); subir a capós/techos sin empuje y rozamiento lateral sin frenado; continuidad al soltar apuntado en armas de 1 mano; contraataques con audio y sangre a la altura del pecho; y suspensión/estabilidad mejoradas en coches bajos.
 
 - **Combate desarmado, saltos y recuperación Dive / Brace (0.4.8)**: puñetazos desarmados al aire y contra vehículos, trote continuo tras saltar (`suspend_jump`) y levantamiento limpio tras `Dive`/`Brace` (`ABORT_PRIORITY_IMMEDIATE` y altura de pie `1.00 m`).
 - **Apuntado GTA IV integrado (0.4.7, sustituye a *Advanced Aiming Mod*)**: apuntado sobre el hombro estilo GTA IV a pie y desde vehículos (`IvAim=1`), zoom con `R3` / `MMB` y rueda (`AimWheelZoom=1`), `R3` para mirar atrás al conducir y alternancia de hidráulica/cámara en *lowriders* (`G` / `D-Pad Arriba`).
@@ -196,7 +197,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.5.0-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.5.1-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -228,21 +229,20 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ---
 
-## English — SA Delirium 0.5.0
+## English — SA Delirium 0.5.1
 
 **SA Delirium** brings GTA IV-inspired character physics (Euphoria/NaturalMotion reimplementation), melee and firearm combat, cover mechanics, and vehicle handling/deformation to classic PC **GTA San Andreas** (Steam AppID 12120 or PC 1.0 US).
 
-### What's New in 0.5.0
+### What's New in 0.5.1
 
-- **Crash-Free, Real-Damage Vehicle Melee Strikes**: Safely clears `lastDamager` (`CleanUpOldReference`) and validates driver/passenger references (`occRef` + ped matrices) to prevent `R6025` / `CReference` crashes; adds shoulder/chest backup rays, mass-scaled damage with real-time `dentMap` mesh deformation, and car-surface collision audio.
-- **Gyms & Interiors GTA IV Movement Fix**: Unifies interior mission filtering with `authoredMissionProtected()` (`area() == 0 || onMission()`) across movement, combat, and physics hooks, eliminating the revert to SA animations and in-place stall inside `GYMLS` and other interiors.
-- **Car-Roof Climbing & No Wall-Grazing Slowdown**: Lets CJ jump and stand on car hoods, roofs, and sloped windshields (`n.z > 0.35`) without being shoved back, and projects sloped/seamed wall normals onto the horizontal plane while sliding horizontally so tangential speed does not collapse.
-- **Smooth `Alt` Walk Start, 1-Handed Aim-Release Jog & Counterattacks**: Adds `-movestop::BLEND_OUT` + `max_dv` smoothing and final-step velocity clamping at both 60 Hz and high FPS (144 Hz); keeps `nikoPreAimRatio` across transient states when releasing aim on 1-handed weapons (`22..24, 26, 28, 29, 32`); and restores chest-level blood FX and impact sound (`bat.wav` for clubs) on dodge counterattacks.
-- **Low-Car Suspension Stability & Shipping Build Fix**: Captures stationary `rest_bias` on level spawns to eliminate parked-entry hops, refines progressive bump stops, axle anti-roll transfer, and roll recovery for low sports cars and lowriders (*Remington 534*), and resolves the `combatClear` overload ambiguity for shipping builds.
+- **Crisper `Alt` Walk Start & Immediate `wstop`**: Shortens completed `wstart`/`runstart` fade-out from `1.0 s` to `~0.25 s` and stops counting completed fading-out start clips as active starts, removing the 1-second frozen-pose blend over `move_player/walk` and allowing immediate `wstop` transitions on walk release.
+- **Cleaner Keyboard/Gamepad Input & Analog Aim-Release Walk**: Polls `XInput` and `Caps Lock`/`Alt` walk state at most once per frame, and preserves walk pace when releasing firearm aim with a gentle gamepad stick tilt (`<= 0.65`) instead of forcing a jog.
+- **Memory & Pointer Safety in Collisions and Vehicle Strikes**: Guards `frictionStructureOther` by entity type before reading `CPhysical` fields (preventing out-of-bounds reads on `0x38`-byte `CBuilding` entities), re-validates the vehicle handle immediately after `CVehicle::VehicleDamage`, and spawns melee blood only when actual damage is dealt (`harm > 0`).
+- **Clearer Installer Integrity Errors & `E_NOTIMPL` Shortcut Safety**: Reports exact byte size and actual vs expected `portable-tools.zip` SHA-256 on corrupted/incomplete installer downloads, protects pre-existing `SA Delirium.lnk` target reads against `WScript.Shell` `E_NOTIMPL` during both install and restore, and aligns `GravityControl` with `authoredMissionProtected()`.
 
-### Highlights from 0.4.0–0.4.9
+### Highlights from 0.4.0–0.5.0
 
-- **Earlier 0.4.9 Groundwork**: Initial SA `handling.cfg` suspension `ABI v11`, aim-release `suspend_moving`, and initial car-strike / interior / roof / counterattack hooks (expanded and stabilized in 0.5.0).
+- **Deep Fixes & Stability (0.5.0 & 0.4.9)**: Crash-free vehicle melee strikes (`CleanUpOldReference` + driver/passenger matrix validation, real-time `dentMap` deformation, car-surface SFX), GTA IV movement inside gyms and interiors (`authoredMissionProtected()`), jumping onto car roofs without shove-back, no wall-grazing slowdown, 1-handed aim-release jog continuity, chest-level blood & audio on counterattacks, and low-car SA suspension (`ABI v11`, `rest_bias`, anti-roll, progressive bump stops).
 
 - **Combat, Jumps & Dive Recovery (0.4.8)**: restored unarmed punches in air and against vehicles, smooth jog/run resumption after pure jumps (`suspend_jump`), and clean `Dive`/`Brace` stand-ups (`ABORT_PRIORITY_IMMEDIATE` + `1.00 m` standing clearance).
 - **Integrated GTA IV Aiming & Vehicle Controls (0.4.7)**: built-in GTA IV over-the-shoulder aiming on foot and from vehicles (`IvAim=1`, *Advanced Aiming Mod* removed), `R3` / `MMB` zoom + scroll wheel (`AimWheelZoom=1`), `R3` vehicle look-behind, lowrider hydraulics/camera toggle (`G` / `D-Pad Up`), reworked cover approach & corner aim synchronization, dedicated walk hold/toggle (`Alt` / `Caps Lock`), manual ragdoll gunfire (`RagdollFire`), disarmed/unarmed cops flee (`PoliceResponse`), `0.25x` CJ ragdoll fall damage, raised windscreen ejection threshold (`21.6`), grounded static blood decals (`BloodDecals`), and IV straight-line stability fixes (*Hotring*).
@@ -250,7 +250,7 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ### Installation & Restore
 
-1. Download **[SA-Delirium-0.5.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+1. Download **[SA-Delirium-0.5.1-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
 2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
 3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
 4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.

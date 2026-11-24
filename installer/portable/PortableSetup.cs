@@ -36,9 +36,15 @@ namespace SAPortable {
             if(archive==null && manifest.lab_only)archive=new FileStream(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"portable-tools.zip"),FileMode.Open,FileAccess.Read,FileShare.Read);
             if(archive==null)throw new IOException("Falta el contenido del instalador.");
             using(archive) {
+                archive.Position=0;
                 using(var hash=System.Security.Cryptography.SHA256.Create()) {
                     var digest=BitConverter.ToString(hash.ComputeHash(archive)).Replace("-","").ToLowerInvariant();
-                    if(digest!=manifest.tools_sha256)throw new IOException("El contenido del instalador ha cambiado.");
+                    if(digest!=manifest.tools_sha256) {
+                        var expected=String.IsNullOrEmpty(manifest.tools_sha256)?"ausente":manifest.tools_sha256;
+                        var error=new IOException("El ejecutable del instalador está incompleto o dañado. Vuelve a descargarlo directamente desde GitHub (sin usar un descompresor antiguo) y comprueba su SHA-256 con SHA256SUMS.txt.");
+                        error.Data["SetupTool"]="integridad portable-tools.zip ("+archive.Length+" bytes, sha256="+digest+", esperado="+expected+")";
+                        throw error;
+                    }
                 }
                 archive.Position=0;
                 using(var zip=new ZipArchive(archive,ZipArchiveMode.Read)) {

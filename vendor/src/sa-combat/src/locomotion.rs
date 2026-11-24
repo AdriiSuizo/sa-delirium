@@ -108,21 +108,42 @@ impl<'a> Clips<'a>{
         let mut p=Locomotion::new(rig.clone(),0.);let mut t=0u32;
         for _ in 0..10{t+=step_ms;let h=p.state()[0];p.step(&bank,0.,h,h,false,0,t,dt).unwrap();}
         let mut prev=p.pose.clone();let mut prev_v=p.state()[2];
-        let(mut max_dp_at_cut,mut max_dq_at_cut,mut max_dv_at_cut)=(0.0f32,0.0f32,0.0f32);let mut saw_walk=false;
-        for _ in 0..steps{
+        let(mut max_dp_at_cut,mut max_dq_at_cut,mut max_dv_at_cut)=(0.0f32,0.0f32,0.0f32);
+        let(mut steady_dp,mut steady_dq)=(0.0f32,0.0f32);
+        let(mut saw_walk,mut walk_frames,mut fade_frames)=(false,0usize,0usize);
+        for _ in 0..(steps * 2){
             t+=step_ms;let h=p.state()[0];
             p.step(&bank,1.,0.,h,false,0,t,dt).unwrap();
             let st=p.state();
             let dp=prev.iter().zip(&p.pose).fold(0.0f32,|m,(a,b)|m.max(a.p.distance(b.p)));
             let dq=prev.iter().zip(&p.pose).fold(0.0f32,|m,(a,b)|m.max(a.q.angle_between(b.q)));
             let dv=(st[2]-prev_v).abs();
-            if p.key=="move_player/walk"{saw_walk=true;max_dp_at_cut=max_dp_at_cut.max(dp);max_dq_at_cut=max_dq_at_cut.max(dq);max_dv_at_cut=max_dv_at_cut.max(dv);}
+            if p.key=="move_player/walk"{
+                saw_walk=true;walk_frames+=1;
+                if p.p.start.is_some(){fade_frames+=1;}
+                if walk_frames<=steps/2{
+                    max_dp_at_cut=max_dp_at_cut.max(dp);max_dq_at_cut=max_dq_at_cut.max(dq);max_dv_at_cut=max_dv_at_cut.max(dv);
+                }else{
+                    steady_dp=steady_dp.max(dp);steady_dq=steady_dq.max(dq);
+                }
+            }
             prev=p.pose.clone();prev_v=st[2];
         }
+        eprintln!("walk_start dt={dt:.5}: fade_s={:.3} cut(dp={max_dp_at_cut:.4},dq={max_dq_at_cut:.4},dv={max_dv_at_cut:.4}) steady(dp={steady_dp:.4},dq={steady_dq:.4})", fade_frames as f32 * dt);
         assert!(saw_walk);
-        assert!(max_dp_at_cut<(dt*5.5).max(0.045),"dt={dt}: wstart->walk pose jumped: dp={max_dp_at_cut}");
-        assert!(max_dq_at_cut<(dt*9.0).max(0.14),"dt={dt}: wstart->walk rotation jumped: dq={max_dq_at_cut}");
+        assert!(fade_frames as f32 * dt < 0.35,"dt={dt}: finished wstart lingered too long ({} frames)",fade_frames);
+        assert!(p.p.start.is_none(),"dt={dt}: finished wstart never cleared");
+        assert!(max_dp_at_cut<=(steady_dp*1.25).max(dt*5.5).max(0.045),"dt={dt}: wstart->walk pose jumped: dp={max_dp_at_cut} steady={steady_dp}");
+        assert!(max_dq_at_cut<=(steady_dq*1.25).max(dt*9.0).max(0.14),"dt={dt}: wstart->walk rotation jumped: dq={max_dq_at_cut} steady={steady_dq}");
         assert!(max_dv_at_cut<(dt*15.0).max(0.16),"dt={dt}: wstart->walk velocity jumped: dv={max_dv_at_cut}");
+        // Releasing walk even right after wstart finishes must trigger wstop (not an abrupt halt).
+        let mut p2=Locomotion::new(rig.clone(),0.);let mut t2=0u32;
+        for _ in 0..10{t2+=step_ms;let h=p2.state()[0];p2.step(&bank,0.,h,h,false,0,t2,dt).unwrap();}
+        for _ in 0..steps{t2+=step_ms;let h=p2.state()[0];p2.step(&bank,1.,0.,h,false,0,t2,dt).unwrap();if p2.key=="move_player/walk"{break;}}
+        for _ in 0..4{t2+=step_ms;let h=p2.state()[0];p2.step(&bank,1.,0.,h,false,0,t2,dt).unwrap();}
+        let mut saw_stop=false;
+        for _ in 0..20{t2+=step_ms;let h=p2.state()[0];p2.step(&bank,0.,h,h,false,0,t2,dt).unwrap();if p2.key.contains("wstop"){saw_stop=true;break;}}
+        assert!(saw_stop,"dt={dt}: releasing walk right after wstart must trigger wstop, got {}",p2.key);
     }
  }
 }

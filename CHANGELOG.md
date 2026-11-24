@@ -1,5 +1,29 @@
 # Historial / Changelog
 
+## 0.5.1 · pulido de inicio/parada con Alt, mando al soltar apuntado, seguridad de memoria/punteros y diagnóstico del instalador / Alt walk start/stop polish, gamepad aim-release walk, pointer/memory safety & installer diagnostics
+
+### Español
+
+- **Transición `wstart` → caminar y frenado inmediato `wstop` (`sa-combat/locomotion_original` / `locomotion`)**: al terminar `wstart`/`runstart`, el desvanecimiento pasa de `-movestop::BLEND_OUT` (`1,0 s`) a `-movestart::BLEND_IN` (`~0,25 s`) y excluye el `wstart` ya acabado en fade-out de `playing`, evitando mantener la pose final congelada un segundo completo sobre `move_player/walk` y permitiendo que soltar caminar dispare `wstop` de inmediato en lugar de cortar en seco.
+- **Lectura única de teclado/mando por fotograma y caminata con mando tras soltar apuntado (`NikoMovement`)**: `nikoKeyboardWalk` (`Caps Lock` / `Alt`) y `nikoPadActive` (`XInputGetState`) se consultan como máximo una vez por fotograma (`wasAimSuspended` o `nikoFrame != frame`), y al soltar el apuntado empujando suavemente el stick analógico (`<= 0.65`) se reanuda en caminata en vez de forzar trote (`>= 1.85`).
+- **Guarda de tipo en `frictionStructureOther` (`Adapter`)**: se comprueba primero el tipo de entidad (`kind = other+0x36 & 7`) antes de leer campos de `CPhysical` (`>= 0x38`), evitando lecturas fuera de límites sobre `CBuilding` (`0x38` bytes), impidiendo clasificar un `CPed` como estructura y comprobando las banderas reales (`bIsStatic` en `0x1C & 4` y `bDisableMoveForce | bInfiniteMass | bDisableCollisionForce` en `0x40 & 0x64`).
+- **Guarda de validez tras `CVehicle::VehicleDamage` y sangre solo con daño positivo (`CombatRuntime`)**: se comprueba `vehicleFromRef(vehRef) == entity` justo después de invocar `vt[0xE0/4]` para no desreferenciar vehículos destruidos/invalidados, y `combatFinish` exige `before > 0.f && harm > 0.f` para no generar sangre en objetivos inmunes al cuerpo a cuerpo con daño `0`.
+- **Consistencia de protección de misiones en gravedad (`GravityControl`)**: unificada la comprobación de misión en interiores con `authoredMissionProtected()`.
+- **Diagnóstico de integridad y tolerancia `E_NOTIMPL` en accesos directos del instalador (`PortableSetup` / `Standalone`)**:
+  - `PortableSetup.Helpers` reinicia `archive.Position = 0` antes de calcular el SHA-256, sustituye `"El contenido del instalador ha cambiado."` por un mensaje claro de archivo incompleto/dañado (recomendando redescarga directa desde GitHub y verificación con `SHA256SUMS.txt`) e incluye el tamaño y los hashes real/esperado de `portable-tools.zip` en el diagnóstico técnico.
+  - `Standalone.Install` y `Standalone.Restore` protegen la lectura de un `SA Delirium.lnk` preexistente frente a `E_NOTIMPL` (`0x80004001`) en sistemas donde `WScript.Shell` no está disponible, evitando revertir una instalación válida o bloquear la restauración.
+
+### English
+
+- **Crisper `wstart` → walk fade-out and immediate `wstop` (`sa-combat/locomotion_original` / `locomotion`)**: switches completed `wstart`/`runstart` fade-out from `-movestop::BLEND_OUT` (`1.0 s`) to `-movestart::BLEND_IN` (`~0.25 s`) and excludes completed fading-out start clips from `playing`, eliminating the 1-second frozen-pose blend over `move_player/walk` and allowing immediate `wstop` transitions instead of abrupt halts when releasing walk.
+- **Single per-frame input poll & analog gamepad walk on aim release (`NikoMovement`)**: reads `nikoPadActive` and stateful `nikoKeyboardWalk` (`Caps Lock` / `Alt`) at most once per frame (`wasAimSuspended` or `nikoFrame != frame`), and respects gentle analog stick tilt (`<= 0.65`) when releasing aim instead of forcing a jog (`>= 1.85`).
+- **Safe entity-type check in `frictionStructureOther` (`Adapter`)**: checks entity type (`other+0x36 & 7`) before reading `CPhysical` fields (`>= 0x38`), preventing out-of-bounds reads on `0x38`-byte `CBuilding` instances, never misclassifying `CPed` as a structure, and checking `bIsStatic` (`0x1C & 4`) plus `bDisableMoveForce | bInfiniteMass | bDisableCollisionForce` (`0x40 & 0x64`).
+- **Post-`VehicleDamage` pointer guard & positive-damage blood check (`CombatRuntime`)**: validates `vehicleFromRef(vehRef) == entity` right after invoking `vt[0xE0/4]` (`CVehicle::VehicleDamage`) and requires `before > 0.f && harm > 0.f` before spawning melee blood particles so immune/zero-damage hits do not bleed.
+- **Consistent interior mission protection (`GravityControl`)**: aligns interior mission gating with `authoredMissionProtected()`.
+- **Actionable installer integrity diagnostics & `E_NOTIMPL` shortcut-reader safety (`PortableSetup` / `Standalone`)**:
+  - `PortableSetup.Helpers` resets `archive.Position = 0` before hashing, replaces `"El contenido del instalador ha cambiado."` with a clear damaged/incomplete download message pointing to GitHub + `SHA256SUMS.txt`, and records the byte length plus actual vs expected `portable-tools.zip` SHA-256 in the diagnostic details.
+  - `Standalone.Install` and `Standalone.Restore` guard pre-existing `SA Delirium.lnk` target reads against `WScript.Shell` `E_NOTIMPL` (`0x80004001`) so completed installs are not rolled back and restores still succeed.
+
 ## 0.5.0 · solución a fondo de crashes al golpear autos, GYM/interiores, techo de vehículos, inicio con Alt, fricción en paredes, contraataques, apuntado a 1 mano y coches bajos / deep fix for vehicle-strike crashes, gyms/interiors, car climbing, Alt walk start, wall friction, counterattacks, 1-handed aim jog & low cars
 
 ### Español

@@ -54,7 +54,7 @@ static void sample(bool pressed, DWORD now) {
 static void tick() {
     if (!engineGravity) return;
     if (cutscene() || !player() || *reinterpret_cast<int*>(0xC8D4C0) != 9 ||
-        (protectMissions && (scriptMissionActive() || onMission()))) {
+        (protectMissions && (authoredMissionProtected() || onMission()))) {
         sample(false, 0);
         setEnabled(true, false);
         return;
