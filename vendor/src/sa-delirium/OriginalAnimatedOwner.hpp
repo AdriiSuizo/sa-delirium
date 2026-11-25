@@ -46,6 +46,8 @@ static bool animatedNativePairCurrent(void*p){
 static uint64_t animatedExternalId(int ref){return (2ull<<32)|uint32_t(ref);}
 static bool animatedExternalEligible(void*p){
     if(!p||!matrix(p)||inVehicle(p)||!validPed(p,false,false,p==player()))return false;
+    // SA moves both actors into position during its paired knife animation.
+    if(native_stealth::ownsPose(p))return false;
     // SA's own ignore-this-entity (CPhysical +0x128: set while jumping out of
     // or being knocked by a car). As a 25 kg island body CJ collided with the
     // car he was leaving and was moved ~1.5 m in one frame before his ragdoll.

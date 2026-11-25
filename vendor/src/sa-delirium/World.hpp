@@ -13,7 +13,9 @@
 #include <array>
 #include <filesystem>
 #include <fstream>
+#include "RifleCollisionRegions.hpp"
 struct CollisionWorld {
+    RifleCollisionRegions rifleRegions;
     struct Vehicle {int ref=-1,index=-1;void* entity=nullptr;T frame{};V half{},velocity{},spin{};const VehicleShape*shape=nullptr;int component=0;bool velocityAtFrame=false;std::shared_ptr<const BikeContactGeometry>bikeGeometryOwner;int identity()const{return ref*16+component;}};
     std::vector<Vehicle> vehicles;
     std::map<int,unsigned> doorVehicles;
@@ -111,6 +113,7 @@ struct CollisionWorld {
         if(world&&currentArea!=area()){nm_world_destroy(world);world=nullptr;}
         if(world)retireChangedProps();
         if(!world){entityChunks.clear();propChunks.clear();nativeCoverage.rows.clear();world=nm_world_create();}
+        rifleRegions.dirty=false;
         nativeCoverage.begin(origin,area());
         if(!world){nativeCoverage.complete=false;return;}
         std::array<void*,1025> found{};short count=0;entities=0;simpleTransforms=0;skippedNoCollision=0;changedEntities=0;
@@ -120,12 +123,18 @@ struct CollisionWorld {
         if(count<0||count>=1024)nativeCoverage.complete=false;
         count=std::clamp<short>(count,0,1024);
         if(required&&std::find(found.begin(),found.begin()+count,required)==found.begin()+count)found[count++]=required;
+        std::vector<void*> remote;
+        for(const auto&[ref,c]:rifleRegions.centers){
+            std::array<void*,256> nearby{};short n=0;
+            reinterpret_cast<void(__cdecl*)(const V&,float,bool,short*,short,void**,bool,bool,bool,bool,bool)>(0x568B80)(c,28.f,true,&n,256,nearby.data(),true,false,false,true,true);
+            remote.insert(remote.end(),nearby.begin(),nearby.begin()+std::clamp<int>(n,0,256));
+        }
         std::unordered_set<void*> seen;seen.reserve(size_t(count)*2);
         std::vector<uint32_t> indices;
         struct Todo {float distance;void*e;ColModel*col;M m;int propRef;};std::vector<Todo> todo;
         const bool budgeted=rebuildBudget>0&&world&&currentArea==area()&&!entityChunks.empty();partial=false;
-        for(int n=0;n<count;n++){
-            auto* e=found[n];if(!e||(at<unsigned char>(e,0x2F)!=area()&&at<unsigned char>(e,0x2F)!=13))continue;
+        for(size_t n=0;n<size_t(count)+remote.size();n++){
+            auto* e=n<size_t(count)?found[n]:remote[n-count];if(!e||seen.contains(e)||(at<unsigned char>(e,0x2F)!=area()&&at<unsigned char>(e,0x2F)!=13))continue;
             // CEntity::bUsesCollision (0x1C bit 0). SA never collides with
             // such entities (pickups, e.g. dropped money 1212, keep a COL
             // sphere but have it off); baking them made solid balls inside cars.
@@ -143,13 +152,18 @@ struct CollisionWorld {
             V lo{INFINITY,INFINITY,INFINITY},hi{-INFINITY,-INFINITY,-INFINITY};
             for(int k=0;k<8;k++){const V c=point(*m,{k&1?col->box.max.x:col->box.min.x,k&2?col->box.max.y:col->box.min.y,k&4?col->box.max.z:col->box.min.z});
                 lo={std::min(lo.x,c.x),std::min(lo.y,c.y),std::min(lo.z,c.z)};hi={std::max(hi.x,c.x),std::max(hi.y,c.y),std::max(hi.z,c.z)};}
-            if(e!=required&&(origin.x+45<lo.x||origin.x-45>hi.x||origin.y+45<lo.y||origin.y-45>hi.y||origin.z+20<lo.z||origin.z-30>hi.z))continue;
+            if(e!=required&&(origin.x+45<lo.x||origin.x-45>hi.x||origin.y+45<lo.y||origin.y-45>hi.y||origin.z+20<lo.z||origin.z-30>hi.z)&&
+               std::none_of(rifleRegions.centers.begin(),rifleRegions.centers.end(),[&](const auto& row){return RifleCollisionRegions::overlaps(row.second,lo,hi);}))continue;
             auto* d=col->data;entities++;seen.insert(e);
             const short model=at<short>(e,0x22);
             if(auto it=entityChunks.find(e);it!=entityChunks.end()&&it->second.col==col&&it->second.data==d&&it->second.model==model&&
                it->second.type==type&&it->second.propRef==propRef&&NativeWorldCoverage::sameFrame(it->second.frame,*m))continue;
-            const V nearest{std::clamp(origin.x,lo.x,hi.x),std::clamp(origin.y,lo.y,hi.y),std::clamp(origin.z,lo.z,hi.z)};
-            todo.push_back({e==required?-1.f:length(nearest-origin),e,col,*m,propRef});
+            auto distanceToBox=[&](V p){
+                return length(V{std::clamp(p.x,lo.x,hi.x),std::clamp(p.y,lo.y,hi.y),std::clamp(p.z,lo.z,hi.z)}-p);
+            };
+            float priority=distanceToBox(origin);
+            for(const auto&[ref,c]:rifleRegions.centers)priority=std::min(priority,distanceToBox(c));
+            todo.push_back({e==required?-1.f:priority,e,col,*m,propRef});
         }
         if(budgeted&&int(todo.size())>rebuildBudget){
             std::sort(todo.begin(),todo.end(),[](const Todo&a,const Todo&b){return a.distance<b.distance;});
@@ -237,12 +251,20 @@ struct CollisionWorld {
         bikeProxyVehicles=bikeProxyFallbacks=bikeProxyUnverifiedMotion=0;
         for(auto it=doorMotion.begin();it!=doorMotion.end();)if(!vehicleFromRef(it->first.first))it=doorMotion.erase(it);else ++it;
         for(auto it=doorVehicles.begin();it!=doorVehicles.end();)if(!vehicleFromRef(it->first)||gameTime()-it->second>3000)it=doorVehicles.erase(it);else ++it;
-        if(!world||currentArea!=area()||partial||length(origin-center)>12||gameTime()-builtAt>2000)rebuild(origin);
+        if(!world||currentArea!=area()||partial||rifleRegions.dirty||length(origin-center)>12||gameTime()-builtAt>2000)rebuild(origin);
         else retireChangedProps();
         std::array<void*,256> found{};short count=0;vehicles.clear();
         reinterpret_cast<void(__cdecl*)(const V&,float,bool,short*,short,void**,bool,bool,bool,bool,bool)>(0x564A20)(origin,45.f,true,&count,256,found.data(),false,true,false,false,false);
-        for(int i=0;i<count&&i<256;i++){
-            void*e=found[i];auto*m=matrix(e);if(!m||at<unsigned char>(e,0x2F)!=area())continue;
+        count=std::clamp<short>(count,0,256);
+        std::vector<void*> remote;
+        for(const auto&[ref,c]:rifleRegions.centers){
+            std::array<void*,64> nearby{};short n=0;
+            reinterpret_cast<void(__cdecl*)(const V&,float,bool,short*,short,void**,bool,bool,bool,bool,bool)>(0x564A20)(c,22.f,true,&n,64,nearby.data(),false,true,false,false,false);
+            for(int j=0;j<std::clamp<int>(n,0,64);++j)if(nearby[j]&&std::find(found.begin(),found.begin()+count,nearby[j])==found.begin()+count&&std::find(remote.begin(),remote.end(),nearby[j])==remote.end())
+                remote.push_back(nearby[j]);
+        }
+        for(size_t i=0;i<size_t(count)+remote.size();i++){
+            void*e=i<size_t(count)?found[i]:remote[i-count];auto*m=matrix(e);if(!m||at<unsigned char>(e,0x2F)!=area())continue;
             auto* c=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(e);if(!c)continue;
             V half=(c->box.max-c->box.min)*.5f,cen=point(*m,(c->box.max+c->box.min)*.5f),vel=at<V>(e,0x44)*50.f;Q q=rotation(*m);
             if(!finite(cen)||half.x<=0||half.y<=0||half.z<=0)continue;

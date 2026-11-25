@@ -13,25 +13,66 @@ static void tryCjFlightVoice(Active&a,V velocity,unsigned now){
           " speed_mps="+std::to_string(length(velocity))+" vertical_mps="+std::to_string(velocity.z));
 }
 
-static void playBodyAudio(Active&a,V com,V velocity,unsigned now){
+static int playNativeGroundImpact(Active& a,float volume){
+    // Native landing audio refuses an actor still flagged airborne.
+    // Use SA's quieter knockdown/crunch mix in that state.
+    constexpr int collapse=59,knockdown=119;
+    const bool airborne=(at<unsigned char>(a.ped,0x46D)&2)!=0;
+    const int sound=airborne?knockdown:collapse;
+
+    reinterpret_cast<void(__thiscall*)(void*,int,float,float,void*,unsigned char,int,unsigned)>(0x4E2BB0)
+        (static_cast<unsigned char*>(a.ped)+0x138,sound,volume,1.f,a.ped,0,0,0);
+    return sound;
+}
+
+#include <random>
+static IvSample& pickCjGroundSample(){
+    static IvSample samples[]={
+        {L"body01.wav","BODY_1"},
+        {L"body02.wav","BODY_2"},
+        {L"body03.wav","BODY_3"},
+        {L"body05.wav","BODY_5"},
+        {L"body06.wav","BODY_6"},
+        {L"body07.wav","BODY_7"},
+        {L"body08.wav","BODY_8"},
+        {L"body09.wav","BODY_9"},
+        {L"body10.wav","BODY_10"},
+        {L"body11.wav","BODY_11"},
+        {L"body12.wav","BODY_12"},
+        {L"body13.wav","BODY_13"}
+    };
+    // GTA IV BODYFALL_BODY selects these twelve variants with equal weights.
+    static std::minstd_rand rng(gameTime()|1u);
+    return samples[std::uniform_int_distribution<unsigned>(0,11)(rng)];
+}
+
+static void playBodyAudio(Active&a,V com,V velocity,unsigned now,bool stepRejected){
     if(a.mounted||a.preview||a.recovering||inVehicle(a.ped))return;
     if(bodyImpactAudio||a.kind==Reaction::HighFall){
         float hit[2]{};
         const bool contact=nm_agent_take_ground_impact(a.agent,hit)==1;
         if(contact)finishPlayerHighFall(a,com,hit);
         static unsigned lastNearbyImpact=0;
-        if(bodyImpactAudio&&contact&&hit[0]>=.8f&&hit[1]>=2.5f&&
+        if(bodyImpactAudio&&contact&&a.ped==player()){
+            if(!stepRejected&&a.groundAudio.accepts(now,hit[0],hit[1])){
+                const float strength=CjGroundAudioGate::strength(hit[0],hit[1]);
+                auto& sample=pickCjGroundSample();
+                const auto playback=playIvSample(L"cj-ground-audio",sample,com,.26f+.67f*strength);
+                if(playback!=IvPlayback::inaudible){
+                    const int native=playback==IvPlayback::unavailable?
+                        playNativeGroundImpact(a,-17.f+12.f*strength):0;
+                    a.impactSoundAt=now;
+                    event("cj_ground_audio",a.ref,a.model,"sample="+std::string(native?"SA":sample.label)+
+                        " contact_number="+std::to_string(a.groundAudio.sequence)+
+                        " closing_mps="+std::to_string(hit[1])+" impulse_per_kg="+std::to_string(hit[0])+
+                        " strength="+std::to_string(strength));
+                }
+            }
+        }else if(bodyImpactAudio&&contact&&hit[0]>=.8f&&hit[1]>=2.5f&&
            (!a.impactSoundAt||now-a.impactSoundAt>=280)&&
            (!lastNearbyImpact||now-lastNearbyImpact>=45)&&length(position(player())-com)<=26.f){
             a.impactSoundAt=lastNearbyImpact=now;
-            // Native landing audio refuses an actor still flagged airborne.
-            // Use SA's quieter knockdown/crunch mix in that state.
-            constexpr int collapse=59,knockdown=119;
-            const bool airborne=(at<unsigned char>(a.ped,0x46D)&2)!=0;
-            const int sound=airborne?knockdown:collapse;
-            const float volume=std::clamp(-17.f+hit[0]*2.f,-15.f,-5.f);
-            reinterpret_cast<void(__thiscall*)(void*,int,float,float,void*,unsigned char,int,unsigned)>(0x4E2BB0)
-                (static_cast<unsigned char*>(a.ped)+0x138,sound,volume,1.f,a.ped,0,0,0);
+            const int sound=playNativeGroundImpact(a,std::clamp(-17.f+hit[0]*2.f,-15.f,-5.f));
             event("body_ground_audio",a.ref,a.model,"event="+std::to_string(sound)+
                   " closing_mps="+std::to_string(hit[1])+" impulse_per_kg="+std::to_string(hit[0]));
         }

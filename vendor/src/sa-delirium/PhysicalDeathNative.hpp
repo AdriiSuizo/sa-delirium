@@ -34,6 +34,13 @@ static bool consumePhysicalImpactDeath(Active&a){
 static void(__thiscall*originalPhysicalDamageResponse)(void*,DamageEvent*,void*,void*,void*)=nullptr;
 static void __fastcall physicalDamageResponse(void*handler,void*,DamageEvent*d,void*active,void*simplest,void*aborted){
     void*p=at<void*>(handler,0);const int ref=reference(p);
+    if(keepCjRecoveryForShot(p,*d)){
+        // Game events can already carry a selected flinch when recovery starts.
+        // Keep the normal damage/source handling and deliver the event exactly once.
+        event("player_ragdoll_shot_kept",ref,at<short>(p,0x22),"weapon="+std::to_string(d->weapon)+" health_damage="+std::to_string(d->response.health)+" armour_damage="+std::to_string(d->response.armour));
+        originalPhysicalDamageResponse(handler,d,active,simplest,aborted);
+        return;
+    }
     auto a=agents.find(ref);bool own=false;physical_death_continuity::Facts f{};
     auto*shot=matchedGroundShot(*d,p);
     const bool road=roadReplacesDamageAnimation(*d,p);

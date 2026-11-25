@@ -25,6 +25,9 @@ constexpr float boneShare(unsigned bone){
     }
 }
 constexpr float meleeDamage(float base,float weakness,bool player,unsigned bone,bool club,bool guard){
-    return base*(player?1.f:weakness)*boneShare(bone)*(club&&bone==0x4B5?4.f:1.f)*(guard?.5f:1.f);
+    // CJ has a 100-point visible health pool. Keep the attack's authored club
+    // damage on head contact; the 4x NPC critical would spend 120 on a 30-point swing.
+    const float headCritical=club&&!player&&bone==0x4B5?4.f:1.f;
+    return base*(player?1.f:weakness)*boneShare(bone)*headCritical*(guard?.5f:1.f);
 }
 }

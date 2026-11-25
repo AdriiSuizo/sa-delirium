@@ -246,6 +246,8 @@ impl Locomotion{
             }
         }
         let set=if crouched{CROUCHED}else{ON_FOOT};if set!=self.set{self.fade=Some((self.set,0.));self.set=set;}
+        let wanted=supported_ratio(wanted,set);
+        self.p.ratio=supported_ratio(self.p.ratio,set);
         let p=&mut self.p;p.ms=now;p.goal=goal;p.wish_heading=(wanted>0.).then_some(goal);p.slope.slope=slope;
         // Respect external heading changes while retaining the original rate history.
         p.heading+=lsc4_combat::actiontable::wrap(heading-self.last_heading);
@@ -262,7 +264,7 @@ impl Locomotion{
             .or(p.turn.as_ref().filter(|t|t.rate>0.&&t.weight<1.).map(|t|t.from)).unwrap_or(gait_ratio(before,p.state));
         p.turn_col=turn_column(&clips,p,set,dt);
         let mut v=Vec2::new(0.,clips.speed_at(under,set,slope,p.turn_col));
-        p.phase=gait_step(&clips,gait_ratio(p.ratio,p.state),p.turn_col,p.phase,set,slope,dt);gait_left(p,dt);
+        p.phase=gait_step(&clips,gait_ratio(p.ratio,p.state),p.turn_col,p.phase,set,slope,dt)?;gait_left(p,dt);
         let late=p.yaw_was[0];p.yaw_was=[p.yaw_was[1],0.];
         for(step,w)in [stop(&clips,p,set,dt),start(&clips,p,wanted,set,dt),turn(&clips,p,wanted,set,dt)].into_iter().flatten(){v=v.lerp(step,w);}
         if wanted>0.&&p.start.as_ref().is_none_or(|s|s.rate<0.)&&p.stop.is_none()&&p.turn.is_none()&&p.forced.is_none()&&dt>0.{

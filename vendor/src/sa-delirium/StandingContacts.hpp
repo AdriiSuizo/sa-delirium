@@ -56,7 +56,7 @@ static void observeSolvedExternalPairs(NmGroup*group,float dt){
         // Original reason10 requires the moving PLAYER and actual fragment
         // overlap after the normal collider receipt. NPC/NPC's collision event
         // has no response handler; its physical rows still transmit momentum.
-        if(other!=player()||p==player())continue;
+        if(other!=player()||p==player()||native_stealth::ownsPose(other)||native_stealth::ownsPose(p))continue;
         auto*peerRig=bodyCollider(other);
         // IV evaluates reason 10 at the player's post-walk place BEFORE the
         // body pair is pushed apart. The staged owner row of this substep is

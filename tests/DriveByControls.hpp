@@ -83,27 +83,53 @@ static void sample(){
     }
 }
 
-static void* armedDriverVehicle(void*pad){
-    if(!driveByEnabled)return nullptr;
-    auto*car=activeDriverVehicle(pad);
-    if(!car)return nullptr;
+static bool ivVehicleWeapon(int id){
+    return id==16||id==18||id==22||id==23||id==24||id==28||id==29||id==32;
+}
+static bool thrownVehicleWeapon(int id){return id==16||id==18;}
+
+static void* ivVehicleOccupant(void* pad){
+    if(!driveByEnabled||(protectMissions&&authoredMissionProtected()))return nullptr;
+    auto*car=anyPlayerVehicle(pad);
     auto*cj=player();
-    if(at<short>(car,0x22)==432)return nullptr;
+    if(!car||!cj||at<float>(cj,0x540)<=0.f||!matrix(car))return nullptr;
     const int type=at<int>(car,0x594);
-    if((type<0||type>2)&&type!=9&&type!=10)return nullptr;
-    const unsigned slot=at<unsigned char>(cj,0x718);
-    if(slot>=13)return nullptr;
-    auto*weapon=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)
-        (at<int>(cj,0x5A0+slot*0x1C),1);
-    return weapon&&at<int>(weapon,0x14)==4?car:nullptr;
+    if((type<0||type>2)&&type!=9)return nullptr;
+    const int model=at<short>(car,0x22);
+    // These vehicles bind the vehicle-fire action to their own special equipment.
+    if(model==407||model==432||model==544||model==564||model==601||
+       at<bool>(reinterpret_cast<void*>(0xB6F028),0x3D))return nullptr;
+    auto* info=reinterpret_cast<void*(__thiscall*)(void*)>(0x609FF0)(cj);
+    if(!info||!at<unsigned char>(info,0x153))return nullptr;
+    void* manager=taskManager(cj);
+    if(!manager)return nullptr;
+    constexpr int gangDriveByTask=1022; // eTaskType::TASK_SIMPLE_GANG_DRIVEBY
+    if(reinterpret_cast<void*(__thiscall*)(void*,int)>(0x681740)(manager,gangDriveByTask))return nullptr;
+    if(at<void*>(car,0x460)==cj)return car;
+    // IV's authored car poses cover the front seat and both rear seats.
+    // Motorcycle passengers have only one supported seat.
+    const int passengerSeats=type==9?1:3;
+    for(int seat=0;seat<passengerSeats;++seat)if(at<void*>(car,0x464+4*seat)==cj)return car;
+    return nullptr;
 }
 
+static void* armedDriverVehicle(void*pad){
+    auto*car=ivVehicleOccupant(pad);
+    return car&&ivVehicleWeapon(combatWeapon(player()))?car:nullptr;
+}
+
+static bool triggerHeld(){
+    sample();
+    auto*pad=reinterpret_cast<void*>(primaryPad);
+    if(at<unsigned char>(pad,0x11B))return false;
+    if(!testInput&&mouse().lmb)return true;
+    return connected&&!at<unsigned char>(pad,0x11C)&&(input.wButtons&XINPUT_GAMEPAD_LEFT_SHOULDER)!=0;
+}
 static bool aimHeld(){
     sample();
-    const bool padAim=connected&&(input.wButtons&XINPUT_GAMEPAD_LEFT_SHOULDER)!=0;
-    const bool mouseAim=!testInput&&!at<short>(reinterpret_cast<void*>(primaryPad),0x10E)&&
-        playing()&&!cutscene()&&mouse().rmb!=0;
-    return padAim||mouseAim;
+    // LB raises and fires in the IV driving layout. Holding it also keeps
+    // the camera aimed while a throwable is charged.
+    return triggerHeld()||(!testInput&&mouse().rmb);
 }
 
 #include "DriveByAim.hpp"
@@ -125,24 +151,15 @@ static void afterCameraProcess(void*){
 }
 
 static short __fastcall fire(void*pad,void*){
-    if(auto*car=armedDriverVehicle(pad)){
-        sample();
-        const bool padActive=connected&&(input.wButtons||input.bRightTrigger>XINPUT_GAMEPAD_TRIGGER_THRESHOLD);
-        if(padActive){
-            const bool pressed=(input.wButtons&XINPUT_GAMEPAD_RIGHT_SHOULDER)!=0;
-            return pressed&&(!aimHeld()||hasAimView(car))?1:0;
-        }
-        if(!testInput&&(mouse().rmb||mouse().lmb))
-            return mouse().lmb&&(!aimHeld()||hasAimView(car))?1:0;
-    }
+    if(armedDriverVehicle(pad))return 0; // shootingTick owns personal weapons.
     return nativeFire(pad);
 }
 
 static short __fastcall handbrake(void*pad,void*){
     if(armedDriverVehicle(pad)){
         sample();
-        if(connected&&(input.wButtons&(XINPUT_GAMEPAD_LEFT_SHOULDER|XINPUT_GAMEPAD_RIGHT_SHOULDER))&&
-           !(input.wButtons&XINPUT_GAMEPAD_A))return 0;
+        if(connected&&(input.wButtons&XINPUT_GAMEPAD_RIGHT_SHOULDER)!=0)return 255;
+        if(connected&&(input.wButtons&XINPUT_GAMEPAD_LEFT_SHOULDER)!=0&&!(input.wButtons&XINPUT_GAMEPAD_A))return 0;
     }
     return nativeHandbrake(pad);
 }
@@ -162,7 +179,7 @@ static short __fastcall vehicleAxisY(void*pad,void*){
 static bool __fastcall left(void*pad,void*){
     if(armedDriverVehicle(pad)){
         if(animationSide)return animationSide<0;
-        if(aimHeld()||(connected&&(input.wButtons&XINPUT_GAMEPAD_RIGHT_SHOULDER)))return false;
+        if(aimHeld())return false;
     }
     return nativeLookLeft(pad);
 }
@@ -170,7 +187,7 @@ static bool __fastcall left(void*pad,void*){
 static bool __fastcall right(void*pad,void*){
     if(armedDriverVehicle(pad)){
         if(animationSide)return animationSide>0;
-        if(aimHeld()||(connected&&(input.wButtons&XINPUT_GAMEPAD_RIGHT_SHOULDER)))return false;
+        if(aimHeld())return false;
     }
     return nativeLookRight(pad);
 }
@@ -240,6 +257,9 @@ static bool install(const std::filesystem::path&ini){
         {0x6A07A0,reinterpret_cast<void*>(&hydraulics),reinterpret_cast<void**>(&nativeHydraulics),6,{0x83,0xec,0x60,0x55,0x8b,0xe9}},
         {0x741FD0,reinterpret_cast<void*>(&driveBy),reinterpret_cast<void**>(&nativeDriveBy),8,{0x83,0xec,0x24,0x56,0x57,0x8b,0xf9,0x90}},
         {0x73CBA0,reinterpret_cast<void*>(&carBullet),reinterpret_cast<void**>(&nativeCarBullet),8,{0x6a,0xff,0x68,0x68,0x8e,0x84,0,0x64}},
+        {0x73FB10,reinterpret_cast<void*>(&vehicleInstant),reinterpret_cast<void**>(&nativeInstant),8,{0x6a,0xff,0x68,0xbb,0x8e,0x84,0,0x64}},
+        {0x741C00,reinterpret_cast<void*>(&vehicleFirstPerson),reinterpret_cast<void**>(&nativeFirstPerson),8,{0x0f,0xb6,0x05,0x81,0xf0,0xb6,0,0x69}},
+        {0x741360,reinterpret_cast<void*>(&vehicleProjectile),reinterpret_cast<void**>(&nativeProjectile),8,{0x6a,0xff,0xe9,0xb2,0x28,0xcc,0xff,0x64}},
         {0x58E020,reinterpret_cast<void*>(&crosshair),reinterpret_cast<void**>(&nativeCrosshair),8,{0x83,0xec,0x30,0x0f,0xb6,0x05,0x74,0xcd}},
     };
     for(const auto&hook:hooks){

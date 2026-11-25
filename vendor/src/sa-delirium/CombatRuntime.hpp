@@ -60,7 +60,7 @@ static bool combatPlayerOnFoot(void*p){
         leaf==TASK_SIMPLE_GO_TO_POINT_FINE||leaf==TASK_SIMPLE_STAND_STILL;
 }
 static bool combatCanFight(void*p){
-    if(!combatAllowed()||player_cover::owns(p)||!validPed(p,false,false,p==player()))return false;
+    if(!combatAllowed()||player_cover::owns(p)||!validPed(p,false,false,p==player())||native_stealth::ownsPose(p))return false;
     if(p!=player()&&ivHealth(p)<combat_health::injured)return false;
     const int weapon=combatWeapon(p);
     if(clubWeapon(weapon))return at<void*>(p,0x4F4)&&(p==player()?combatPlayerOnFoot(p):nativeClubTarget(p)!=nullptr);
@@ -73,7 +73,7 @@ static bool combatCanFight(void*p){
     const bool eventOwner=receipt!=combatReceipts.end()&&receipt->second.eventCombat&&target!=combatTargets.end()&&receipt->second.source==target->second.first;
     return (decision==1905||(decision==0&&eventOwner))&&intent.type==TASK_COMPLEX_SMART_FLEE_ENTITY&&target!=combatTargets.end()&&intent.source==pedFromRef(target->second.first);
 }
-static bool combatEligible(void*p){return combatAllowed()&&validPed(p,false,false,p==player())&&
+static bool combatEligible(void*p){return combatAllowed()&&validPed(p,false,false,p==player())&&!native_stealth::ownsPose(p)&&
     (combatCanFight(p)||combatResponseActive(p)||(p!=player()&&(nm_combat_decision(combat,reference(p))==1904||nm_combat_decision(combat,reference(p))==200)));}
 static bool combatClearPath(void*p,void*t){
     if(!p||!t||!matrix(p)||!matrix(t))return false;
@@ -141,6 +141,8 @@ static bool combatEndedAgainst(void*p,void*target){
 }
 static bool(__cdecl* originalCombatGenerateDamage)(void*,void*,int,int,int,unsigned char)=nullptr;
 static bool __cdecl combatGenerateDamage(void*victim,void*source,int weapon,int damage,int piece,unsigned char direction){
+    if(native_stealth::ownsDamage(victim,source,weapon))
+        return originalCombatGenerateDamage(victim,source,weapon,damage,piece,direction);
     if(firearmDamage(weapon)&&damage>0)if(auto*a=groundShotOwner(victim);a&&at<float>(victim,0x540)<=0){
         auto*manager=taskManager(victim);
         auto*task=manager?reinterpret_cast<void*(__thiscall*)(void*)>(0x6819D0)(manager):nullptr;
@@ -162,6 +164,8 @@ static bool __cdecl combatGenerateDamage(void*victim,void*source,int weapon,int 
     // unarmed contact; retain the native accounting for its accepted receipt.
     if(!combatDelivering&&((weapon>=0&&weapon<=1)||(clubWeapon(weapon)&&combatOwns(source)))&&reference(victim)>=0&&
        reference(source)>=0&&(combatCanFight(source)||combatEndedAgainst(source,victim))&&validPed(victim,true,false,victim==player())){
+        if(native_stealth::ownsPose(victim))
+            return originalCombatGenerateDamage(victim,source,weapon,damage,piece,direction);
         combatTargets[reference(source)]={reference(victim),gameTime()};
         event("combat_native_strike_suppressed",reference(victim),at<short>(victim,0x22),
               "attacker="+std::to_string(reference(source))+" weapon="+std::to_string(weapon)+" authored_contact_required=1");
@@ -171,12 +175,14 @@ static bool __cdecl combatGenerateDamage(void*victim,void*source,int weapon,int 
 }
 static bool combatFightTask(void*task,void*ped){
     if(!combatEligible(ped))return false;
+    void*target=at<void*>(task,0x18);const int ref=reference(target);
+    // A third party can interrupt the pair through its native fight task.
+    if(ref>=0&&native_stealth::ownsPose(target))return false;
     if(ped==player()&&combatOwns(ped))return true;
     if(ped!=player()&&combatEndedAgainst(ped,at<void*>(task,0x18)))return true;
     // Native retarget/pursuit requests cannot replace the source and clock of
     // a received reaction. The native task remains intact for the handback.
     if(combatResponseActive(ped))return !agents.contains(reference(ped));
-    void*target=at<void*>(task,0x18);const int ref=reference(target);
     if(ref<0||!validPed(target,true,false,target==player()))return false;
     combatTargets[reference(ped)]={ref,gameTime()};
     if(clubWeapon(combatWeapon(ped)))return combatOwns(ped);
@@ -198,6 +204,9 @@ static bool(__thiscall* originalCombatExitVehicleJustDown)(void*)=nullptr;
 static bool __fastcall combatExitVehicle(void*pad,void*){return combatOwns(player())?false:originalCombatExitVehicle(pad);}
 static bool __fastcall combatExitVehicleJustDown(void*pad,void*){return combatOwns(player())?false:originalCombatExitVehicleJustDown(pad);}
 static bool(__thiscall* originalCombatGetTarget)(void*)=nullptr;
+static bool nativeStealthTargetHeld(void* pad){
+    return originalCombatGetTarget&&originalCombatGetTarget(pad);
+}
 static bool __fastcall combatGetTarget(void*pad,void*){
     const bool down=originalCombatGetTarget(pad);
     if(!down||pad!=reinterpret_cast<void*>(0xB73458))return down;
@@ -206,7 +215,15 @@ static bool __fastcall combatGetTarget(void*pad,void*){
 static void(__thiscall* originalCombatUpdatePosition)(void*)=nullptr;
 static void __fastcall combatUpdatePosition(void*p,void*){
     invalidateOriginalPedMotorUpdate(p);
-    if(player_cover::move(p)||police_cover::move(p)){originalCombatUpdatePosition(p);return;}
+    if(native_stealth::ownsPose(p)){
+        if(p==player())nikoYieldForStealth();
+        originalCombatUpdatePosition(p);
+        return;
+    }
+    if(player_cover::move(p)||police_cover::move(p)){
+        if(p==player())nikoSuspendForCover(p);
+        originalCombatUpdatePosition(p);return;
+    }
     if(combatOwns(p)&&fighters.at(reference(p)).state[0]==3){
         auto&a=fighters.at(reference(p));nikoUpdatePosition(p);
         const unsigned axes=nm_combat_mover_axes(combat,reference(p));
@@ -238,6 +255,8 @@ static void __fastcall combatUpdatePosition(void*p,void*){
         return;
     }
     nikoUpdatePosition(p);injuredUpdatePosition(p);
+    if(npcGaitLoaded&&p&&p!=player())npcUpdateStride(p);
+    armed_step::move(p);
     originalCombatUpdatePosition(p);
 }
 static void(__thiscall* originalCombatDamageAnim)(DamageEvent*,void*,bool)=nullptr;
@@ -255,11 +274,14 @@ static bool combatReplacesNativeReaction(DamageEvent*damage,void*ped){
     return false;
 }
 static void __fastcall combatDamageAnim(DamageEvent*damage,void*,void*ped,bool abort){
+    if(keepCjRecoveryForShot(ped,*damage))return;
+    if(native_stealth::ownsDamage(ped,damage->source,damage->weapon)){originalCombatDamageAnim(damage,ped,abort);return;}
     if(matchedGroundShot(*damage,ped)){damage->anim=191;damage->flags&=~2u;return;}
     if(combatReplacesNativeReaction(damage,ped))return;
     originalCombatDamageAnim(damage,ped,abort);
 }
 static void __fastcall combatDeathAnim(DamageEvent*damage,void*,void*ped,bool abort){
+    if(native_stealth::ownsDamage(ped,damage->source,damage->weapon)){originalCombatDeathAnim(damage,ped,abort);return;}
     if(replacePhysicalDeathAnimation(damage,ped))return;
     // ComputeAnim selects a different routine once health reaches zero. SA's
     // death routine adds force.z=5 even for an authored counter with no impact.
@@ -522,7 +544,7 @@ static void combatTick(float dt){
         }
         const bool response=p&&combatResponseActive(p);
         const int decision=p?nm_combat_decision(combat,it->first):0;
-        if(!p||!combatEligible(p)||(!response&&(!t||(decision==0&&now-it->second.second>10000)||at<float>(t,0x540)<=0))){
+        if(!p||!combatEligible(p)||(t&&native_stealth::ownsPose(t))||(!response&&(!t||(decision==0&&now-it->second.second>10000)||at<float>(t,0x540)<=0))){
             if(p&&intent>=0)event("combat_native_intent_yield",it->first,at<short>(p,0x22),"task="+std::to_string(intent)+" source_ref="+std::to_string(reference(combatReadNativeIntent(p).source))+" target_ref="+std::to_string(it->second.first)+" receiving="+std::to_string(nm_combat_receiving(combat,it->first))+" physical="+std::to_string(agents.contains(it->first)));
             it=combatTargets.erase(it);continue;
         }
@@ -577,7 +599,7 @@ static void combatTick(float dt){
     if(combatCanFight(player()))wanted[cj]=true;
     for(auto&[ref,a]:fighters)if(pedFromRef(ref)==a.ped&&combatEligible(a.ped)&&combatResponseActive(a.ped))wanted[ref]=true;
     for(auto&[ref,a]:agents)if(pedFromRef(ref)==a->ped&&length(position(a->ped)-position(player()))<8.f)wanted[ref]=true;
-    std::erase_if(wanted,[](const auto&row){return injuredMoving(row.first);});
+    std::erase_if(wanted,[](const auto&row){return injuredMoving(row.first)||native_stealth::ownsPose(pedFromRef(row.first));});
     for(auto it=fighters.begin();it!=fighters.end();){if(!wanted.contains(it->first)||pedFromRef(it->first)!=it->second.ped){nm_combat_remove(combat,it->first);it=fighters.erase(it);}else ++it;}
     for(auto[ref,_]:wanted){void*p=pedFromRef(ref);if(!p||!matrix(p)||!at<void*>(p,0x18))continue;
         watchSessionPed(p);
@@ -765,6 +787,7 @@ static void combatFinish(){
     const unsigned now=gameTime();const float dt=combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C));
     for(auto&[ref,a]:fighters){
         if(pedFromRef(ref)!=a.ped){nm_combat_remove(combat,ref);continue;}
+        if(native_stealth::ownsPose(a.ped))continue;
         const V root=position(a.ped),delta=root-a.root;
         if(!a.poseHistory.finish(*reinterpret_cast<unsigned*>(0xB7CB4C)))continue;
         if(!ok(nm_combat_place(combat,ref,&root.x)))return;
@@ -798,6 +821,7 @@ static void combatFinish(){
     bool playerHitPed=false;
     for(int i=0;i<hits;i++){float hit[16]{};if(nm_combat_contact(combat,i,hit)!=1)continue;
         const int source=int(hit[0]),target=int(hit[1]),part=combatPart(int(hit[2]));void*p=pedFromRef(target),*by=pedFromRef(source);if(!p||!by||!fighters.contains(target))continue;
+        if(native_stealth::ownsPose(by)||native_stealth::ownsPose(p))continue;
         // Hit kind 3: the taker's DisarmOpponent at its clip's 0x200 event (sa-combat runtime.rs): the foe's weapon changes hands, nothing else.
         if(hit[15]==3){meleeDisarm(by,p);continue;}
         if(by==player())playerHitPed=true;

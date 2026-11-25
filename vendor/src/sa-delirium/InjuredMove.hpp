@@ -47,7 +47,9 @@ static void beginInjuredMove(void* p){
         if(!move->mover)return;
         move->pose.resize(bind.size());
     }catch(...){return;}
-    move->set=randomUnit()<.5f?"move_injured_lower":"move_injured_upper";
+    // Favor the more visible leg limp among pedestrians already walking wounded.
+    constexpr float legLimpChance = .60f;
+    move->set=randomUnit()<legLimpChance?"move_injured_lower":"move_injured_upper";
     float info[2]{};
     if(nm_locomotion_clip_pose(combat,move->mover,(move->set+"/walk").c_str(),0,move->pose.data(),int(move->rig->ids.size()),info)!=1){
         event("injured_move_unavailable",reference(p),at<short>(p,0x22),"clips_missing=1");return;
@@ -99,7 +101,7 @@ static void injuredRender(){
     for(auto it=injuredMoves.begin();it!=injuredMoves.end();){
         auto&m=*it->second;void* p=pedFromRef(it->first);
         if(p!=m.ped||at<short>(p,0x22)!=m.model||at<float>(p,0x540)<=0||inVehicle(p)){it=injuredMoves.erase(it);continue;}
-        if(now>=m.until){
+        if(now>=m.until&&!native_stealth::inSequence(p)){
             event("injured_move_finished",it->first,m.model,"dies=1 updates="+std::to_string(m.updates)+" drawn="+std::to_string(m.drawn));
             it=injuredMoves.erase(it);
             reinterpret_cast<bool(__cdecl*)(void*,void*,int,int,int,unsigned char)>(0x73A530)(p,nullptr,54,1000,3,0);

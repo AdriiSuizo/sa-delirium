@@ -1,4 +1,5 @@
 #pragma once
+#include "ArmedStep.hpp"
 
 namespace police_cover {
 using namespace player_cover;
@@ -14,6 +15,11 @@ struct Officer {
     float exposeSeconds=0.f, returnSeconds=0.f;
     Phase phase=Phase::Approach;
     bool unarmed=false;
+    npc_gait::Binding approachLegs;
+    const Node* approachNodes=nullptr;
+    V approachPos{};
+    unsigned approachFrame=~0u;
+    float approachPhase=0;
     PoseReader pose;
     PoseTransition transition;
 };
@@ -21,7 +27,7 @@ static std::map<int,Officer> officers;
 static std::map<int,unsigned> gunfire;
 static unsigned nextSearch=0;
 static bool copUnarmedFlee(void* ped){
-    return ped&&(pedWasDisarmed(ped)||(!copHasFirearm(ped)&&combatWeapon(ped)<=1));
+    return ped&&at<int>(ped,0x598)==6&&(pedWasDisarmed(ped)||(!copHasFirearm(ped)&&combatWeapon(ped)<=1));
 }
 static bool hot(int ref,unsigned now);
 static void* nearestHotThreat(void* ped,unsigned now){
@@ -88,12 +94,12 @@ static void* target(void* ped){
     return nullptr;
 }
 static bool available(void* ped){
-    if(!ped||at<int>(ped,0x598)!=6||at<unsigned char>(ped,0x484)==2||
+    if(!ped||at<unsigned char>(ped,0x484)==2||
        !validPed(ped)||!nativeOnFootControl(at<unsigned char>(ped,0x46D)))return false;
     const int ref=reference(ped),weapon=combatWeapon(ped);
     const bool armed=weapon>=22&&weapon<=34&&!pedWasDisarmed(ped);
     return (armed||copUnarmedFlee(ped))&&ivHealth(ped)>=combat_health::injured&&
-        !agents.contains(ref)&&!pending.contains(ref);
+        !agents.contains(ref)&&!pending.contains(ref)&&!native_stealth::ownsPose(ped);
 }
 static bool hot(int ref,unsigned now){
     const auto found=gunfire.find(ref);
@@ -178,8 +184,8 @@ static void tick(){
         const bool expired=!hot(officer.threat,now)&&!(officer.unarmed&&pedWasDisarmed(ped));
         const bool tooClose=enemy&&length(position(ped)-position(enemy))<(officer.unarmed?6.5f:4.f);
         const bool badState=unarmedNow!=officer.unarmed||(officer.phase==Phase::Hidden&&expired)||
-            (officer.unarmed&&officer.phase==Phase::Hidden&&(elapsed>5500u||!screen(officer.hide,enemy,.6f)));
-        void* seenTarget=target(ped);
+            (officer.unarmed&&officer.phase==Phase::Hidden&&(elapsed>5500u||!enemy||!screen(officer.hide,enemy,.6f)));
+        void* seenTarget=ped?target(ped):nullptr;
         const bool targetLost=!validPed(enemy,true,false,enemy==player())||
             (officer.phase==Phase::Approach?seenTarget!=enemy:(seenTarget!=nullptr&&seenTarget!=enemy));
         if(!available(ped)||!enemy||targetLost||tooClose||badState||!sameWall(officer.hide,officer.wall)){
@@ -272,6 +278,8 @@ static void tick(){
             officer.returnSeconds=clipMeta(officer.pose,ped,animationKey(wall.low,corner,side,weapon,"_normal_fire_outro")).duration;
             if(!(officer.exposeSeconds>0.f&&officer.returnSeconds>0.f)){officers.erase(ref);continue;}
         }
+        if(at<int>(ped,0x598)!=6)
+            event("armed_npc_cover",ref,at<short>(ped,0x22),"weapon="+std::to_string(weapon)+" threat="+std::to_string(threat));
         setPhase(ref,officer,Phase::Approach,now);
     }
 }
@@ -319,6 +327,42 @@ static bool move(void* ped){
     }
     return true;
 }
+static bool drawApproach(Officer& officer,void* ped){
+    auto* h=hierarchy(ped);
+    if(!h||!h->nodes||!h->matrices||!matrix(ped))return false;
+    auto& binding=officer.approachLegs;
+    if(h->nodes!=officer.approachNodes||h->num!=binding.count){
+        static const std::vector<int16_t> tags={1,2,3,5,22,23,32,33,41,42,43,44,51,52,53,54};
+        if(!binding.init(h->nodes,h->num,tags))return false;
+        if(officer.approachNodes)officer.pose.reset();
+        officer.approachNodes=h->nodes;
+        officer.approachPos=position(ped);
+        officer.approachFrame=~0u;
+        officer.approachPhase=0;
+    }
+    const V pos=position(ped),direction=flat(officer.hide-pos);
+    const auto* body=matrix(ped);
+    const unsigned dir=armed_step::sector(dot(direction,flat(body->right)),dot(direction,flat(body->up)));
+    const char* key=armed_step::clip(true,dir);
+    const auto meta=clipMeta(officer.pose,ped,key);
+    if(!(meta.duration>0&&meta.moverSpeed>.05f))return false;
+    const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
+    if(frame!=officer.approachFrame){
+        const V travelled=pos-officer.approachPos;
+        if(frame-officer.approachFrame<=2 && finite(travelled)&&length(travelled)<.8f){
+            const float forward=std::max(0.f,dot(travelled,direction));
+            officer.approachPhase=std::fmod(officer.approachPhase+forward/(meta.duration*meta.moverSpeed),1.f);
+        }
+        officer.approachFrame=frame;officer.approachPos=pos;
+    }
+    float info[2]{};
+    if(nm_locomotion_clip_pose_masked(combat,officer.pose.reader,key,officer.approachPhase,
+       officer.pose.rows.data(),h->num,info,0x600)!=1)return false;
+    // CPed already consumed the horizontal displacement. Keep its root and
+    // gun task's upper body while the legs step towards the wall.
+    const float weight=smooth(float(gameTime()-officer.since)*.008f);
+    return armed_step::legs(binding,officer.pose.rows.data(),*body,h->matrices,weight);
+}
 static bool draw(void* ped){
     if(officers.empty())return false;
     const auto found=officers.find(reference(ped));
@@ -332,8 +376,7 @@ static bool draw(void* ped){
     switch(officer.phase){
         case Phase::Approach:
             motion=Motion::Walk;
-            authored=drawClip(officer.pose,ped,"move_player/run",elapsed,Clip::Loop,
-                .75f*smooth((length(officer.hide-position(ped))-.72f)/.45f));
+            authored=drawApproach(officer,ped);
             break;
         case Phase::Enter:
             motion=Motion::Entry;

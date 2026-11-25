@@ -8,6 +8,7 @@ use iso_data::xex;
 #[path = "../compatibility/canonical_body.rs"]
 mod canonical_body;
 mod combat_resources;
+mod iso_pose_banks;
 mod iv_deformation;
 mod melee_audio;
 pub use melee_audio::import_melee_audio;
@@ -250,6 +251,7 @@ fn import(root: &Path, cache: &Path, iso: &Path) -> Result<(), String> {
         combat_resources::import(&disc,&key,&staging.join("combat"))?;
         sa_gym_resources::import(root,&staging.join("combat"))?;
         combat_resources::seal(&staging.join("combat"))?;
+        iso_pose_banks::import(root,&staging,&disc,&key)?;
         if let Err(error) = write_vehicle_handling(&staging, &disc, &key) {
             eprintln!("vehicle handling: {error}");
         }
@@ -333,16 +335,25 @@ pub fn prepare_with_iso(root: &Path, supplied_iso: Option<&Path>) -> Result<&'st
             let needs_weapons=!cache.join(WEAPON_INFO).is_file()||!cache.join("injured").is_dir()
                 ||COVER_DICTIONARIES.iter().any(|name| !cache.join("cover").join(name).is_file());
             let needs_handling=!cache.join(VEHICLE_HANDLING).is_file();
-            if needs_weapons||needs_handling {
+            let needs_pose_banks=!iso_pose_banks::ready(&cache);
+            if needs_weapons||needs_handling||needs_pose_banks {
                 let located = supplied_iso.map(Path::to_path_buf).or_else(|| iso_path(root).ok());
                 if let Some(iso) = located {
                     if needs_weapons {
                         if let Err(error) = import_weapon_info(&cache, &iso) { eprintln!("weaponinfo: {error}"); }
                     }
-                    if needs_handling {
-                        if let Err(error) = supported_disc(&iso)
-                            .and_then(|(disc,_,key)|write_vehicle_handling(&cache,&disc,&key)) {
-                            eprintln!("vehicle handling: {error}");
+                    if needs_handling || needs_pose_banks {
+                        if let Ok((disc,_,key)) = supported_disc(&iso) {
+                            if needs_handling {
+                                if let Err(error) = write_vehicle_handling(&cache,&disc,&key) {
+                                    eprintln!("vehicle handling: {error}");
+                                }
+                            }
+                            if needs_pose_banks {
+                                if let Err(error) = iso_pose_banks::import(root,&cache,&disc,&key) {
+                                    eprintln!("pose banks: {error}");
+                                }
+                            }
                         }
                     }
                 }

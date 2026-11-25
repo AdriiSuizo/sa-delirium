@@ -14,7 +14,7 @@ namespace SAPortable {
         const string SilentLoader = "c33e1bafafd441b42eaa6d322393b9dd700f8a9c13fb2e7780daf49707a46353";
         const string OriginalVorbis = "a08923479000cec366967fb8259e0920b7aa18859722c7dda1415726bed4774f";
         static readonly string[] Core = { Settings, Adapter, "scripts/sa_delirium_bootstrap.dll",
-            "scripts/sa_delirium_bootstrap_avx2.dll" };
+            "scripts/sa_delirium_bootstrap_avx2.dll", "scripts/IVDriverPose.asi" };
 
         public static bool NativeCompatible(EditionReport edition) {
             if (edition == null || !edition.accepted) return false;

@@ -114,9 +114,37 @@ source = replace_once(source, '#include "BodyContacts.hpp"',
                       'static void vehicleLabObserveHullLoad(void*, V, V);\n'
                       'static void* activeCamera();\n'
                       '#include "BodyContacts.hpp"\n' + speed_probe_define +
-                      '#include "VehicleLab.hpp"\nnamespace vehicle_entry_probe {static void tick();}')
+                      'static int combatWeapon(void*);\n'
+                      '#include "VehicleLab.hpp"\n'
+                      '#include "VehicleWeaponSelection.hpp"\n'
+                      'extern "C" __declspec(dllexport) int __cdecl DeliriumVehicleAimPose(void* ped,void* car,float* direction,float* blend){\n'
+                      '    return ready&&ped&&car&&direction&&blend&&drive_by_controls::vehicleAimPose(ped,car,direction,blend);\n'
+                      '}\n'
+                      'static bool drawVehicleAim(void* ped,int ref){\n'
+                      '    if(ped!=player()||!inVehicle(ped)||agents.contains(ref)||pending.contains(ref))return false;\n'
+                      '    auto* car=at<void*>(ped,0x58C);\n'
+                      '    float direction[3]{},blend=0;\n'
+                      '    if(!DeliriumVehicleAimPose(ped,car,direction,&blend))return false;\n'
+                      '    using ApplyPose=int(__cdecl*)(void*,void*,const float*,float,float);\n'
+                      '    static ApplyPose apply=nullptr;\n'
+                      '    if(!apply){\n'
+                      '        if(auto module=GetModuleHandleW(L"IVDriverPose.asi"))\n'
+                      '            apply=reinterpret_cast<ApplyPose>(GetProcAddress(module,"IVApplyVehicleAimPose"));\n'
+                      '    }\n'
+                      '    return apply&&apply(ped,car,direction,blend,drive_by_controls::vehicleThrowPhase())!=0;\n'
+                      '}\n'
+                      '#include "MountedWeaponModel.hpp"\n'
+                      '#include "PlayerPoseDraw.hpp"\n'
+                      'static unsigned player_pose_draw::frame(){return *reinterpret_cast<unsigned*>(0xB7CB4C);}\n'
+                      'namespace vehicle_entry_probe {static void tick();}')
 source = replace_once(source, 'reinterpret_cast<void*>(&processSuspension),',
                       'reinterpret_cast<void*>(&vehicleLabSuspension),')
+source = replace_once(source, '    if(ready){player_cover::sample();police_cover::tick();combatPrepare();}',
+                      '    if(ready){\n'
+                      '        vehicle_weapon_selection::tick();\n'
+                      '        drive_by_controls::shootingTick();\n'
+                      '        player_cover::sample();police_cover::tick();combatPrepare();\n'
+                      '    }')
 source = replace_once(source, '    if(MH_ApplyQueued()!=MH_OK)',
                       '    if(!vehicle_lab::install(sharedCore)){status="vehicle_lab_hook_failed";event(status);return 0;}\n'
                       '    if(MH_ApplyQueued()!=MH_OK)')

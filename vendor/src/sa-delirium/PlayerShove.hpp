@@ -31,7 +31,8 @@ static void tickPlayerShove(float dt){
         const int capture=DeliriumSA_ProbeFrame();shoveFrames.erase(shoveFrames.begin());
         event("probe_shove_frame",shovePlayer,0,"clip="+std::to_string(shoveClip)+" result="+std::to_string(capture));
     }
-    const bool cancel=!combatAllowed()||!validPed(player(),false,false,true)||agents.contains(reference(player()))||combatOwns(player())||reference(player())!=shovePlayer;
+    const bool cancel=!combatAllowed()||!validPed(player(),false,false,true)||agents.contains(reference(player()))||combatOwns(player())||reference(player())!=shovePlayer||
+        (shoveClip&&native_stealth::ownsPose(player()));
     const int previous=shoveClip;shoveClip=nm_combat_shove_step(combat,cancel?-1.f:dt);
     if(shoveClip<0){ok(shoveClip);shoveClip=0;}
     if(previous&&!shoveClip){event("player_shove_finished",shovePlayer,0);shoveRig.reset();}

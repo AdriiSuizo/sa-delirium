@@ -497,7 +497,7 @@ namespace SAPortable {
             if (!Manifest.unified || !Solo.NativeCompatible(edition)) throw new IOException("Solo Delirium requiere un GTA SA 1.0 US con el ejecutable compatible.");
             iso = Path.GetFullPath(iso);
             Paths.NoLinks(iso);
-            foreach (var path in new[] { "models/gta3.img", "data/melee.dat" })
+            foreach (var path in new[] { "models/gta3.img", "data/melee.dat", "data/animgrp.dat", "anim/ped.ifp" })
                 if (!File.Exists(Paths.Inside(edition.folder, path)))
                     throw new IOException("Solo Delirium necesita leer " + path + " de tu San Andreas.");
             var bootstrap = Paths.Inside(tools, "sa-delirium-bootstrap.exe");
@@ -535,7 +535,7 @@ namespace SAPortable {
 
         void ImportMeleeAudio(string bootstrap, string prepared, string iso) {
             var decoder = Paths.Inside(tools, "vgmstream/vgmstream-cli.exe");
-            Progress(0, 0, "Importando sonidos de golpes y bate de tu ISO…");
+            Progress(0, 0, "Importando sonidos de golpes, bate e impactos de tu ISO…");
             Run(bootstrap, "--import-melee " + Quote(prepared) + " " + Quote(iso) + " " + Quote(decoder),
                 Paths.Inside(prepared,"iso-melee.log"), "la importación de sonidos de GTA IV", showToolError:true);
         }

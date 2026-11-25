@@ -230,6 +230,12 @@ impl Stamina {
         }
     }
 }
+// The crouched dictionary has idle, walk and run. Cap before splitting weights
+// so a sprint input still contributes a full run stride in this posture.
+fn supported_ratio(ratio: f32, set: usize) -> f32 {
+    if set == CROUCHED { ratio.min(2.0) } else { ratio }
+}
+
 impl Clips<'_> {
     pub fn speed_at(&self, ratio: f32, set: usize, slope: i16, col: f32) -> f32 {
         self.gait_parts(ratio, set, slope, col).iter().map(|(c, w)| c.speed * w).sum()
@@ -237,7 +243,7 @@ impl Clips<'_> {
     fn gait_parts(&self, ratio: f32, set: usize, slope: i16, col: f32) -> Vec<(&Clip, f32)> {
         let col = col.clamp(0.0, 6.0);
         let (i, f) = (col.floor() as usize, col.fract());
-        animblend::split_ratio(ratio).into_iter().filter(|s| s.0 >= 0).flat_map(|(s, w)| {
+        animblend::split_ratio(supported_ratio(ratio, set)).into_iter().filter(|s| s.0 >= 0).flat_map(|(s, w)| {
             let gait = GAITS[(s as usize).min(3)];
             [(self.grid_clip(gait, set, slope, i), w * (1.0 - f)), (self.grid_clip(gait, set, slope, (i + 1).min(6)), w * f)]
         }).filter_map(|(c, w)| Some((c?.0, w))).filter(|p| p.1 > 0.0).collect()
@@ -256,7 +262,7 @@ impl Clips<'_> {
     }
     fn turn_rates(&self, ratio: f32, set: usize, slope: i16) -> [f32; 7] {
         let mut rates = [0.0; 7];
-        for (s, w) in animblend::split_ratio(ratio).into_iter().filter(|s| s.0 > 0) {
+        for (s, w) in animblend::split_ratio(supported_ratio(ratio, set)).into_iter().filter(|s| s.0 > 0) {
             let gait = GAITS[(s as usize).min(3)];
             for (k, r) in rates.iter_mut().enumerate() {
                 let Some((c, false)) = self.grid_clip(gait, set, slope, k) else { continue };
@@ -534,13 +540,13 @@ fn gait_ratio(ratio: f32, state: f32) -> f32 {
     if ratio > 0.0 && ratio <= 1.0 && state >= 2.0 { 1.0 } else { ratio }
 }
 
-fn gait_step(clips: &Clips, ratio: f32, col: f32, phase: f32, set: usize, slope: i16, dt: f32) -> f32 {
+fn gait_step(clips: &Clips, ratio: f32, col: f32, phase: f32, set: usize, slope: i16, dt: f32) -> Result<f32, String> {
     let mut synced: Vec<animblend::Player> = clips.gait_parts(ratio, set, slope, col).into_iter()
         .map(|(c, w)| animblend::Player { phase, weight: w, active: true, loops: true, synced: true, playing: true,
                                           ..animblend::Player::new(c.anim.duration) })
         .collect();
     animblend::sync_phases(&mut synced, dt);
-    synced[0].phase
+    synced.first().map(|clip| clip.phase).ok_or_else(|| "no weighted gait animation".into())
 }
 
 fn gait_left(p: &mut Player, dt: f32) {

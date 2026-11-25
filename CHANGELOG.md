@@ -1,5 +1,50 @@
 # Historial / Changelog
 
+## 0.6.0 · locomoción de NPCs con 15 perfiles, poses y disparos GTA IV desde vehículos, cobertura mejorada, sigilo nativo, rifles a distancia, recuperación y audio de caídas / 15-profile NPC locomotion, GTA IV vehicle drive-by poses, improved cover, native stealth, long-range rifles, recovery & CJ fall audio
+
+### Español
+
+- **Locomoción de peatones GTA IV con 15 perfiles y paso armado (`NpcGait*`, `NpcStride`, `NpcFootwearHost`, `ArmedStep*`, `VisibleLegPose`)**:
+  - 115 clips de GTA IV retargeteados sobre 21 articulaciones en 15 perfiles (civiles, mayores, corpulentos, bandas, policías, SWAT, negocios, etc.) con zancada, giros, frenadas y altura de suela adaptadas a cada modelo (incluidos skins originales y reemplazos).
+  - Caminar/correr apuntando en 8 direcciones con CJ y NPCs, re-aplicando las piernas antes del render para evitar piernas congeladas mientras se preservan torso, manos y apuntado.
+- **Disparos y lanzamientos estilo GTA IV desde coches y motos (`IVDriverPose.asi`, `DriveByAim`, `DriveByControls`, `MountedDraw`, `MountedWeaponModel`, `MountedWeaponPass`, `VehicleWeaponSelection`, `PlayerPoseDraw`)**:
+  - Nuevo complemento x86 `IVDriverPose.asi` (enlazado con CRT estático `/MT`) con 24 perfiles de asiento y 96 clips originales de apuntado, entrada, salida y lanzamiento en coches y motos.
+  - Corrige el brazo atravesando el torso, sincroniza el modelo del arma visible en la mano (compatible con SilentPatch), permite seleccionar pistolas/subfusiles/granada/molotov del inventario y evita disparos dobles de la rutina nativa.
+- **Movimiento de CJ y asesinato sigiloso nativo (`sa-combat/locomotion*`, `NikoMovement`, `NativeStealth`)**:
+  - Corrige el cierre/pánico al pulsar sprint desde cuclillas (`supported_ratio` limitado al rango agachado y `gait_step` seguro) manteniendo el fade-out rápido de `wstart` (~0,25 s) y `wstop` inmediato.
+  - Mejora la transición al soltar apuntado o salir de cobertura (`nikoHandoffPose` + mezcla en espacio local articular) respetando caminata con teclado o inclinación suave del mando.
+  - Reconoce el asesinato sigiloso nativo con cuchillo (agachado y de pie) cediendo limpiamente pose, empujes y físicas durante la secuencia emparejada.
+- **Cobertura de CJ y NPCs armados (`PlayerCover`, `CoverPosture`, `CoverSkin`, `PoliceCover`)**:
+  - Corrige la postura agachada en cobertura baja, la comprobación de espacio/apertura en esquinas y la entrega de pose al render.
+  - Extiende la cobertura policial a otros NPCs ambientales armados con pasos visibles al acercarse y comprobaciones al perder el blanco.
+- **Daño, rifles a distancia, recuperación y audio de caídas de CJ (`Adapter`, `CombatHealth`, `CombatRuntime`, `RifleCollisionRegions`, `Recovery`, `NpcRecoverySpace`, `CjRecovery*`, `PlayerHighFall`, `CjHighFall`, `BodyAudio`, `IvSampleAudio`, `CjGroundAudioGate`, `InjuredMove`)**:
+  - Los rifles `33`/`34` activan ragdoll a distancia con regiones de colisión locales alrededor de la víctima confirmada.
+  - Corrige el daño de bastón/porra a la cabeza de CJ (elimina el multiplicador crítico ×4 de NPCs).
+  - La levantada de CJ ya no se reinicia por disparos no letales durante el ragdoll, acorta esperas/mezclas de recuperación y comprueba espacio alrededor de paredes o vehículos para NPCs.
+  - Umbral de caída de CJ en `4,5 m` (`[Player] HighFallMinDropMeters`), ajuste de la variante de cojera del 50 % al 60 % y 12 muestras de impacto corporal de GTA IV (`cj-ground-audio/body01..13.wav`).
+- **Generación 100 % automática desde la ISO de Xbox 360 (`sa-delirium-bootstrap`, `Solo`, `PortableCore`)**:
+  - `sa-delirium-bootstrap` ahora genera automáticamente en el equipo del usuario `DriverPoses.bin`, `NPCGait.bin`, `NPCMovers.dat` y los 12 WAV de `cj-ground-audio` directamente desde su ISO de GTA IV para Xbox 360 (USA y Europa/Asia) y su copia de GTA SA, tanto en instalación completa como en *Solo Delirium*, e incluye `IVDriverPose.asi` en ambos modos.
+  - Mantiene todos los arreglos de estabilidad e instalador de `0.5.1` (guarda `CBuilding` en `frictionStructureOther`, validación tras `VehicleDamage`, sangre solo con daño positivo, diagnóstico de integridad con SHA-256 y protección `E_NOTIMPL` en accesos directos).
+
+### English
+
+- **15-Profile GTA IV NPC Locomotion & Armed Stride (`NpcGait*`, `NpcStride`, `NpcFootwearHost`, `ArmedStep*`, `VisibleLegPose`)**:
+  - 115 retargeted GTA IV locomotion clips across 21 joints and 15 pedestrian profiles (civilians, elders, heavy peds, gangs, cops, SWAT, business, etc.) with model-aware stride curves, turns, stops, and sole height alignment.
+  - 8-way armed walk/run strafing for CJ and NPCs, re-applying leg pose before render to prevent frozen legs while keeping torso, hands, and aim intact.
+- **GTA IV Vehicle Drive-By Poses & Weapon Sync (`IVDriverPose.asi`, `DriveByAim`, `DriveByControls`, `MountedDraw`, `MountedWeaponModel`, `MountedWeaponPass`, `VehicleWeaponSelection`, `PlayerPoseDraw`)**:
+  - New static-CRT (`/MT`) x86 helper `IVDriverPose.asi` using 24 seat profiles and 96 GTA IV aim/entry/exit/throw clips across cars and motorcycles.
+  - Fixes torso-clipping arms, keeps the equipped weapon visible in hand (including with SilentPatch), supports inventory cycling across pistols/SMGs/grenade/molotov, and prevents duplicate native firing.
+- **CJ Locomotion & Native Knife Stealth (`sa-combat/locomotion*`, `NikoMovement`, `NativeStealth`)**:
+  - Fixes the crash/panic when sprinting from crouch (`supported_ratio` cap for crouched clips + fallible `gait_step`) while keeping the crisp ~0.25 s `wstart` fade-out and immediate `wstop`.
+  - Smooth joint-local handoff (`nikoHandoffPose`) returning from aim or cover while respecting keyboard walk and gentle analog stick input.
+  - Yields IV movement, shoves, and physics cleanly during SA's paired knife stealth kill (standing and crouched).
+- **Improved Cover for CJ & Armed NPCs (`PlayerCover`, `CoverPosture`, `CoverSkin`, `PoliceCover`)**:
+  - Fixes crouched low-cover posture, corner clearance checks, and render handoff for CJ, and extends police cover to other armed ambient NPCs with visible approach steps.
+- **Long-Range Rifles, Recovery, Baton Fix & CJ Ground Audio (`Adapter`, `CombatHealth`, `CombatRuntime`, `RifleCollisionRegions`, `Recovery`, `NpcRecoverySpace`, `CjRecovery*`, `PlayerHighFall`, `CjHighFall`, `BodyAudio`, `IvSampleAudio`, `CjGroundAudioGate`, `InjuredMove`)**:
+  - Rifles `33`/`34` trigger distant ragdolls with local collision regions around confirmed hits; removes the NPC 4× head critical multiplier on CJ from nightsticks/batons; prevents non-lethal shots from resetting CJ's getup; improves NPC obstacle-aware getup around walls/cars; sets CJ's default high-fall threshold to `4.5 m` (`[Player] HighFallMinDropMeters`), raises limp variant selection to 60%, and adds 12 GTA IV `BODYFALL_BODY` ground-impact samples.
+- **Automatic Xbox 360 ISO Generation & Full/Solo Installer Support (`sa-delirium-bootstrap`, `Solo`, `PortableCore`)**:
+  - `sa-delirium-bootstrap` generates `DriverPoses.bin`, `NPCGait.bin`, `NPCMovers.dat`, and all 12 `cj-ground-audio` WAVs locally from the user's GTA IV Xbox 360 ISO (USA & Europe/Asia) and SA files, bundling `IVDriverPose.asi` in both Full and *Solo Delirium* modes while retaining all `0.5.1` safety and installer diagnostic fixes.
+
 ## 0.5.1 · pulido de inicio/parada con Alt, mando al soltar apuntado, seguridad de memoria/punteros y diagnóstico del instalador / Alt walk start/stop polish, gamepad aim-release walk, pointer/memory safety & installer diagnostics
 
 ### Español

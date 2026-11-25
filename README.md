@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.5.1-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.6.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -47,16 +47,17 @@ SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
 
-## Novedades y correcciones en 0.5.1
+## Novedades y correcciones en 0.6.0
 
-- **Inicio y parada al caminar con `Alt` más limpios**: reduce el fade-out al terminar `wstart`/`runstart` de `1,0 s` a `~0,25 s` y permite disparar `wstop` de inmediato al soltar la tecla sin arrastrar una pose congelada sobre la caminata.
-- **Control por teclado y mando más preciso**: evita sondeos duplicados de `Caps Lock`/`Alt` y `XInput` en el mismo fotograma, y mantiene la caminata al soltar el apuntado si inclinas suavemente el stick del mando (`<= 0.65`).
-- **Mayor seguridad en colisiones y golpes a vehículos**: protege `frictionStructureOther` frente a lecturas fuera de límites en `CBuilding` (`0x38` bytes), valida el puntero del vehículo tras `CVehicle::VehicleDamage` y genera sangre cuerpo a cuerpo solo cuando existe daño real (`harm > 0`).
-- **Instalador más robusto y claro**: mejora el diagnóstico si el `.exe` se descarga corrupto o incompleto (mostrando tamaño y SHA-256 real vs esperado de `portable-tools.zip`), protege la lectura de accesos directos preexistentes ante errores `E_NOTIMPL` de `WScript.Shell` en instalación y restauración, y unifica la protección de misiones en `GravityControl`.
+- **Locomoción GTA IV para NPCs (15 perfiles)**: 115 clips retargeteados sobre 21 articulaciones con longitud de zancada, apoyo de pies/suelas adaptado a cada modelo, pasos al apuntar en 8 direcciones y corrección de piernas inmóviles.
+- **Disparos y lanzamientos GTA IV desde coches y motos (`IVDriverPose.asi`)**: 24 perfiles de asiento y 96 clips originales, corrección del brazo que atravesaba el torso, arma visible en la mano (compatible con SilentPatch) y sincronización del disparo con la munición.
+- **Movimiento de CJ, sigilo y cobertura mejorados**: arreglado el cierre al correr desde cuclillas, transición suave al dejar de apuntar o salir de cobertura, compatibilidad con el asesinato sigiloso nativo con cuchillo, postura agachada y esquinas para CJ, y extensión de la cobertura policial a otros NPCs armados con pasos visibles al acercarse.
+- **Daño, rifles a distancia, recuperación y audio de impactos**: ragdoll con rifles (`33`/`34`) a distancia con geometría local, corrección del daño de bastón a la cabeza de CJ (ya no mata de 1 golpe), levantada sin reinicio por disparos no letales, recuperación de NPCs junto a paredes/vehículos, umbral de caída de CJ en `4,5 m`, cojera ajustada al 60 % y 12 sonidos de impacto contra el suelo de GTA IV.
+- **Preparación automática desde la ISO de Xbox 360 y base 0.5.1**: el instalador (tanto completo como *Solo Delirium*) incluye `IVDriverPose.asi` y genera automáticamente `DriverPoses.bin`, `NPCGait.bin`, `NPCMovers.dat` y `cj-ground-audio` desde tu ISO de GTA IV para Xbox 360 y tu copia de San Andreas, conservando todos los arreglos de `0.5.1` (fade-out `wstart`/`wstop`, `frictionStructureOther`, `VehicleDamage`, diagnóstico de integridad y `E_NOTIMPL`).
 
-### Resumen de 0.5.0, 0.4.8–0.4.9 y base 0.4.0–0.4.7
+### Resumen de 0.5.0–0.5.1, 0.4.8–0.4.9 y base 0.4.0–0.4.7
 
-Esta base mantiene todas las novedades y correcciones de **0.5.0**, **0.4.9**, **0.4.8**, **0.4.7**, **0.4.6** y **0.4.0** (ver [historial](CHANGELOG.md) para el detalle completo):
+Esta base mantiene todas las novedades y correcciones de **0.5.1**, **0.5.0**, **0.4.9**, **0.4.8**, **0.4.7**, **0.4.6** y **0.4.0** (ver [historial](CHANGELOG.md) para el detalle completo):
 
 - **Estabilidad y mejoras de 0.5.0**: golpes a vehículos sin crashes (`R6025`/`CReference`) con daño, abolladura en tiempo real (`dentMap`) y audio nativo; movimiento GTA IV en gimnasios e interiores (`authoredMissionProtected()`); subir a capós/techos sin empuje y rozamiento lateral sin frenado; continuidad al soltar apuntado en armas de 1 mano; contraataques con audio y sangre a la altura del pecho; y suspensión/estabilidad mejoradas en coches bajos.
 
@@ -197,7 +198,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.5.1-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.6.0-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -229,18 +230,21 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ---
 
-## English — SA Delirium 0.5.1
+## English — SA Delirium 0.6.0
 
 **SA Delirium** brings GTA IV-inspired character physics (Euphoria/NaturalMotion reimplementation), melee and firearm combat, cover mechanics, and vehicle handling/deformation to classic PC **GTA San Andreas** (Steam AppID 12120 or PC 1.0 US).
 
-### What's New in 0.5.1
+### What's New in 0.6.0
 
-- **Crisper `Alt` Walk Start & Immediate `wstop`**: Shortens completed `wstart`/`runstart` fade-out from `1.0 s` to `~0.25 s` and stops counting completed fading-out start clips as active starts, removing the 1-second frozen-pose blend over `move_player/walk` and allowing immediate `wstop` transitions on walk release.
-- **Cleaner Keyboard/Gamepad Input & Analog Aim-Release Walk**: Polls `XInput` and `Caps Lock`/`Alt` walk state at most once per frame, and preserves walk pace when releasing firearm aim with a gentle gamepad stick tilt (`<= 0.65`) instead of forcing a jog.
-- **Memory & Pointer Safety in Collisions and Vehicle Strikes**: Guards `frictionStructureOther` by entity type before reading `CPhysical` fields (preventing out-of-bounds reads on `0x38`-byte `CBuilding` entities), re-validates the vehicle handle immediately after `CVehicle::VehicleDamage`, and spawns melee blood only when actual damage is dealt (`harm > 0`).
-- **Clearer Installer Integrity Errors & `E_NOTIMPL` Shortcut Safety**: Reports exact byte size and actual vs expected `portable-tools.zip` SHA-256 on corrupted/incomplete installer downloads, protects pre-existing `SA Delirium.lnk` target reads against `WScript.Shell` `E_NOTIMPL` during both install and restore, and aligns `GravityControl` with `authoredMissionProtected()`.
+- **15-Profile GTA IV NPC Locomotion & Armed Stride**: 115 retargeted IV clips across 21 joints with model-adapted stride curves, sole alignment, 8-way armed steps, and frozen-leg fixes.
+- **GTA IV Vehicle Drive-By Poses (`IVDriverPose.asi`)**: 24 seat profiles and 96 IV clips for cars and motorcycles, fixing arm-through-torso clipping, keeping the equipped weapon visible in hand (SilentPatch-compatible), and synchronizing firing with native ammo.
+- **CJ Locomotion, Native Stealth & Cover Upgrades**: Fixes crouch-to-sprint crashes, refines aim/cover exit handoff, supports SA's native paired knife stealth kill, fixes crouched/corner cover posture for CJ, and extends police cover to other armed ambient NPCs with visible approach steps.
+- **Long-Range Rifles, Recovery, Baton Fix & CJ Fall Audio**: Enables long-range rifle (`33`/`34`) ragdolls with local collision regions, removes the 4× NPC baton head-crit on CJ, stops non-lethal shots from resetting CJ's getup, improves NPC recovery near walls/vehicles, sets CJ's default high-fall threshold to `4.5 m`, tunes limp variant to 60%, and adds 12 GTA IV ground-impact audio samples.
+- **Automatic Xbox 360 ISO Asset Generation & 0.5.1 Safety Base**: Generates `DriverPoses.bin`, `NPCGait.bin`, `NPCMovers.dat`, and `cj-ground-audio` automatically from the owner's GTA IV Xbox 360 ISO (USA & Europe/Asia) and SA files in both Full and *Solo Delirium* modes, keeping all `0.5.1` safety and installer diagnostic fixes.
 
-### Highlights from 0.4.0–0.5.0
+### Highlights from 0.4.0–0.5.1
+
+- **0.5.1 Polish & Safety**: Crisp ~0.25 s `wstart` fade-out & immediate `wstop`, `CBuilding` OOB guard in `frictionStructureOther`, post-`VehicleDamage` pointer check, positive-damage melee blood guard, actionable installer integrity diagnostics, and `E_NOTIMPL` shortcut-reader protection.
 
 - **Deep Fixes & Stability (0.5.0 & 0.4.9)**: Crash-free vehicle melee strikes (`CleanUpOldReference` + driver/passenger matrix validation, real-time `dentMap` deformation, car-surface SFX), GTA IV movement inside gyms and interiors (`authoredMissionProtected()`), jumping onto car roofs without shove-back, no wall-grazing slowdown, 1-handed aim-release jog continuity, chest-level blood & audio on counterattacks, and low-car SA suspension (`ABI v11`, `rest_bias`, anti-roll, progressive bump stops).
 
@@ -250,7 +254,7 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ### Installation & Restore
 
-1. Download **[SA-Delirium-0.5.1-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+1. Download **[SA-Delirium-0.6.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
 2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
 3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
 4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.

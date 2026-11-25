@@ -5,13 +5,29 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const BANK: &str = "231498DE/3B8F078A"; // RESIDENT/MELEE
-const SAMPLES: [(&str, u32); 5] = [
+const MELEE_BANK: &str = "231498DE/3B8F078A"; // RESIDENT/MELEE
+const MELEE_SAMPLES: [(&str, u32); 5] = [
     ("bat.wav", 0x92e28aa7),   // WOODEN_BAT_PED
     ("fist2.wav", 0xbe8971d2), // FIST_2
     ("fist3.wav", 0x90329525), // FIST_3
     ("fist5.wav", 0x666a4191), // FIST_5
     ("face1.wav", 0x3c9c3eea), // FACE_1
+];
+
+const COLLISIONS_BANK: &str = "231498DE/9644F744"; // RESIDENT/COLLISIONS
+const CJ_GROUND_SAMPLES: [(&str, u32); 12] = [
+    ("body01.wav", 0x292d6225), // BODY_1
+    ("body02.wav", 0x3b7906c0), // BODY_2
+    ("body03.wav", 0x05349a34), // BODY_3
+    ("body05.wav", 0x203e506f), // BODY_5
+    ("body06.wav", 0x3277f4e2), // BODY_6
+    ("body07.wav", 0xfd8f8b12), // BODY_7
+    ("body08.wav", 0x0fd62f9f), // BODY_8
+    ("body09.wav", 0xd6f13dd6), // BODY_9
+    ("body10.wav", 0x256a71a0), // BODY_10
+    ("body11.wav", 0x5d4f6169), // BODY_11
+    ("body12.wav", 0xf01806fc), // BODY_12
+    ("body13.wav", 0x49e4ba94), // BODY_13
 ];
 
 fn sample_index(bank: &[u8], hash: u32) -> Option<usize> {
@@ -67,45 +83,55 @@ fn valid_wave(path: &Path) -> bool {
     false
 }
 
-/// Import short melee effects locally from the owner's disc using vgmstream-cli.
-pub fn import_melee_audio(root: &Path, iso: &Path, decoder: &Path) -> Result<(), String> {
-    let cache =
-        fs::canonicalize(root.join(CACHE)).map_err(|e| format!("CachÃ© de Delirium: {e}"))?;
-    let destination = cache.join("melee-audio");
+fn import_bank_samples(
+    cache: &Path,
+    folder: &str,
+    bank_rpf_path: &str,
+    bank_file: &str,
+    samples: &[(&str, u32)],
+    disable_loop: bool,
+    disc: &delirium_data::disc::Disc,
+    key: &delirium_data::archive_key::ArchiveKey,
+    decoder: &Path,
+) -> Result<(), String> {
+    let destination = cache.join(folder);
     if destination.exists() {
-        return if SAMPLES
+        return if samples
             .iter()
             .all(|(name, _)| valid_wave(&destination.join(name)))
         {
             Ok(())
         } else {
-            Err("La carpeta melee-audio ya existe y contiene muestras invÃ¡lidas".into())
+            Err(format!(
+                "La carpeta {folder} ya existe y contiene muestras inválidas"
+            ))
         };
     }
-    let decoder = fs::canonicalize(decoder).map_err(|e| format!("vgmstream-cli: {e}"))?;
-    let (disc, _, key) = supported_disc(iso)?;
-    let bank = archive_file(&disc, &key, "xbox360/audio/sfx/resident.rpf", BANK)?;
+    let bank = archive_file(disc, key, "xbox360/audio/sfx/resident.rpf", bank_rpf_path)?;
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_nanos();
-    let staging = cache.join(format!(".melee-audio-{}-{stamp}", std::process::id()));
+    let staging = cache.join(format!(".{folder}-{}-{stamp}", std::process::id()));
     fs::create_dir(&staging).map_err(|e| e.to_string())?;
     let result = (|| {
-        let bank_path = staging.join("melee.ivaud");
+        let bank_path = staging.join(bank_file);
         fs::write(&bank_path, &bank).map_err(|e| e.to_string())?;
-        for (name, hash) in SAMPLES {
+        for &(name, hash) in samples {
             let index = sample_index(&bank, hash)
                 .ok_or_else(|| format!("Falta la muestra de GTA IV {name}"))?;
             let path = staging.join(name);
-            let mut command = Command::new(&decoder);
+            let mut command = Command::new(decoder);
+            command.current_dir(&staging);
+            if disable_loop {
+                command.arg("-i");
+            }
             command
-                .current_dir(&staging)
                 .arg("-s")
                 .arg(index.to_string())
                 .arg("-o")
                 .arg(name)
-                .arg("melee.ivaud");
+                .arg(bank_file);
             #[cfg(windows)]
             {
                 use std::os::windows::process::CommandExt;
@@ -128,4 +154,50 @@ pub fn import_melee_audio(root: &Path, iso: &Path, decoder: &Path) -> Result<(),
         let _ = fs::remove_dir_all(&staging);
     }
     result
+}
+
+/// Import short melee and CJ ground-impact effects locally from the owner's disc using vgmstream-cli.
+pub fn import_melee_audio(root: &Path, iso: &Path, decoder: &Path) -> Result<(), String> {
+    let cache =
+        fs::canonicalize(root.join(CACHE)).map_err(|e| format!("Caché de Delirium: {e}"))?;
+    let melee_ready = cache.join("melee-audio").is_dir()
+        && MELEE_SAMPLES
+            .iter()
+            .all(|(name, _)| valid_wave(&cache.join("melee-audio").join(name)));
+    let ground_ready = cache.join("cj-ground-audio").is_dir()
+        && CJ_GROUND_SAMPLES
+            .iter()
+            .all(|(name, _)| valid_wave(&cache.join("cj-ground-audio").join(name)));
+    if melee_ready && ground_ready {
+        return Ok(());
+    }
+    let decoder = fs::canonicalize(decoder).map_err(|e| format!("vgmstream-cli: {e}"))?;
+    let (disc, _, key) = supported_disc(iso)?;
+    if !melee_ready {
+        import_bank_samples(
+            &cache,
+            "melee-audio",
+            MELEE_BANK,
+            "melee.ivaud",
+            &MELEE_SAMPLES,
+            false,
+            &disc,
+            &key,
+            &decoder,
+        )?;
+    }
+    if !ground_ready {
+        import_bank_samples(
+            &cache,
+            "cj-ground-audio",
+            COLLISIONS_BANK,
+            "collisions.ivaud",
+            &CJ_GROUND_SAMPLES,
+            true,
+            &disc,
+            &key,
+            &decoder,
+        )?;
+    }
+    Ok(())
 }
