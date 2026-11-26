@@ -1,0 +1,131 @@
+name: Build SA Delirium Solo Access test variant
+
+on:
+  push:
+    branches:
+      - fix/solo-access-denied-preflight-20261114
+    paths:
+      - '.github/workflows/release-solo-access-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  solo-access-variant:
+    runs-on: windows-2022
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile and run installer regression fixtures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $refs = @('/r:System.Web.Extensions.dll','/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.IO.Compression.dll','/r:System.IO.Compression.FileSystem.dll')
+          $sources = @('installer/SetupCore.cs','installer/portable/PortableCore.cs','installer/portable/Editions.cs','installer/portable/Standalone.cs','installer/portable/Solo.cs','installer/portable/PortableSetup.cs') | ForEach-Object { (Resolve-Path $_).Path }
+          $testSource = (Resolve-Path 'tests/PortablePackages.Tests.cs').Path
+          & $csc /nologo /target:exe /platform:x64 /optimize+ /codepage:65001 /main:PortablePackageTests $refs /out:portable-package-tests.exe ($sources + @($testSource))
+          if ($LASTEXITCODE -ne 0) { throw 'Test compilation failed' }
+          & .\portable-package-tests.exe (Join-Path $env:RUNNER_TEMP 'sa-solo-permission-tests')
+          if ($LASTEXITCODE -ne 0) { throw 'Installer regression fixtures failed' }
+
+      - name: Download and verify published 0.4.3 embedded resources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path old -Force | Out-Null
+          gh release download v0.4.3 --repo $env:GITHUB_REPOSITORY -p 'SA-Delirium-0.4.3-Setup.exe' -D old
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download original 0.4.3 setup' }
+          $old = (Resolve-Path -LiteralPath 'old/SA-Delirium-0.4.3-Setup.exe').Path
+          $actual = (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne 'e16346e573605d7b3cc9eaae7d1b87de69e0ff9e881d6298a8d44ec798a08812') { throw "Original 0.4.3 hash mismatch: $actual" }
+          if ((Get-Item $old).Length -ne 56803328) { throw 'Original 0.4.3 size mismatch' }
+
+      - name: Extract verified original release resources
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $assembly = [Reflection.Assembly]::LoadFrom((Resolve-Path 'old/SA-Delirium-0.4.3-Setup.exe').Path)
+          foreach ($name in @('portable-manifest.json','SteamLauncher.exe','portable-tools.zip')) {
+            if ($name -cnotin @($assembly.GetManifestResourceNames())) { throw "Original release missing resource: $name" }
+            $stream = $assembly.GetManifestResourceStream($name)
+            if ($null -eq $stream) { throw "Cannot read resource: $name" }
+            $file = [IO.File]::Create((Join-Path (Get-Location) $name))
+            try { $stream.CopyTo($file) }
+            finally { $file.Dispose(); $stream.Dispose() }
+          }
+          $manifest = Get-Content -LiteralPath 'portable-manifest.json' -Raw | ConvertFrom-Json
+          if ($manifest.version -ne '0.4.3' -or $manifest.lab_only) { throw 'Unexpected published manifest version' }
+          $toolsHash = (Get-FileHash 'portable-tools.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($toolsHash -ne $manifest.tools_sha256) { throw 'Original tools resource hash mismatch' }
+          $old = [IO.File]::ReadAllText((Resolve-Path 'portable-manifest.json').Path)
+          $updated = [regex]::Replace($old, '"version"\s*:\s*"0\.4\.3"', '"version": "0.4.3-solo-access-test.1"')
+          if ($updated -eq $old) { throw 'Could not set separate test version' }
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'portable-manifest.json'), $updated, [Text.UTF8Encoding]::new($false))
+
+      - name: Compile complete test installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $refs = @('/r:System.Web.Extensions.dll','/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.IO.Compression.dll','/r:System.IO.Compression.FileSystem.dll')
+          $sources = @('installer/SetupCore.cs','installer/portable/PortableCore.cs','installer/portable/Editions.cs','installer/portable/Standalone.cs','installer/portable/Solo.cs','installer/portable/PortableSetup.cs') | ForEach-Object { (Resolve-Path $_).Path }
+          $output = Join-Path (Get-Location) 'SA-Delirium-0.4.3-Solo-Access-Test1-Setup.exe'
+          $winManifest = (Resolve-Path 'installer/setup.manifest').Path
+          $args = @('/nologo','/target:winexe','/platform:x64','/optimize+','/codepage:65001') + $refs + @(
+            ('/win32manifest:' + $winManifest),
+            '/resource:portable-manifest.json,portable-manifest.json',
+            '/resource:SteamLauncher.exe,SteamLauncher.exe',
+            '/resource:portable-tools.zip,portable-tools.zip',
+            ('/out:' + $output)
+          ) + $sources
+          & $csc @args
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path $output)) { throw 'Installer compilation failed' }
+          $asm = [Reflection.Assembly]::LoadFrom($output)
+          foreach ($name in @('portable-manifest.json','SteamLauncher.exe','portable-tools.zip')) {
+            if ($name -cnotin @($asm.GetManifestResourceNames())) { throw "New executable missing $name" }
+          }
+          Write-Host ("Setup SHA256: " + (Get-FileHash $output -Algorithm SHA256).Hash)
+
+      - name: Smoke-test executable and embedded manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $report = Join-Path $env:RUNNER_TEMP 'sa-solo-test-detect.json'
+          $setup = (Resolve-Path 'SA-Delirium-0.4.3-Solo-Access-Test1-Setup.exe').Path
+          $p = Start-Process -FilePath $setup -ArgumentList ('--detect --report "' + $report + '"') -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Installer --detect failed' }
+          $result = Get-Content -Raw $report | ConvertFrom-Json
+          if ($result.version -ne '0.4.3-solo-access-test.1') { throw 'Unexpected version in built test setup' }
+
+      - name: Publish separate prerelease that cannot become Latest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'v0.4.3-solo-access-test.1'
+          if (gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null) { throw 'Test release already exists; never overwrite it' }
+          $notes = @'
+          SA Delirium 0.4.3 — Solo Access Test 1 (VARIANTE DE PRUEBA, NO LATEST)
+
+          Basada en 0.4.3: conserva el arreglo de Grinch Trainer de 0.4.2 y el de videos/textos de 0.4.3.
+          Solo Delirium: comprueba permisos de escritura antes de preparar el mod y proporciona un diagnóstico específico para 0x80070005.
+          Mantiene SHA-256, verificación de ejecutable, copia controlada y mecanismo de restauración originales.
+          No altera la instalación ya existente ni la release estable v0.4.3.
+
+          LIMITES: no evita los permisos de Windows. Si Windows impide escribir dentro de la carpeta del juego, hay que conceder acceso o usar otra carpeta con permisos. No se ha probado el escenario real del usuario con GTA e ISO. Crear respaldo o usar Restaurar para una instalación anterior.
+          '@
+          $notes | Set-Content -LiteralPath release-notes-solo-access.txt -Encoding utf8
+          gh release create $tag 'SA-Delirium-0.4.3-Solo-Access-Test1-Setup.exe' --repo $env:GITHUB_REPOSITORY --prerelease --latest=false --target (git rev-parse HEAD) --title 'SA Delirium 0.4.3 Solo Access Test 1 (beta)' --notes-file release-notes-solo-access.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Pre-release publication failed' }
+          gh release view $tag --repo $env:GITHUB_REPOSITORY --json url,isPrerelease,assets
+
+      - name: Upload installer build artifact for diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: SA-Delirium-0.4.3-Solo-Access-Test1
+          path: SA-Delirium-0.4.3-Solo-Access-Test1-Setup.exe
+          if-no-files-found: error
