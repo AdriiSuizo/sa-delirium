@@ -1,5 +1,7 @@
 # SA Delirium 0.6.2-rc.1 — auditoría local
 
+**Promoción autorizada a 0.6.2 el 26 de noviembre.** La versión final conserva exactamente el adaptador probado (`de5fca12ee5d6cc287138b2a98e78fd484d4122e0ede61a85b0749916ca913ac`); el nuevo EXE cambia la identificación del paquete a 0.6.2. El informe siguiente conserva el estado y las evidencias de la candidata antes de autorizar la publicación. No amplía el alcance de sus pruebas.
+
 Estado: candidata local, sin publicar. Base pública: `f65fb8a4f47663feff24174dbccdd587513f799f` (0.6.0).
 Esta revisión continúa el mod que requiere la ISO; no incorpora el experimento independiente.
 

@@ -18,8 +18,8 @@ def sha(data):
 
 
 def rebuild(base, native, output, version):
-    if not re.fullmatch(r'\d+\.\d+\.\d+-rc\.\d+', version):
-        raise ValueError('Use an explicit local release-candidate version')
+    if not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc\.\d+)?', version):
+        raise ValueError('Use an explicit version or release-candidate version')
     spec = json.loads((base / 'portable-manifest.json').read_text(encoding='utf-8-sig'))
     if spec.get('lab_only'):
         raise ValueError('A laboratory payload cannot be a distribution base')

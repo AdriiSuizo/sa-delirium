@@ -1,6 +1,6 @@
 # Historial / Changelog
 
-## 0.6.2-rc.1 · candidata local, sin publicar
+## 0.6.2 · interiores, recuperación junto al tráfico y marcha de NPCs
 
 - Integra las correcciones pendientes de pertenencia de peatones a interiores y de recuperación de CJ junto al tráfico: la interrupción requiere contacto corporal confirmado, no mera proximidad.
 - Corrige el avance de curvas cortas de marcha de NPC cuando un cuadro atraviesa varios ciclos.

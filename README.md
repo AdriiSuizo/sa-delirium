@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.6.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.6.2-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -46,6 +46,13 @@ Se requiere espacio para el perfil y su preparación temporal (aproximadamente
 SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
+
+## Correcciones en 0.6.2
+
+- Detección de peatones en interiores compartida entre físicas, poses y locomoción.
+- CJ solo interrumpe su recuperación por tráfico cuando existe contacto corporal y velocidad de cierre.
+- Avance correcto de curvas cortas de marcha de NPC en cuadros lentos.
+- Se conservan las novedades de 0.6.0 y los modos completo/Solo. [Pruebas y límites](docs/AUDIT-0.6.2-2026-11-26.md).
 
 ## Novedades y correcciones en 0.6.0
 
@@ -198,7 +205,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.6.0-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.6.2-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -230,9 +237,16 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ---
 
-## English — SA Delirium 0.6.0
+## English — SA Delirium 0.6.2
 
 **SA Delirium** brings GTA IV-inspired character physics (Euphoria/NaturalMotion reimplementation), melee and firearm combat, cover mechanics, and vehicle handling/deformation to classic PC **GTA San Andreas** (Steam AppID 12120 or PC 1.0 US).
+
+### Fixes in 0.6.2
+
+- Consistent interior membership for pedestrian physics, poses and gait.
+- CJ recovery interruption requires actual vehicle contact and closing velocity.
+- Short NPC gait cycles retain travel across slow frames.
+- All 0.6.0 features and both installation modes are retained. [Tests and limits](docs/AUDIT-0.6.2-2026-11-26.md).
 
 ### What's New in 0.6.0
 
@@ -254,7 +268,7 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ### Installation & Restore
 
-1. Download **[SA-Delirium-0.6.0-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+1. Download **[SA-Delirium-0.6.2-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
 2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
 3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
 4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.
