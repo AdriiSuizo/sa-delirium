@@ -56,7 +56,25 @@ Rust versions are locked by bootstrap/Cargo.lock. Preserve all original notices.
 8. Build-PortableSetup.ps1 embeds the manifest, freshly compiled current Steam
    launcher and small verified tools ZIP. No development sidecar is used.
 
-For the 0.4.0 unified package, generate the adapter with
+For a **local native-only candidate based on public 0.6.0**, generate the adapter
+with `tests/Prepare-VehicleLabRuntime.py --shipping --out <native>` and compile it
+with `Build-DevelopmentRuntime.cmd`. Extract the manifest, tools ZIP and launcher
+resources from the checksum-verified official installer into `<base>`. Use:
+
+```text
+python installer/portable/Rebuild-NativeCandidate.py --base <base> --native <native> --out <new-package> --version 0.6.2-rc.1
+powershell -File installer/portable/Build-PortableSetup.ps1 -Package <new-package>
+```
+
+The native-only builder requires a shipping source receipt, verifies the base
+bundle checksum and adapter entry, and checks every other archived byte remains
+unchanged. It preserves profile identity and component selections. This route
+does not rebuild the physics engine or importer and does not publish anything.
+Rebuilding those components requires the full packaging route and new validation.
+The actual tests and remaining limits are recorded in
+[the 0.6.2 audit](../../docs/AUDIT-0.6.2-2026-11-26.md).
+
+For the historical 0.4.0 unified package, generate the adapter with
 `tests/Prepare-VehicleLabRuntime.py --shipping --out <native>` and compile it
 with the same native build command. Run `Build-UnifiedCandidate.py` with the
 verified base package, native build, updated bootstrap CLI and DLL, and

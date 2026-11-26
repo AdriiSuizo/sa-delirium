@@ -29,7 +29,7 @@ static bool npcCanUseGait(void* ped,int ref,bool combatPose,void*& leaf,int& tas
     return !(combatPose||(physical!=agents.end()&&!physical->second->preview)||injuredMoving(ref)||
        !playing()||cutscene()||(protectMissions&&authoredMissionProtected())||
        !matrix(ped)||!at<void*>(ped,0x18)||at<void*>(ped,0x480)||!player()||
-       at<unsigned char>(ped,0x2F)!=area()||at<void*>(ped,0xFC)||at<float>(ped,0x540)<=0.f||
+       !pedInActiveArea(ped)||at<void*>(ped,0xFC)||at<float>(ped,0x540)<=0.f||
        (!allowScripted&&at<unsigned char>(ped,0x484)!=1)||inVehicle(ped)||
        !nativeOnFootControl(at<unsigned char>(ped,0x46D))||(at<unsigned char>(ped,0x46F)&4u)||
        (at<unsigned char>(ped,0x46C)&0x10u)||!npcHasGroundState(ped)||!npcHasGroundTask(ped,leaf,task));

@@ -30,3 +30,11 @@ inline bool solveContactArm(V shoulder,V elbow,V wrist,V goal,V&newElbow,V&newWr
     newElbow=shoulder+direction*along+normalized(pole)*std::sqrt(std::max(0.f,upper*upper-along*along));
     newWrist=shoulder+direction*d;return finite(newElbow)&&finite(newWrist);
 }
+
+inline V triangleNear(V p,V a,V b,V c){
+    // Project onto the plane, accepting it only inside all three edges.
+    const V ab=b-a,ac=c-a,n=cross(ab,ac);const float nn=dot(n,n);
+    if(nn>1.e-10f){V q=p-n*(dot(p-a,n)/nn);
+        if(dot(cross(b-a,q-a),n)>=0&&dot(cross(c-b,q-b),n)>=0&&dot(cross(a-c,q-c),n)>=0)return q;}
+    V q=segmentNear(p,a,b);for(V x:{segmentNear(p,b,c),segmentNear(p,c,a)})if(length(x-p)<length(q-p))q=x;return q;
+}

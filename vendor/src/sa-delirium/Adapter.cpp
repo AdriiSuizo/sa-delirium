@@ -71,6 +71,23 @@ static bool playerVehicleImpacts=true,playerBikeCrashEjections=true;
 static bool playerExplosions=true,physicalVehicleExits=true,aimWheelZoom=true,playerDives=true;
 static float diveLungeMps=1.f,diveLiftMps=0.f,diveCoupleNs=40.f;
 static float exitThresholdKmh=15.f;
+#include "InteriorPedArea.hpp"
+static interior_peds::Membership interiorPeds;
+static interior_peds::Evidence interiorPedIdentity(void* p, int room){
+    return {reference(p), at<short>(p,0x22), at<void*>(p,0x18), room};
+}
+static bool pedInActiveArea(void* p){
+    const int tag=at<unsigned char>(p,0x2F), room=area();
+    if(tag==room || tag==13)return true;
+    return tag==0 && room>0 && interiorPeds.contains(tag,interiorPedIdentity(p,room));
+}
+// Mission scripts can place a ped inside without assigning an interior tag.
+// Witness it through the native scene or a confirmed local player hit.
+static void observeInteriorPed(void* p){
+    const int room=area();
+    if(room<=0 || room!=lastArea || at<unsigned char>(p,0x2F)!=0 || p==player())return;
+    interiorPeds.observe(0,interiorPedIdentity(p,room));
+}
 #include "NativePaletteEpoch.hpp"
 enum class SeedPhase {Unknown,NativeContact,NativeTask,EvaluatedEnd,AuthoredEnd};
 struct SeedEpoch {
@@ -94,12 +111,22 @@ static void event(const std::string& type,int ref=-1,int model=-1,const std::str
 }
 static bool ok(int value){if(value>=0)return true;char e[512]={};nm_last_error(e,512);status=e;for(auto&c:status)if(c=='"'||c=='\\'||c<' ')c=' ';errors++;event("engine_error",-1,-1,status);return false;}
 #include "BikeRenderPhase.hpp"
+static const char* pedRejection(void*p,bool allowDead,bool allowMounted,bool allowPlayer,float hitRange){
+    if(!p||reference(p)<0)return "invalid_reference";
+    auto* cj=player();
+    if(!cj)return "no_player";
+    if((p==cj||at<void*>(p,0x480))&&!(allowPlayer&&p==cj))return "player_policy";
+    if(!matrix(p)||!at<void*>(p,0x18))return "missing_pose";
+    if(!allowDead&&at<float>(p,0x540)<=0)return "dead";
+    if(at<void*>(p,0xFC))return "attached";
+    if(!pedInActiveArea(p))return "different_area";
+    if((inVehicle(p)||at<int>(p,0x530)==50)&&!(allowMounted&&ridingBike(p)))return "in_vehicle";
+    if(!allowScripted&&p!=cj&&at<unsigned char>(p,0x484)!=1)return "scripted_ped";
+    if(!(length(position(p)-position(cj))<=std::max(radius,hitRange)))return "out_of_range";
+    return nullptr;
+}
 static bool validPed(void*p,bool allowDead=false,bool allowMounted=false,bool allowPlayer=false,float hitRange=0.f){
-    if(!p||reference(p)<0||((p==player()||at<void*>(p,0x480))&&!(allowPlayer&&p==player()))||!matrix(p)||!at<void*>(p,0x18)||(!allowDead&&at<float>(p,0x540)<=0))return false;
-    if(at<void*>(p,0xFC)||at<unsigned char>(p,0x2F)!=area())return false;
-    if((inVehicle(p)||at<int>(p,0x530)==50)&&!(allowMounted&&ridingBike(p)))return false;
-    if(!allowScripted&&p!=player()&&at<unsigned char>(p,0x484)!=1)return false;
-    return player()&&length(position(p)-position(player()))<=std::max(radius,hitRange);
+    return pedRejection(p,allowDead,allowMounted,allowPlayer,hitRange)==nullptr;
 }
 enum class Reaction {Shot,Melee,Impact,Brace,BikeFall,Mounted,Explosion,VehicleExit,Bump,DoorEntry,Dive,Drunk,HighFall};
 static void* taskManager(void*);
@@ -294,7 +321,7 @@ static void restoreNative(Active& a,bool settle,bool enableCollision=true){
             // Correct only ground penetration at this handoff, never clamp
             // the simulated body or pull an airborne actor down to the floor.
             if(enableCollision&&!settle&&!a.recoveryDone&&!a.uprightRecovery&&
-                !inVehicle(p)&&area()==at<unsigned char>(p,0x2F)&&at<float>(p,0x540)>0&&
+                !inVehicle(p)&&pedInActiveArea(p)&&at<float>(p,0x540)>0&&
                 length(position(p)-a.current[0].p)<2.f){
                 const V before=position(p);V from=before+V{0,0,2.f};ColPoint ground{};void*support=nullptr;
                 if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
@@ -307,7 +334,7 @@ static void restoreNative(Active& a,bool settle,bool enableCollision=true){
                 }
             }
             if(enableCollision){auto&flags=at<unsigned char>(p,0x1C);flags=(flags&~1u)|(a.usedCollision?1u:0u);}
-            if(settle&&area()==at<unsigned char>(p,0x2F)&&at<float>(p,0x540)>0&&collision&&collision->world){
+            if(settle&&pedInActiveArea(p)&&at<float>(p,0x540)>0&&collision&&collision->world){
                 // The SDK's nm_world_raycast queries only the static mesh. Use
                 // the game's verified vertical collision query for recovery so
                 // a body resting on a vehicle is not placed through its roof.
@@ -321,7 +348,7 @@ static void restoreNative(Active& a,bool settle,bool enableCollision=true){
                 at<V>(p,0x44)=V{};
             }
             if(enableCollision&&!settle&&a.recovering&&a.recoveryDone&&!a.uprightRecovery&&
-                !inVehicle(p)&&area()==at<unsigned char>(p,0x2F)&&at<float>(p,0x540)>0){
+                !inVehicle(p)&&pedInActiveArea(p)&&at<float>(p,0x540)>0){
                 at<unsigned char>(p,0x46D)=clearAirAndLandingFlags(at<unsigned char>(p,0x46D));
                 const V before=position(p);ColPoint ground{};void*support=nullptr;
                 if(reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0)
@@ -399,7 +426,7 @@ static bool originalPedMotorImpulse(const HostExternalOwner&,float,V&);
 #include "ExpandedSkinCaptureHost.hpp"
 #include "BikeOverlapAudit.hpp"
 static void clearExpandedSkinAdapterTest();
-static void clear(const char* why){npc_gait::clear();armed_step::clear();player_pose_draw::armed.clear();player_cover::clear();police_cover::clear();clearExpandedSkinAdapterTest();clearOriginalGroundHost();clearPhysicalDeaths();clearOriginalPedMotors();clearExternalScene();clearFinalPedPoses();if(bodyGroup)nm_group_reset(bodyGroup);clearRecoveryContacts();for(auto&[ref,a]:agents)restore(*a,why,false);agents.clear();pending.clear();firearm::impacts.clear();dropped_weapons::drops.clear();bikeHitFalls.clear();animatedContacts.clear();clearAnimatedBodyColliders();walkingSupports.clear();wheelBodyLoads.clear();walkingContactLog.clear();wheelContactLog.clear();footFrameDue=0;}
+static void clear(const char* why){npc_gait::clear();armed_step::clear();player_pose_draw::armed.clear();player_cover::clear();police_cover::clear();clearExpandedSkinAdapterTest();clearOriginalGroundHost();clearPhysicalDeaths();clearOriginalPedMotors();clearExternalScene();clearFinalPedPoses();if(bodyGroup)nm_group_reset(bodyGroup);clearRecoveryContacts();for(auto&[ref,a]:agents)restore(*a,why,false);interiorPeds.clear();agents.clear();pending.clear();firearm::impacts.clear();dropped_weapons::drops.clear();bikeHitFalls.clear();animatedContacts.clear();clearAnimatedBodyColliders();walkingSupports.clear();wheelBodyLoads.clear();walkingContactLog.clear();wheelContactLog.clear();footFrameDue=0;}
 static bool readPose(Active&a,std::array<T,21>& pose){
     V center{},velocity{};nm_agent_get_com(a.agent,&center.x,&velocity.x);
     if(!finite(center)||!finite(velocity)||length(velocity)>80){errors++;event("invalid_physics_motion",a.ref,a.model);return false;}
@@ -886,9 +913,14 @@ static void acceptedDamage(DamageEvent* hitEvent,void*p){
             if(std::isfinite(range)&&range>0)rifleRange=range+2.f; // gun origin vs ped root
         }
     }
-    if(!validPed(p,true,true,playerImpact||playerBlast,rifleRange)){
-        std::string reason="ped_not_eligible";
-        if(rifleRange>0.f&&matrix(p)&&player())reason+=" distance_m="+std::to_string(length(position(p)-position(player())))+" rifle_range_m="+std::to_string(rifleRange)+" area="+std::to_string(at<unsigned char>(p,0x2F))+" attached="+std::to_string(at<void*>(p,0xFC)!=nullptr);
+    if(area()>0 && hitEvent->source==player() && firearmDamage(weapon) && !isPlayer &&
+       matrix(p) && length(position(p)-position(player()))<=std::max(radius,rifleRange)){
+        observeInteriorPed(p);
+    }
+    if(const char* rejected=pedRejection(p,true,true,playerImpact||playerBlast,rifleRange)){
+        std::string reason=std::string("ped_not_eligible reason=")+rejected+
+            " room="+std::to_string(area())+" ped_area="+std::to_string(at<unsigned char>(p,0x2F));
+        if(matrix(p)&&player())reason+=" distance_m="+std::to_string(length(position(p)-position(player())));
         event("damage_kept_native",reference(p),at<short>(p,0x22),reason);return;
     }
     damageEvents++;V direction=matrix(p)->up*-1.f;
@@ -956,7 +988,7 @@ static void acceptedDamage(DamageEvent* hitEvent,void*p){
     if(blast)configureBlastRequest(request,p);
     if(request.kind==Reaction::Melee){configureMeleeRequest(request,p,amount);queueMeleeFrames(reference(p));}
     pending[reference(p)]=request;
-    event("accepted_game_damage",reference(p),at<short>(p,0x22),"weapon="+std::to_string(weapon)+" damage="+std::to_string(amount)+" health="+std::to_string(at<float>(p,0x540)));
+    event("accepted_game_damage",reference(p),at<short>(p,0x22),"weapon="+std::to_string(weapon)+" room="+std::to_string(area())+" ped_area="+std::to_string(at<unsigned char>(p,0x2F))+" damage="+std::to_string(amount)+" health="+std::to_string(at<float>(p,0x540)));
 }
 // A body set down inside something or wedged under a car leaves the solve at tens of m/s: 16 to 69 m/s
 // in 34 ms, 30 m/s from under a parked car (07/11). Only a fast car or an explosion can do that.
@@ -1014,27 +1046,38 @@ static bool rejectGroundTunnel(Active&a,const std::array<T,21>&before){
     event("under_map_body_restored",a.ref,a.model,"pelvis_z="+std::to_string(pelvis.z)+" ground_z="+std::to_string(top));
     return true;
 }
-// A get-up is an animation on SA's capsule: a car reaching it threw the ped up 1.35 m at 30 m/s and the clip
-// played on over the ambulance (07/11). The body goes back to physics before the car arrives.
+#include "CjRecoveryTraffic.hpp"
 static bool recoveryVehicleThreat(Active&a,void*p){
     if(recoveryThreatTest){recoveryThreatTest=false;return true;}
     const V pedVelocity=at<V>(p,0x44)*50.f;
-    if(p==player()&&length(pedVelocity)>4.f)return true;
     const V root=position(p);
+    const bool isCj=p==player();
+    if(isCj && (!playerVehicleImpacts || a.lastRendered.empty() || gameTime()-a.lastRenderTime>100))return false;
     for(const auto&v:collision->vehicles){
-        if(p!=player()){
-            const V centre=(v.velocityAtFrame||v.component||!v.entity||!matrix(v.entity))?v.frame.p:
-                point(*matrix(v.entity),at<V>(v.entity,0xA4));
+        const V centre=(v.velocityAtFrame||v.component||!v.entity||!matrix(v.entity))?v.frame.p:
+            point(*matrix(v.entity),at<V>(v.entity,0xA4));
+        const auto inv=inverse(v.frame);
+        if(!isCj){
             const V velocity=v.velocity+cross(v.spin,root-centre);
             if(length(velocity)<.5f&&length(pedVelocity)<=4.f)continue;
-            const auto inverseFrame=inverse(v.frame);
-            if(npc_recovery::vehicleApproaches(mul(inverseFrame,T{{},root}).p,
-                rotate(inverseFrame.q,pedVelocity-velocity),v.half))return true;
+            if(npc_recovery::vehicleApproaches(mul(inv,T{{},root}).p,
+                rotate(inv.q,pedVelocity-velocity),v.half))return true;
             continue;
         }
-        const float speed=length(v.velocity);if(speed<.5f)continue;
-        const V local=mul(inverse(v.frame),T{{},root}).p;const float reach=.35f+speed*.12f;
-        if(std::abs(local.x)<v.half.x+reach&&std::abs(local.y)<v.half.y+reach&&std::abs(local.z)<v.half.z+.8f)return true;
+        if(!v.entity || !v.shape || !playerGroundVehicle(at<int>(v.entity,0x594)))continue;
+        if(cj_traffic::outsideBox(mul(inv,a.renderedParts[0]).p,v.half,3.f))continue;
+        const V origin=mul(inv,T{{},centre}).p,linear=rotate(inv.q,v.velocity),spin=rotate(inv.q,v.spin);
+        if(length(linear)+length(spin)*(length(v.half)+length(origin))<.65f)continue;
+        for(int k=0;k<21;++k){
+            const T part=mul(inv,a.renderedParts[k]);
+            if(cj_traffic::hitsPart(v.shape->primitives,v.half,part.p,rotate(part.q,{0,1,0}),
+                a.rig->partHalf[k],a.rig->partRadius[k],origin,linear,spin,
+                rotate(inv.q,a.renderVelocity[k]),rotate(inv.q,a.renderSpin[k]))){
+                event("player_getup_vehicle_hit",a.ref,a.model,"vehicle_ref="+std::to_string(v.ref)+
+                    " component="+std::to_string(v.component)+" body_part="+std::to_string(k));
+                return true;
+            }
+        }
     }
     return false;
 }
@@ -1381,7 +1424,7 @@ static void simulatePhysicsFrame(){
         for(auto it=agents.begin();it!=agents.end();){
             auto&a=*it->second;void*p=pedFromRef(a.ref);
             const bool vehicleBoundary=!p||(a.mounted?(!ridingBike(p)||vehicleFromRef(a.vehicle)!=at<void*>(p,0x58C)):(inVehicle(p)||at<int>(p,0x530)==50));
-            const bool invalidPed=p!=a.ped||!p||at<short>(p,0x22)!=a.model||at<unsigned char>(p,0x2F)!=area()||at<void*>(p,0xFC)||vehicleBoundary;
+            const bool invalidPed=p!=a.ped||!p||at<short>(p,0x22)!=a.model||!pedInActiveArea(p)||at<void*>(p,0xFC)||vehicleBoundary;
             if(!invalidPed&&native_stealth::inSequence(p)){
                 yieldPhysicalToStealth(a,p);
                 it=agents.erase(it);
@@ -1399,7 +1442,7 @@ static void simulatePhysicsFrame(){
                 if(p&&GetEnvironmentVariableA("GTASA_TRANSITION_BOUNDARY_AUDIT",nullptr,0)){
                     event("physical_lifecycle_boundary",a.ref,a.model,
                         "same_ped="+std::to_string(p==a.ped)+" same_model="+std::to_string(at<short>(p,0x22)==a.model)+
-                        " same_area="+std::to_string(at<unsigned char>(p,0x2F)==area())+" attached="+std::to_string(at<void*>(p,0xFC)!=nullptr)+
+                        " same_area="+std::to_string(pedInActiveArea(p))+" attached="+std::to_string(at<void*>(p,0xFC)!=nullptr)+
                         " ped_state="+std::to_string(at<int>(p,0x530))+" in_vehicle="+std::to_string(inVehicle(p))+
                         " vehicle_ref="+std::to_string(vehicleRef(at<void*>(p,0x58C)))+" mounted="+std::to_string(a.mounted)+
                         " owned_task_current="+std::to_string(a.ownedTask&&physicalTask(p)==a.ownedTask)+
@@ -1556,7 +1599,7 @@ static void evaluateOffscreenPalettes(){
     for(int n=0;n<pool->size;n++){
         if(pool->flags[n]&0x80)continue;void*p=pool->objects+n*0x7C4;
         const int ref=reference(p);if(evaluatedPeds.contains(ref)||!matrix(p)||
-            at<unsigned char>(p,0x2F)!=area())continue;
+            !pedInActiveArea(p))continue;
         if(length(position(p)-position(player()))>radius+5.f&&!agents.contains(ref)){
             const auto it=pending.find(ref);
             if(it==pending.end()||it->second.rifleRange<=0.f)continue;

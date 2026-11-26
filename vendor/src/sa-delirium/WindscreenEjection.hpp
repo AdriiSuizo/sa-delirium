@@ -288,7 +288,7 @@ static bool windscreenSetPedOut(void*ped,void*v){
 }
 static bool windscreenOccupant(void*ped,void*v){
     const int ref=reference(ped);
-    if(ref<0||!matrix(ped)||!inVehicle(ped)||at<void*>(ped,0x58C)!=v||at<float>(ped,0x540)<=0||at<unsigned char>(ped,0x2F)!=area())return false;
+    if(ref<0||!matrix(ped)||!inVehicle(ped)||at<void*>(ped,0x58C)!=v||at<float>(ped,0x540)<=0||!pedInActiveArea(ped))return false;
     // IV +0x9B0 == 1 (ambient) keeps +0x234 bit 23; mission peds lose it (0x822F3838). SA 0x484 == 1 is the ambient ped.
     if(ped==player()){if(!physicalVehicleExits)return false;}
     else if(at<void*>(ped,0x480)||at<unsigned char>(ped,0x484)!=1||int(agents.size()+pending.size())>=maxActive)return false;

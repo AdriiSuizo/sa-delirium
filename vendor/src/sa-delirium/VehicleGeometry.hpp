@@ -5,13 +5,6 @@
 #include <map>
 #include "ContactMath.hpp"
 using VehiclePrimitive=std::array<float,10>;
-inline V triangleNear(V p,V a,V b,V c){
-    // Project onto the plane, accepting it only inside all three edges.
-    const V ab=b-a,ac=c-a,n=cross(ab,ac);const float nn=dot(n,n);
-    if(nn>1.e-10f){V q=p-n*(dot(p-a,n)/nn);
-        if(dot(cross(b-a,q-a),n)>=0&&dot(cross(c-b,q-b),n)>=0&&dot(cross(a-c,q-c),n)>=0)return q;}
-    V q=segmentNear(p,a,b);for(V x:{segmentNear(p,b,c),segmentNear(p,c,a)})if(length(x-p)<length(q-p))q=x;return q;
-}
 struct VehicleShape {int id=-1;std::vector<VehiclePrimitive> primitives;};
 static std::map<int,VehicleShape> vehicleShapes;
 // SurfaceInfos_c::IsGlass 0x55E790 on g_surfaceInfos 0xB79538: the windscreen's two triangles (CGlass::CarWindscreenShatters 0x71C2B0).

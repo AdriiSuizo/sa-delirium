@@ -100,8 +100,13 @@ inline Step advance(State& s,const Profile& p,const Input& in){
     const float end=s.time+in.dt;
     float travel=c.at(end)-c.at(s.time);
     if(next<=Sprint||next>=WalkL){
-        if(end>=c.duration)travel+=c.at(std::fmod(end,c.duration));
-        s.time=std::fmod(end,c.duration);
+        // Integrate every completed cycle. A short authored curve can wrap
+        // more than once during a slow frame; dropping those cycles made
+        // movement depend on the frame partition.
+        const float cycles=std::floor(end/c.duration);
+        const float phase=std::fmod(end,c.duration);
+        travel=cycles*c.distance.back()+c.at(phase)-c.at(s.time);
+        s.time=phase;
     }else s.time=std::min(end,c.duration);
     const float facing=std::max(0.f,std::cos(in.target-s.heading));
     float speed=travel*in.legScale/in.dt*facing;

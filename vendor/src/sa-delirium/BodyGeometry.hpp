@@ -10,5 +10,5 @@ static V physicalContactPoint(const Active&a,int part,V renderedPoint){
 }
 static bool contactBodyValid(const Active&a){
     return pedFromRef(a.ref)==a.ped&&at<short>(a.ped,0x22)==a.model&&
-        !a.mounted&&!a.preview&&at<unsigned char>(a.ped,0x2F)==area();
+        !a.mounted&&!a.preview&&pedInActiveArea(a.ped);
 }

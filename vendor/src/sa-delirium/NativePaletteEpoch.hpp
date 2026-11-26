@@ -19,7 +19,7 @@ static void(*nativePaletteSampleObserver)(void*)=nullptr;
 static std::vector<NativeEvaluatedClip> nativePaletteClipIdentities(void*clump);
 static bool nativePaletteRequested(void*p){
     return ready&&p&&(at<unsigned char>(p,0x36)&7)==3&&reference(p)>=0&&matrix(p)&&at<void*>(p,0x18)&&
-        player()&&at<unsigned char>(p,0x2F)==area()&&length(position(p)-position(player()))<=radius+5.f;
+        player()&&pedInActiveArea(p)&&length(position(p)-position(player()))<=radius+5.f;
 }
 static const NativePaletteEvaluation*currentNativePaletteEvaluation(void*p){
     if(!p)return nullptr;const auto i=nativePaletteEvaluations.find(reference(p));

@@ -1,5 +1,7 @@
 # Components and current scope
 
+**Historical scope below.** For the local 0.6.2 candidate based on public 0.6.0, see [the dated audit](AUDIT-0.6.2-2026-11-26.md) and the current README. This older native-Steam table is not a compatibility certificate for the current installer. The candidate still imports required resources from the owner's compatible GTA IV Xbox 360 ISO; the independent replacement is not included.
+
 The original Steam executable remains unchanged. The distribution target is
 classic Steam build 459558 (`gta-sa.exe`, SHA-256 beginning `15e3cfed`). These
 statuses describe tested artifacts, not everything present in development.

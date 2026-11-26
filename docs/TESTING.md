@@ -1,3 +1,5 @@
+> Registro histórico. Las pruebas y límites actuales de la candidata local 0.6.2 están en [AUDIT-0.6.2-2026-11-26.md](AUDIT-0.6.2-2026-11-26.md). No interpretar las previas siguientes como aceptación de la versión actual.
+
 # VerificaciÃƒÂ³n de la previa
 
 - CompilaciÃƒÂ³n x86 y pruebas de la transformaciÃƒÂ³n con datos sintÃƒÂ©ticos. Cobertura de filas de coche, exclusiÃƒÂ³n de motos y tipos compartidos, comentarios, lÃƒÂ­mites y entrada invÃƒÂ¡lida.

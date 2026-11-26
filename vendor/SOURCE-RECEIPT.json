@@ -548,7 +548,11 @@
     "src/sa-delirium/NearMiss.hpp": "c64d21cf923d049503e74c6b24e7c751912087cd6c0bccd393a567d6bf0c4c7f",
     "src/sa-delirium/RestSkeleton.hpp": "98f5931785063cb4c1ef3a088c6b15ce45d7c7062d95d88450466d2c3e58b885",
     "src/sa-delirium/Drunk.hpp": "56e06789101978c405fb7d31934976924e4c5cdb29b8ce05fb3d219f09efb4ae",
-    "src/delirium-physics/crates/delirium/src/drunk.rs": "c89058714e459cc770c1b3a677e5b994beb50fa28efd4cf34510444b4c040058"
+    "src/delirium-physics/crates/delirium/src/drunk.rs": "c89058714e459cc770c1b3a677e5b994beb50fa28efd4cf34510444b4c040058",
+    "src/sa-delirium/InteriorPedArea.hpp": "143b551dd3a6f6af073b7736fdc42d0c577a3dc9ba01657bdb56ea86f296d395",
+    "src/sa-delirium/NpcGaitHost.hpp": "71bf4763fb3255d3857222d7166a17a62184c3800158b463c870d476995062db",
+    "src/sa-delirium/PlayerPoseDraw.hpp": "24c65cdce6a3dc810bac68b0c7dabb8898202426df6abe43152691d5a884fb1f",
+    "src/sa-delirium/CjRecoveryTraffic.hpp": "46c2fa134bae5beab78cf4420f75c68b5a118b67d2f0a38aae1bf8d544ef55dd"
   },
   "changes": [
     "Replace encrypted kv payload with the tested ISO reader",
@@ -573,7 +577,7 @@
     "src/delirium-physics/crates/delirium/src/ragdoll_external_pairs.rs": "4d10e6cc3e4e93b02845da102c7a12df0ae805d6016bd8658149a4a4c8b11ba8",
     "src/delirium-physics/crates/delirium/src/ragdoll_car_slots.rs": "e7a994ce405b4459813ef23ad173696f735a000c4915c9a3a021b10343678b25",
     "src/delirium-physics/crates/delirium-sdk/examples/audit_vehicle_mobility.rs": "4d104ea7bff9c55e5ea4de60460a71a9550532fa209dd67927b3b91b0eee7747",
-    "src/sa-delirium/VehicleGeometry.hpp": "b18a63769b481df6a7e031c8543b535b697a8e6170bc5af93628e48ed41f3282",
+    "src/sa-delirium/VehicleGeometry.hpp": "18cf44d61a518cedbd9d117042944675cb146b67642cbd2e0afd319bc1c4d718",
     "src/sa-delirium/NativeVehicleEnvironment.hpp": "4e4d208d9201b5368010d33e83192648f6be76a914235b37ea69df52fb091024",
     "src/delirium-physics/crates/delirium/src/ragdoll_external_ground.rs": "d34875198399fa096e44854e44d1637d031fea32310418e66c32ba9354c40edb",
     "src/delirium-physics/crates/delirium/src/ragdoll_animated.rs": "82e705acf54d1df1d1231456900a9aa6fef701c49f896524f02d86328adc4674",
@@ -585,11 +589,11 @@
     "src/delirium-physics/crates/delirium-sdk/src/external_environment.rs": "6e537a43a09e47dba1d12b84ab7017863d8c898d81795dad26e404bb93594058",
     "src/delirium-physics/crates/delirium-sdk/src/bike_contacts.rs": "f620c5ca76ccbf91d067ab89b49c91553b90c68fe7e4901a8903392d0b6f43d9",
     "src/sa-delirium/Explosions.hpp": "be58b998f4fde0b7286e42111384ceab6b0e920df2903bbcc4cd837b3204ae44",
-    "src/sa-delirium/WindscreenEjection.hpp": "7ee4cb6ef82c9079eef64072cd7e7f1d2f568c348f46e1aa640d026cb02600e9",
+    "src/sa-delirium/WindscreenEjection.hpp": "7af83a3c9626281829f03d3a9c7fd984cf3ad27dd39ee9c6916c9d2819866cea",
     "src/delirium-physics/crates/delirium/src/ragdoll.rs": "9f26fa8ad70704d98efc987edc0d6c1be6203a2b10fb6ab0d44bd898a9d89eea",
     "src/delirium-physics/crates/delirium-sdk/src/road.rs": "df274ac797c2cbd157559c163415ab44d9a84bba014be044d0dc3c056c3d09e8",
     "src/delirium-physics/crates/delirium-sdk/include/delirium_physics.h": "d88a33cd35964d14fba0a24e476b23b74ba11277f6ad6a8722e28a895fc460c1",
-    "src/sa-delirium/Adapter.cpp": "c9a721294dcc2f4ff3af29e6635e8d5393d80276d9335246030c00f6c37f7416",
+    "src/sa-delirium/Adapter.cpp": "8a9a07db87157292ebbbaaf2bef69b01fb9d6bb4c553296d7099b0c2b77f807b",
     "src/sa-delirium/World.hpp": "6bd60139694efe1b513d96c7f6001f9f4adfbab4c996e871698ae8f354a8a60d",
     "src/delirium-physics/crates/delirium-data/Cargo.toml": "c95e185e0265a53ed3659cc284f1e1a6fc13da1e1d3c13b3f7dcb80353e78d6e",
     "src/delirium-physics/crates/delirium-data/src/kv.rs": "962eae315e7d01f8e7f7bcc86b34a1e9bf42d1fa36f14f4386f8595e78ea51ef",
@@ -641,7 +645,15 @@
     "src/sa-delirium/Drunk.hpp": "231e29c305c59104b137db4be2b50576b8b87fe28026743d589342de3067ccf4",
     "src/sa-delirium/RagdollFire.hpp": "aecfc10cef5db77833dea1e60bf0094405afaa884dcd32f465e147d9b842b718",
     "src/sa-delirium/OriginalAnimatedOwner.hpp": "00b2b7955773430d55990cef4a269bbc667b92b565f2462c0ef3edb49998c781",
-    "src/sa-delirium/StandingContacts.hpp": "a356aedb954dde325907675e6f7fb41d9fd68193e68d3b2e92847b026016e725"
+    "src/sa-delirium/StandingContacts.hpp": "a356aedb954dde325907675e6f7fb41d9fd68193e68d3b2e92847b026016e725",
+    "src/sa-delirium/BodyGeometry.hpp": "5896439df4604c5ac6db7692917b8385decb29486648fab6d187ecf21ff092f3",
+    "src/sa-delirium/InteriorPedArea.hpp": "143b551dd3a6f6af073b7736fdc42d0c577a3dc9ba01657bdb56ea86f296d395",
+    "src/sa-delirium/NativePaletteEpoch.hpp": "9d8227249aa6b3473051c3c08ac25405d526d2c7b342a7ea1f0dae839f1eeb7b",
+    "src/sa-delirium/NpcGaitHost.hpp": "71bf4763fb3255d3857222d7166a17a62184c3800158b463c870d476995062db",
+    "src/sa-delirium/PlayerPoseDraw.hpp": "24c65cdce6a3dc810bac68b0c7dabb8898202426df6abe43152691d5a884fb1f",
+    "src/sa-delirium/CjRecoveryTraffic.hpp": "46c2fa134bae5beab78cf4420f75c68b5a118b67d2f0a38aae1bf8d544ef55dd",
+    "src/sa-delirium/ContactMath.hpp": "5d60c6b7be910a36592f4509d2173bf836b52bdc642836595425ddedcb879367",
+    "src/sa-delirium/NpcStride.hpp": "892eebac5da22a32c1b179fab5b72e0491b78d8c8bd12df6e5a56e1c5a9b9aa4"
   },
   "public_sdk_maps_sha256": {
     "kv.map": "be087043daa45a1eca17a2ca009f3c5af4c12e4b61d6abce8c4d258e15a059c8",

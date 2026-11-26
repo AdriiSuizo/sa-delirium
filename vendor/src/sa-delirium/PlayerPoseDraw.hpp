@@ -124,6 +124,7 @@ static EntityRender nativeRender[2]{};
 static thread_local bool insideSeatedDraw=false;
 template<int Site> static void __fastcall render(void* p,void*){
     const auto original=nativeRender[Site];
+    if(ready && p && !insideSeatedDraw)observeInteriorPed(p);
     if(ready&&p&&!insideSeatedDraw&&publishArmed(p)){original(p);return;}
     if(!ready||!p||p!=player()||insideSeatedDraw||!matrix(p)){original(p);return;}
     const int ref=reference(p);

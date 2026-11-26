@@ -1,5 +1,12 @@
 # Historial / Changelog
 
+## 0.6.2-rc.1 · candidata local, sin publicar
+
+- Integra las correcciones pendientes de pertenencia de peatones a interiores y de recuperación de CJ junto al tráfico: la interrupción requiere contacto corporal confirmado, no mera proximidad.
+- Corrige el avance de curvas cortas de marcha de NPC cuando un cuadro atraviesa varios ciclos.
+- Conserva las funciones y componentes de 0.6.0. El paquete estable merge-Adrii del 24 de noviembre ya estaba integrado; no se restaura sobre correcciones posteriores.
+- Instalación completa/Solo, restauración, arranque sin puente y casos dirigidos en partida comprobados. Alcance, pruebas ignoradas y limitaciones: [auditoría 0.6.2](docs/AUDIT-0.6.2-2026-11-26.md).
+
 ## 0.6.0 · locomoción de NPCs con 15 perfiles, poses y disparos GTA IV desde vehículos, cobertura mejorada, sigilo nativo, rifles a distancia, recuperación y audio de caídas / 15-profile NPC locomotion, GTA IV vehicle drive-by poses, improved cover, native stealth, long-range rifles, recovery & CJ fall audio
 
 ### Español
