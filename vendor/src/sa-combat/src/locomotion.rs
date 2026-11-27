@@ -60,6 +60,30 @@ impl<'a> Clips<'a>{
     p.step(&bank,0.,-1.,-1.,false,0,t+100,1./60.).unwrap();assert!(p.velocity.length()<0.001);
     println!("Movement clips exercised: {seen:?}; travel={distance}");
  }
+ #[test]fn settled_idle_animates_without_advancing_the_walk_phase_or_mover(){
+    let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").expect("owned assets"));
+    let program=std::fs::read(assets.join("iv-program.bin")).unwrap();
+    assert!(delirium_data::kv::unlock_program(&program));
+    let bank=Bank::load(std::path::Path::new(&std::env::var("NM_TEST_COMBAT").expect("movement assets"))).unwrap();
+    let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+    for crouch in [false,true] {
+        let torso=rig.ids.iter().position(|&id|id==3).unwrap();
+        let duration=bank.clips[if crouch{"move_crouch/idle"}else{"move_player/idle"}].duration;
+        let mut movement=Locomotion::new(rig.clone(),0.);
+        let mut reference_pose=None;
+        let mut movement_seen=false;
+        for frame in 1..(60.*(duration+1.5)).ceil() as u32 {
+            movement.step(&bank,0.,0.,0.,crouch,0,frame*17,1./60.).unwrap();
+            if frame<60 {continue}
+            assert_eq!(movement.state()[4],0.,"idle must not seed the next walk at an arbitrary step");
+            assert!(movement.velocity.length()<0.01,"breathing must not move the actor");
+            let pose=movement.pose[torso];
+            let first=reference_pose.get_or_insert(pose);
+            movement_seen|=first.p.distance(pose.p)>0.001||first.q.dot(pose.q).abs()<0.999999;
+        }
+        assert!(movement_seen,"settled torso never animated (crouch={crouch})");
+    }
+ }
  #[test]fn jump_suspension_resumes_running_without_wstart_or_runstart(){
     let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").expect("owned assets"));
     let bytes=std::fs::read(assets.join("fred.xrt")).unwrap();
@@ -278,7 +302,16 @@ impl Locomotion{
         p.heading+=late;pick(&clips,p,before,wanted,set,dt);
         if let Some(s)=p.stop.as_mut().filter(|s|movestop::stop_fades(p.state,s.id)){s.rate=-movestop::STOP_FADE;}
         start_new(&clips,p,wanted,set);spot(&clips,p,set,dt);
-        let samples=|ratio:f32,phase:f32,set:usize|clips.gait_parts(ratio,set,slope,p.turn_col).into_iter().map(|(c,w)|(c.key,phase,w)).collect::<Vec<_>>();
+        // gait_left resets the locomotor phase at a standstill so that the
+        // next step starts on the right foot. Sample the authored idle loop
+        // on the animation clock, including when it underlays a transition.
+        let elapsed=self.elapsed+dt;
+        let samples=|ratio:f32,phase:f32,set:usize|clips.gait_parts(ratio,set,slope,p.turn_col).into_iter().map(|(c,w)|{
+            let phase=if matches!(c.key,"move_player/idle"|"move_crouch/idle"){
+                (elapsed/c.anim.duration).fract()
+            }else{phase};
+            (c.key,phase,w)
+        }).collect::<Vec<_>>();
         let mut list=samples(gait_ratio(p.ratio,p.state),p.phase,set);
         let mut pose=bank.retarget_mix(&self.rig,&list).ok_or("gait pose unavailable")?;
         if let Some((old,t))=self.fade{let t=t+dt/0.2;if t>=1.{self.fade=None}else{self.fade=Some((old,t));let old=bank.retarget_mix(&self.rig,&samples(gait_ratio(p.ratio,p.state),p.phase,old)).ok_or("old gait unavailable")?;pose=self.rig.blend(&old,&pose,t,0);}}

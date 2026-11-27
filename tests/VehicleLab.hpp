@@ -758,7 +758,7 @@ static void suspension(void* car) {
     float limits[2]{};
     if (driver && npcDriver && (!live || !live->boarding) && supported && groundedWheels >= 3 && current &&
         driverLimits(current, limits) && limits[0] > .1f)
-        adaptTrafficDriving(car, *driver, frame, front-rear, limits[0], limits[1]);
+        adaptTrafficDriving(car, *driver, frame, front-rear, limits[0], limits[1], col->box);
     replaced = current && supported && step(current, &frame, &output) != 0;
     auto& turnPlan = live ? live->pose : fixtureTurn;
     turnPlan.valid = replaced;

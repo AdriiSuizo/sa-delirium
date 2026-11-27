@@ -824,6 +824,24 @@ static void combatFinish(){
         if(native_stealth::ownsPose(by)||native_stealth::ownsPose(p))continue;
         // Hit kind 3: the taker's DisarmOpponent at its clip's 0x200 event (sa-combat runtime.rs): the foe's weapon changes hands, nothing else.
         if(hit[15]==3){meleeDisarm(by,p);continue;}
+        if(hit[15]==4){
+            const V point{hit[4],hit[5],hit[6]};
+            if(finite(point)&&length(point-position(p))<2.5f&&at<float>(p,0x540)>0.f){
+                const int weapon=combatWeapon(by);
+                playIvMeleeImpact(clubWeapon(weapon)&&!bladeWeapon(weapon)?5:0,part,point,target);
+                const V away=position(p)-position(by);
+                V direction=length(away)>1e-4f?normalized(away)*1.6f+V{0.f,0.f,.35f}:V{0.f,0.f,1.f};
+                V blood=point;
+                const float light=at<float>(p,0x12C);
+                reinterpret_cast<void(__thiscall*)(void*,V*,V*,int,float)>(0x49EB00)(
+                    reinterpret_cast<void*>(0xA9AE00),&blood,&direction,5,
+                    std::isfinite(light)?std::clamp(light,.35f,1.f):.85f);
+                event("combat_counter_impact_effect",target,at<short>(p,0x22),
+                    "attacker="+std::to_string(source)+" part="+std::to_string(part));
+            }
+            continue;
+        }
+
         if(by==player())playerHitPed=true;
         const int held=combatWeapon(by),weapon=clubWeapon(held)?held:0;
         const float before=at<float>(p,0x540);const V motionBefore=at<V>(p,0x44);const int piece=combatPiece(part);

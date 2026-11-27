@@ -137,6 +137,15 @@ static void playerImpactDamage(Active&a,float dt){
 }
 static void __fastcall calculateDamage(DamageCalculator*calculator,void*,void*ped,DamageResponse&response,bool speak){
     const bool calculated=response.calculated;
+    if(!calculated&&roadOwnsPhysicalPlayerDamage(ped,calculator->source,calculator->weapon)){
+        response={};
+        response.calculated=true;
+        response.check=true;
+        event("player_native_runover_delegated",reference(ped),at<short>(ped,0x22),
+            "vehicle_ref="+std::to_string(vehicleRef(calculator->source))+" solver_damage_retained=1");
+        return;
+    }
+
     if(!calculated&&playerGodMode(ped)){
         response={};
         response.calculated=true;

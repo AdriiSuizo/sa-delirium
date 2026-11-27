@@ -147,8 +147,57 @@ impl Actor {
         self.rig.parts.iter().map(|p|p.capsule(pose)).collect()
     }
 }
+// Counter clips can depict several contacts but carry one authored health
+// event. Sample effects separately from that event and the strike dispatcher.
+const COUNTER_LIMBS: [u16; 8] = [0x4c3, 0x4d0, 0x4c2, 0x4c9, 0x1a4, 0x1a9, 0x1a3, 0x1a8];
+
+struct CounterEffects {
+    target: u32,
+    action: u32,
+    time: u32,
+    phase: f32,
+    limbs: [Option<Vec3>; COUNTER_LIMBS.len()],
+    last_effect: Option<u32>,
+}
+
+fn paired_counter(attacker: &str, victim: &str, given: bool) -> bool {
+    given && attacker.rsplit('/').next().is_some_and(|name| name.starts_with("counter_"))
+        && victim.rsplit('/').next().is_some_and(|name| name.starts_with("hit_counter_"))
+}
+
+fn counter_effect_contact(
+    before: Vec3, after: Vec3, radius: f32, seconds: f32, bounds: &[crate::geometry::Bound],
+) -> Option<(u16, Vec3)> {
+    let motion = after - before;
+    if !motion.is_finite() || !seconds.is_finite() || seconds <= 0.0
+        || motion.length() / seconds < 1.6 || motion.length() > 0.45
+    { return None; }
+    let (_, tag, point, normal) = crate::geometry::first_contact(bounds, before, after, radius)?;
+    // A fast glancing slide during a grab is not an impact.
+    (motion.dot(normal) / seconds >= 0.9).then_some((tag, point))
+}
+
+#[cfg(test)]
+#[test]
+fn paired_counter_effect_requires_a_closing_limb_and_a_reacting_target() {
+    use crate::geometry::Bound;
+    let target = Bound {
+        tag: 12, frame: Pose { p: Vec3::ZERO, q: Quat::IDENTITY },
+        radius: 0.15, half: 0.0, boxed: None,
+    };
+    assert!(paired_counter("melee_counters/counter_left", "melee_counters/hit_counter_left", true));
+    assert!(!paired_counter("melee_counters/counter_left", "melee_counters/hit_counter_left", false));
+    assert!(!paired_counter("melee_counters/dodge_l", "melee_counters/hit_counter_left", true));
+    let from = Vec3::new(-0.25, 0.0, 0.0);
+    let contact = Vec3::new(-0.12, 0.0, 0.0);
+    assert_eq!(counter_effect_contact(from, contact, 0.03, 0.02, &[target]).unwrap().0, 12);
+    assert!(counter_effect_contact(contact, from, 0.03, 0.02, &[target]).is_none());
+    assert!(counter_effect_contact(from, Vec3::new(-0.25, 0.1, 0.0), 0.03, 0.02, &[target]).is_none());
+    assert!(counter_effect_contact(from, from, 0.03, 0.02, &[target]).is_none());
+}
+
 pub struct Runtime {pub bank:Bank,pub actors:BTreeMap<u32,Actor>,pub hits:Vec<[f32;HIT_FLOATS]>,pub contact_gaps:BTreeMap<(u32,u32),f32>,rng:Rand,pub now:u32,pending_contacts:bool,pub view_front:Option<Vec2>,
-    health_weapon:Option<lsc4_combat::weapons::Weapon>,health_decisions:Option<lsc4_combat::decision::Store>,pub health_receipts:BTreeMap<usize,crate::melee_health::Receipt>}
+    health_weapon:Option<lsc4_combat::weapons::Weapon>,health_decisions:Option<lsc4_combat::decision::Store>,pub health_receipts:BTreeMap<usize,crate::melee_health::Receipt>,counter_effects:BTreeMap<u32,CounterEffects>}
 impl Runtime {
     /// Host has accepted real damage from an on-foot ped, before a new SA flee
     /// can take ownership. Existing native panic/unknown roles are not admitted.
@@ -181,7 +230,7 @@ impl Runtime {
         }).collect();
         Some(serde_json::json!({"time":self.now,"clip":a.key,"phase":m.clip_t,"struck":m.struck,"target":a.target,"target_clip":other.key,"target_flags":other.flags,"target_lies":foe.lies,"root_distance":a.pos().distance(other.pos()),"accepted_knee":a.gym_contact,"paired":a.paired_gym,"branches":branches}).to_string())
     }
-    pub fn new(bank:Bank)->Self{Self{bank,actors:BTreeMap::new(),hits:vec![],contact_gaps:BTreeMap::new(),rng:Rand::new(0x53414956),now:0,pending_contacts:false,view_front:None,health_weapon:None,health_decisions:None,health_receipts:BTreeMap::new()}}
+    pub fn new(bank:Bank)->Self{Self{bank,actors:BTreeMap::new(),hits:vec![],contact_gaps:BTreeMap::new(),rng:Rand::new(0x53414956),now:0,pending_contacts:false,view_front:None,health_weapon:None,health_decisions:None,health_receipts:BTreeMap::new(),counter_effects:BTreeMap::new()}}
     /// Explicit source weapon metadata, never inferred from SA weapon slots.
     pub fn load_health_weapons(&mut self,xml:&str)->Result<(),String>{
         let rows=lsc4_combat::weapons::read(xml);let found:Vec<_>=rows.into_iter().filter(|w|w.name=="UNARMED").collect();
@@ -522,6 +571,7 @@ impl Runtime {
             // measured-pose/inertia handoff, without a new strike impulse.
             h[8]=if release{-1.}else{a.state[4]};h[15]=1.;self.hits.push(h);
         }
+        self.finish_counter_effects(d, &bodies);
         // DisarmOpponent (meleetask.rs 0x822BF448: "his target's weapon is his and it goes from the ped"): at the disarm
         // clip's 0x200 event, locked on its target (`Melee::disarm_foe`), a club-holding foe's weapon changes hands.
         // Hit kind 3 (h[15]): h[0] the taker, h[1] the foe; no damage, no reaction (that is the forced Hit_disarmed_*).
@@ -533,6 +583,63 @@ impl Runtime {
             let mut h=[0.;HIT_FLOATS];h[0]=id as f32;h[1]=target as f32;h[2]=0x36a1 as f32;h[4..7].copy_from_slice(&at.to_array());h[8]=-1.;h[15]=3.;self.hits.push(h);
         }
         Ok(())
+    }
+    fn finish_counter_effects(&mut self, d: &Data, bodies: &[(u32, Vec<crate::geometry::Bound>)]) {
+        let previous = std::mem::take(&mut self.counter_effects);
+        for (&id, source) in &self.actors {
+            let Some(victim) = self.actors.get(&source.target) else { continue };
+            let (Some(m), Some(reply)) = (&source.melee.mv, &victim.melee.mv) else { continue };
+            if id == source.target || victim.target != id || source.last_seen != self.now
+                || victim.last_seen != self.now || source.flags & (DEAD | DOWN | PHYSICAL) != 0
+                || victim.flags & (DEAD | DOWN | PHYSICAL) != 0
+                || source.pos().distance(victim.pos()) > 2.25
+                || !paired_counter(m.key.as_deref().unwrap_or(""), reply.key.as_deref().unwrap_or(""), reply.given)
+            { continue; }
+            let Some((_, bounds)) = bodies.iter().find(|(actor, _)| *actor == source.target) else { continue };
+            let limbs = COUNTER_LIMBS.map(|tag| source.at(tag));
+            let prior = previous.get(&id).filter(|p| {
+                p.target == source.target && p.action == m.action && p.phase < m.phase()
+                    && (1..=80).contains(&self.now.wrapping_sub(p.time))
+            });
+            let mut last_effect = prior.and_then(|p| p.last_effect);
+            let health_effect = self.hits.iter().any(|h| {
+                h[0] == id as f32 && h[1] == source.target as f32 && h[3] > 0.0
+                    && h[14] == 0.0 && matches!(h[15], 0.0 | 1.0)
+            });
+            // Leave the authored health event to play its own impact effect.
+            // Test the receiver's clip clock, which may differ from the striker's.
+            let near_health_marker = d.table.results[reply.result].self_damage > 0.0
+                && reply.key.as_ref().and_then(|key| self.bank.clips.get(key)).is_some_and(|clip| {
+                    let end = ((reply.clip_t + 0.10 * reply.rate.max(0.0)) / reply.dur).min(1.0);
+                    clip.count_between(0x200, reply.phase(), end) != 0
+                });
+            if health_effect {
+                last_effect = Some(self.now);
+            } else if !near_health_marker {
+                if let Some(prior) = prior.filter(|_| last_effect.is_none_or(|t| self.now.wrapping_sub(t) >= 160)) {
+                    let seconds = self.now.wrapping_sub(prior.time) as f32 * 0.001;
+                    for (i, tag) in COUNTER_LIMBS.iter().enumerate() {
+                        let (Some(before), Some(after)) = (prior.limbs[i], limbs[i]) else { continue };
+                        let Some(part) = source.rig.parts.iter().find(|p| p.tag == *tag) else { continue };
+                        let radius = part.boxed.map_or(part.radius, |box_| Vec3::from_array(box_).min_element());
+                        let Some((part, point)) = counter_effect_contact(before, after, radius, seconds, bounds) else { continue };
+                        let mut hit = [0.0; HIT_FLOATS];
+                        hit[0] = id as f32;
+                        hit[1] = source.target as f32;
+                        hit[2] = part as f32;
+                        hit[4..7].copy_from_slice(&point.to_array());
+                        hit[12] = *tag as f32;
+                        hit[15] = 4.0; // Audiovisual only, no health or reaction.
+                        self.hits.push(hit);
+                        last_effect = Some(self.now);
+                        break;
+                    }
+                }
+            }
+            self.counter_effects.insert(id, CounterEffects {
+                target: source.target, action: m.action, time: self.now, phase: m.phase(), limbs, last_effect,
+            });
+        }
     }
     fn resolve_contacts(&mut self,d:&Data,pads:&BTreeMap<u32,Pad>,contacts:Vec<(u32,u32,u16,Vec3,f32,u32,Vec3,f32)>,mut health_host:Option<&mut dyn crate::melee_health::Boundary>)->Result<(),String>{
         let now=self.now;

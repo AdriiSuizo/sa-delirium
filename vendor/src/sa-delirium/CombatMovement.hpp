@@ -1,5 +1,11 @@
 #pragma once
 #include <cmath>
+
+inline bool aimedMovementTool(int weapon){
+    // SA's spray can and extinguisher use the native gun task and keep
+    // their own upper-body pose, IK, particle effects and weapon logic.
+    return weapon==41||weapon==42;
+}
 inline bool nativeOnFootControl(unsigned char airFlags){return (airFlags&6u)==0;}
 // CTimer::ms_fTimeStep is measured in 1/50 s and clipped independently of
 // m_snTimeInMilliseconds (CPed::UpdatePosition / CTimer::UpdateVariables).

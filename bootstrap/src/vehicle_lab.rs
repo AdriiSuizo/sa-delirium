@@ -503,6 +503,7 @@ impl Car {
             vel: frame.velocity,
             ang: spin,
         };
+        let roll_assist = RollAssist::on_road(&frame.contacts, road_assist);
         let mut calls = WheelCalls {
             h,
             mass: Mass {
@@ -520,6 +521,7 @@ impl Car {
             lateral: [0.0; 4],
             lateral_scale: [1.0; 4],
             momentum_retention,
+            roll_assist,
         };
         let mut wheels = [Wheel::default(); 4];
         for (i, ground) in frame.contacts.iter().enumerate() {
@@ -713,41 +715,20 @@ impl Car {
         let mut body_torque = self.suspension.map_or([0.0; 4], |profile| {
             profile.torque(spin, &frame.basis, inertia, dt)
         });
-        let (planted, normal_sum) = frame.contacts.iter()
-            .filter(|c| c.supported != 0 && c.normal[2] > 0.85)
-            .fold((0, [0.0; 4]), |(count, sum), c| {
-                (count + 1, std::array::from_fn(|i| sum[i] + c.normal[i]))
-            });
-        if planted >= 2 {
-            let roll_axis = frame.basis[1];
-            let side = frame.basis[0];
-            // Keep measuring lean when the inner tyres lift. Dropping the
-            // correction at two planted tyres lets the roll build unchecked.
-            let lean = dot(side, normal_sum) / dot(normal_sum, normal_sum).sqrt();
-            let excess_lean = (lean.abs() - 0.020).max(0.0).copysign(lean);
-            // Keep the lean under load without allowing low chassis COL to scrape
-            // the tarmac in corners. Dampen roll velocity cleanly.
-            let roll_acceleration = 4.2 * lean
-                + (125.0 + 95.0 * road_assist) * excess_lean
-                - (2.6 + 1.2 * road_assist) * dot(spin, roll_axis);
+        // With fewer road samples per second, the rear tyres can take
+        // longer to recover from a handbrake pulse. Dampen yaw once
+        // the button is released and the body is sliding wide.
+        if roll_assist.is_some() && quicker && !handbrake {
+            let coarse_frame = ((dt / pace - 0.03) / 0.02).clamp(0.0, 1.0);
+            let wide_slide = ((outward_slip - 0.28) / 0.42).clamp(0.0, 1.0);
+            let yaw_axis = frame.basis[2];
+            let steady = (1.0 - turn_demand * 4.0).max(0.0)
+                * ((speed.abs() - 6.0) / 11.0).clamp(0.0, 1.0)
+                * (1.0 - (outward_slip.abs() / 0.30).min(1.0));
+            let yaw_damping = 3.0 * steady + 12.0 * coarse_frame * wide_slide * handbrake_charge;
+            let correction = -dot(spin, yaw_axis) * yaw_damping * inertia[2];
             for axis in 0..3 {
-                body_torque[axis] += roll_axis[axis] * inertia[1] * roll_acceleration;
-            }
-            // With fewer road samples per second, the rear tyres can take
-            // longer to recover from a handbrake pulse. Dampen yaw once
-            // the button is released and the body is sliding wide.
-            if quicker && !handbrake {
-                let coarse_frame = ((dt / pace - 0.03) / 0.02).clamp(0.0, 1.0);
-                let wide_slide = ((outward_slip - 0.28) / 0.42).clamp(0.0, 1.0);
-                let yaw_axis = frame.basis[2];
-                let steady = (1.0 - turn_demand * 4.0).max(0.0)
-                    * ((speed.abs() - 6.0) / 11.0).clamp(0.0, 1.0)
-                    * (1.0 - (outward_slip.abs() / 0.30).min(1.0));
-                let yaw_damping = 3.0 * steady + 12.0 * coarse_frame * wide_slide * handbrake_charge;
-                let correction = -dot(spin, yaw_axis) * yaw_damping * inertia[2];
-                for axis in 0..3 {
-                    body_torque[axis] += yaw_axis[axis] * correction;
-                }
+                body_torque[axis] += yaw_axis[axis] * correction;
             }
         }
         let state = wheelstep::integrate(
@@ -819,6 +800,52 @@ impl Car {
     }
 }
 
+#[derive(Clone, Copy)]
+struct RollAssist {
+    wheel: usize,
+    normal: V4,
+    excess_stiffness: f32,
+    damping: f32,
+}
+
+impl RollAssist {
+    fn on_road(contacts: &[Ground; 4], road_assist: f32) -> Option<Self> {
+        let mut planted = contacts
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.supported != 0 && c.normal[2] > 0.85);
+        let (wheel, first) = planted.next()?;
+        let (_, second) = planted.next()?;
+        let normal = planted.fold(
+            std::array::from_fn(|i| first.normal[i] + second.normal[i]),
+            |sum: V4, (_, c)| std::array::from_fn(|i| sum[i] + c.normal[i]),
+        );
+        let norm = dot3(normal, normal).sqrt();
+        if !norm.is_finite() || norm < 1.0 {
+            return None;
+        }
+        Some(Self {
+            wheel,
+            normal: normal.map(|v| v / norm),
+            excess_stiffness: 125.0 + 95.0 * road_assist,
+            damping: 2.6 + 1.2 * road_assist,
+        })
+    }
+
+    fn acceleration(self, basis: &[V4; 4], spin: V4) -> V4 {
+        let roll_axis = basis[1];
+        let lean = dot3(basis[0], self.normal);
+        let excess = (lean.abs() - 0.020).max(0.0).copysign(lean);
+        let acceleration = 4.2 * lean + self.excess_stiffness * excess
+            - self.damping * dot3(spin, roll_axis);
+        [roll_axis[0] * acceleration, roll_axis[1] * acceleration, roll_axis[2] * acceleration, 0.0]
+    }
+}
+
+fn dot3(a: V4, b: V4) -> f32 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
 struct WheelCalls<'a> {
     h: &'a Handling,
     mass: Mass,
@@ -831,6 +858,7 @@ struct WheelCalls<'a> {
     lateral: [f32; 4],
     lateral_scale: [f32; 4],
     momentum_retention: f32,
+    roll_assist: Option<RollAssist>,
 }
 
 impl wheelstep::Calls for WheelCalls<'_> {
@@ -838,9 +866,19 @@ impl wheelstep::Calls for WheelCalls<'_> {
         wheelstep::advance(m, vel, ang, h)
     }
 
-    fn suspension(&mut self, i: usize, m: &[V4; 4], vel: V4, _: V4, t: &Times) -> Out {
-        let result = wheelstep::suspension(self.h, &self.mass, &self.struts[i], m, vel, t);
+    fn suspension(&mut self, i: usize, m: &[V4; 4], vel: V4, ang: V4, t: &Times) -> Out {
+        let mut result = wheelstep::suspension(self.h, &self.mass, &self.struts[i], m, vel, t);
         self.loads[i] = result.value.unwrap_or(0.0);
+        if let Some(assist) = self.roll_assist.filter(|assist| assist.wheel == i) {
+            // Add the body correction once per RK4 derivative. Large native
+            // frames can rotate through level before their last substep. A
+            // torque frozen at the beginning then continues to push into the
+            // new lean, even as the two remaining wheels lift off.
+            let correction = assist.acceleration(m, ang);
+            for axis in 0..3 {
+                result.ang_acc[axis] += correction[axis];
+            }
+        }
         result
     }
 
@@ -1085,6 +1123,71 @@ pub unsafe extern "C" fn sa_vehicle_lab_destroy(car: *mut Car) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires the owned GTA IV program imported by the installer"]
+    fn roll_assist_reacts_after_crossing_level_during_a_long_frame() {
+        let root = std::path::PathBuf::from(std::env::var_os("SA_DELIRIUM_TEST_ROOT").unwrap());
+        let program = std::fs::read(root.join("DeliriumSA-local-v3/iv-program.bin")).unwrap();
+        assert!(delirium_data::kv::unlock_program(&program));
+
+        // Isolate the adapter torque to see whether it still pushes after the
+        // chassis crosses level in a 60 ms native frame with driving pace on.
+        struct RollOnly(Option<RollAssist>);
+        impl wheelstep::Calls for RollOnly {
+            fn advance(&mut self, m: &[V4; 4], v: V4, w: V4, t: f32) -> [V4; 4] {
+                wheelstep::advance(m, v, w, t)
+            }
+            fn suspension(&mut self, i: usize, m: &[V4; 4], _: V4, w: V4, _: &Times) -> Out {
+                let ang_acc = self.0.filter(|a| a.wheel == i).map_or([0.0; 4], |a| a.acceleration(m, w));
+                Out { ang_acc, ..Default::default() }
+            }
+            fn tyre(&mut self, _: usize, _: f32, _: f32, _: f32, _: &[V4; 4], _: V4, _: V4, _: &Times) -> Out {
+                Out::default()
+            }
+        }
+
+        let road = Ground {
+            point: [0.0; 4],
+            normal: [0.0, 0.0, 1.0, 0.0],
+            travel: 0.3,
+            compression: 0.15,
+            radius: 0.32,
+            load_share: 0.25,
+            supported: 1,
+        };
+        let air = Ground { supported: 0, ..road };
+        assert!(RollAssist::on_road(&[air, air, air, air], 1.0).is_none());
+        assert!(RollAssist::on_road(&[air, road, air, air], 1.0).is_none());
+        let assist = RollAssist::on_road(&[air, road, air, road], 1.0).unwrap();
+        assert_eq!(assist.wheel, 1);
+        let (sine, cosine) = 0.25f32.sin_cos();
+        let body = Body {
+            inv_inertia: [1.0; 4],
+            inv_mass: 1.0,
+            m: [
+                [cosine, 0.0, sine, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [-sine, 0.0, cosine, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            vel: [0.0; 4],
+            ang: [0.0, 6.0, 0.0, 0.0],
+        };
+        let wheels = || std::array::from_fn::<_, 4, _>(|i| Wheel { flags: (i % 2) as u32, ..Default::default() });
+        let dt = MAX_SA_FRAME_SECONDS * VEHICLE_PACE;
+        let fixed = wheelstep::integrate(
+            &body, [0.0; 4], assist.acceleration(&body.m, body.ang), &mut wheels(), dt, &mut RollOnly(None),
+        );
+        let updated = wheelstep::integrate(
+            &body, [0.0; 4], [0.0; 4], &mut wheels(), dt, &mut RollOnly(Some(assist)),
+        );
+        assert!(fixed.m[0][2] < -0.28 && fixed.ang[1] > 8.0, "frozen force did not reproduce the overshoot");
+        assert!((-0.23..0.0).contains(&updated.m[0][2]), "second lean {}", updated.m[0][2]);
+        assert!(updated.ang[1].abs() < 5.0, "exit roll speed {}", updated.ang[1]);
+        eprintln!("frozen: lean={:.3}, roll={:.3}; recalculated: lean={:.3}, roll={:.3}",
+            fixed.m[0][2], fixed.ang[1], updated.m[0][2], updated.ang[1]);
+    }
 
     #[test]
     fn handbrake_tap_survives_skipped_wheel_steps() {

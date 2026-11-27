@@ -60,13 +60,15 @@ static bool nikoEligible(void*p){
     // A jump with a gun still equipped belongs to the jump/land controller.
     const unsigned char airFlags=at<unsigned char>(p,0x46D);
     if(!nativeOnFootControl(airFlags)){nikoLastRejectWasPureJump=nikoIsJumpOrAirTask(nikoTask,airFlags);return false;}
-    if(const int w=combatWeapon(p);w>1&&(at<unsigned char>(p,0x46C)&0x10)){if(w>=22&&w<=38)nikoLastRejectWasGunAim=true;return false;}
+    const int weapon=combatWeapon(p);
+    const bool usesGunTask=(weapon>=22&&weapon<=38)||aimedMovementTool(weapon);
+    if(weapon>1&&(at<unsigned char>(p,0x46C)&0x10)){nikoLastRejectWasGunAim=usesGunTask;return false;}
     // Guns: SA's player aim lives in the secondary attack slot (CTaskManager
     // +0x14, CTaskSimpleUseGun from CTaskSimplePlayerOnFoot::ProcessPlayerWeapon)
     // and bIsAimingGun is never set for it (06/11 session: a shotgun shot with
     // this layer still turning CJ to the stick). Aiming strafes natively, as
     // IV turns the body to the camera while aiming (gta4-viewer main.rs:2519).
-    if(const int w=combatWeapon(p);w>=22&&w<=38)if(auto*m=taskManager(p);m&&at<void*>(m,0x14)){
+    if(usesGunTask)if(auto*m=taskManager(p);m&&at<void*>(m,0x14)){
         void* intel=at<void*>(p,0x47C);
         nikoLastRejectWasGunAim=intel&&reinterpret_cast<void*(__thiscall*)(void*)>(0x600F70)(intel);
         return false;
@@ -323,13 +325,21 @@ static bool nikoRender(void*p){
                 for(size_t i=0;i<bones.size();i++){const int parent=nikoRig->parents[i];calmLocal[i]=(parent>=0&&parent<int(i))?mul(inverse(native[parent]),native[i]):T{};}
             }
             const bool useCalmCache=twoHandGroup>=0&&!combatUpper&&runningGait&&nikoSpeed<2.4f&&calmGroup==twoHandGroup&&calmWeapon==weapon&&calmLocal.size()==bones.size();
+            // The SA hold supplies torso, shoulder and hand transforms so the
+            // gun stays in both hands. Its locomotor head swing does not match
+            // IV's stride. Keep the authored IV head orientation while the
+            // head remains attached to SA's neck and the face follows it.
+            const bool longGun=(weapon>=25&&weapon<=27)||(weapon>=29&&weapon<=31)||weapon==33||weapon==34;
+            const float headBlend=longGun&&twoHandGroup>=0?std::clamp(nikoSpeed/.75f,0.f,1.f):0.f;
             for(size_t i=0;i<bones.size();i++){
                 const int id=nikoRig->ids[i],parent=nikoRig->parents[i];
                 // Pistols can use SA's default locomotion group. Preserve
                 // the weapon hand and its arm even in that group.
-                if(parent>=0&&parent<int(i)&&((armedUpper&&id>=3&&id<41)||(pistol&&id>=21&&id<=26)))
+                if(parent>=0&&parent<int(i)&&((armedUpper&&id>=3&&id<41)||(pistol&&id>=21&&id<=26))){
+                    const Q gaitOrientation=bones[i].q;
                     bones[i]=mul(bones[parent],useCalmCache?calmLocal[i]:mul(inverse(native[parent]),native[i]));
-                else if(parent>=0&&parent<int(i)&&(id==301||id==302))
+                    if(id==saBone::head&&headBlend>0.f)bones[i].q=mix(bones[i].q,gaitOrientation,headBlend);
+                }else if(parent>=0&&parent<int(i)&&(id==301||id==302))
                     bones[i]=mul(bones[parent],nikoRig->bindLocal[i]);
             }
         }

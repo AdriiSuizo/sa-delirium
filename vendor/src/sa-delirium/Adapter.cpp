@@ -146,6 +146,7 @@ struct Active {
     bool playerVehicle=false,highFallLanded=false;std::unique_ptr<Rig> playerRig;
     unsigned start=0;float accumulator=0;bool usedCollision=false;V rootOffset{};
     unsigned admittedFrame=0;bool seedBeforeCurrentFrame=false;
+    std::optional<unsigned> lastPhysicalRoadFrame;
     std::map<int,ObstacleHistory> vehicleHistory;
     bool recovering=false;unsigned recoverStart=0;std::vector<T> frozenBones;
     unsigned nearMissAt=0,lastShotAt=0,injuredRiseAt=0;bool injuredDecided=false,injuredChosen=false;
@@ -1210,7 +1211,13 @@ static std::vector<int> stepPhysicsActors(const std::vector<Active*>& live,float
                 }
                 if(!a.mounted){
                     if(stepRejected){float discard[4]{};nm_agent_take_impact(a.agent,discard);}
-                    else{selectSolvedRoadReaction(a,stepSeconds);applyVehicleBodyFeedback(a,stepSeconds);playerImpactDamage(a,stepSeconds);}
+                    else{
+                        if(!a.preview&&!a.recoveryAnimatedOwner)
+                            a.lastPhysicalRoadFrame=*reinterpret_cast<unsigned*>(0xB7CB4C);
+                        selectSolvedRoadReaction(a,stepSeconds);
+                        applyVehicleBodyFeedback(a,stepSeconds);
+                        playerImpactDamage(a,stepSeconds);
+                    }
                 }
                 if(a.kind==Reaction::DoorEntry&&!a.mounted&&!a.preview)observeVehicleEntrySolvedStep(a,stepSeconds);
                 if(a.kind==Reaction::Melee&&a.meleeMotionSample<4){

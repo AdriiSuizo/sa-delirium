@@ -26,8 +26,39 @@ static bool pursuingVehicle(unsigned mission) {
     return (mission >= 15 && mission <= 18) || (mission >= 52 && mission <= 55) || mission == 60 || mission == 61;
 }
 
+// Native avoidance sees the animated pedestrian entity. Its normal collision
+// proxy is inactive while Delirium owns CJ. Take the already solved limb
+// centres into account when selecting a speed for an approaching NPC car.
+static float trafficPhysicalPlayerLimit(void* car,const Box& bounds,float speed) {
+    void* cj=player();
+    if(!cj||inVehicle(cj)||at<unsigned char>(cj,0x2F)!=at<unsigned char>(car,0x2F))return INFINITY;
+    const auto actor=agents.find(reference(cj));
+    if(actor==agents.end())return INFINITY;
+    const auto& body=*actor->second;
+    const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
+    if(body.ped!=cj||!body.rig||body.preview||body.mounted||body.recoveryAnimatedOwner||
+       !body.lastPhysicalRoadFrame||frame-*body.lastPhysicalRoadFrame>1)return INFINITY;
+    const auto m=matrix(car);
+    if(!m||length(body.current[0].p-m->pos)>std::min(30.f,5.f+speed*1.2f))return INFINITY;
+    const V heading=normalized(V{m->up.x,m->up.y,0});
+    if(length(heading)<.9f)return INFINITY;
+    const V right{heading.y,-heading.x,0};
+    float distance=INFINITY;
+    for(unsigned part=0;part<body.current.size();++part){
+        const V delta=body.current[part].p-m->pos;
+        if(!finite(delta))continue;
+        const float radius=body.rig->partRadius[part];
+        const float y=dot(delta,heading),x=dot(delta,right),z=dot(delta,m->at);
+        if(y<bounds.max.y-.15f||x+radius<bounds.min.x||x-radius>bounds.max.x||
+           z+radius<bounds.min.z-.28f||z-radius>bounds.max.z+.20f)continue;
+        const float gap=std::max(0.f,y-bounds.max.y-radius-.6f);
+        distance=std::min(distance,gap);
+    }
+    return std::sqrt(2.f*4.8f*distance);
+}
+
 static void adaptTrafficDriving(void* car, TrafficDriving& state, Frame& frame,
-                                float wheelbase, float steeringScale, float traction) {
+                                float wheelbase, float steeringScale, float traction,const Box& bounds) {
     const auto* driver = at<void*>(car, 0x460);
     if (!driver || driver == player() || carStatus(car) != 3 ||
         at<unsigned char>(car, 0x3BB) != 0 || frame.gas < 0.f ||
@@ -113,11 +144,13 @@ static void adaptTrafficDriving(void* car, TrafficDriving& state, Frame& frame,
         }
     }
     limit = std::min(limit, std::max(curveLimit, 6.f));
+    const float bodyLimit=trafficPhysicalPlayerLimit(car,bounds,speed);
+    limit=std::min(limit,bodyLimit);
     if (speed > limit - 1.f) {
         frame.gas = std::min(frame.gas, std::clamp((limit - speed) / 4.f, 0.f, 1.f));
         const float downhill = 1.f + std::max(0.f, -m->up.z * 4.f);
         const float braking = limit < .05f && speed < .5f ? 1.f :
-            std::clamp((speed - limit) * .1f * downhill, 0.f, .75f);
+            std::clamp((speed - limit) * (bodyLimit<=limit?.20f:.10f) * downhill, 0.f, .75f);
         frame.brake = std::max(frame.brake, braking);
     }
     // IV's AI steering envelope (TU8 0x82557DC8). Fade out the existing

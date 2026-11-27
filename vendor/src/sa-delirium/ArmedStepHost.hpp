@@ -10,7 +10,7 @@ struct Actor {
     unsigned seen=0,frame=~0u,draws=0,traced=0;
     SideStep planState;
     Blend blend;
-    int model=-1;bool logged=false;
+    int model=-1,weapon=-1;bool logged=false;
     float weight=0;
 };
 static std::map<int,Actor> actors;
@@ -48,13 +48,8 @@ static V playerWish(void* ped,bool& fast){
     if(!pad||at<short>(pad,0x10E)||!camera)return {};
     const float x=reinterpret_cast<short(__thiscall*)(void*)>(0x53FC90)(pad)/128.f;
     const float y=-reinterpret_cast<short(__thiscall*)(void*)>(0x53FD30)(pad)/128.f;
-    const float mag=std::hypot(x,y);
-    if(mag<.12f)return {};
-    V front=at<V>(camera,0x190);front.z=0;
-    if(length(front)<.05f)front=matrix(ped)->up;
-    front.z=0;front=normalized(front);
     fast=reinterpret_cast<bool(__thiscall*)(void*)>(0x5407A0)(pad);
-    return (front*y+V{front.y,-front.x,0}*x)*(1.f/std::max(1.f,mag));
+    return cameraRelativeWish(x,y,at<V>(camera,0x190),matrix(ped)->up);
 }
 static V npcWish(Actor& a,void* ped,void* gun,V right,unsigned now,bool& fast){
     // Preserve a movement order from the existing gun task. When the task
@@ -77,7 +72,8 @@ static void move(void* ped){
     if(!ready||!combat||!npcGaitLoaded||!ped||!playing()||cutscene()||
        (protectMissions&&authoredMissionProtected()))return;
     const int weapon=combatWeapon(ped);
-    if(weapon<22||weapon>34||!validPed(ped,false,false,true,FLT_MAX)||
+    const bool isPlayer=ped==player();
+    if(!usesArmedStride(weapon,isPlayer)||!validPed(ped,false,false,true,FLT_MAX)||
        !nativeOnFootControl(at<unsigned char>(ped,0x46D))||(at<unsigned char>(ped,0x46F)&4u))return;
     void* gun=nullptr;
     if(!gunActive(ped,gun))return;
@@ -91,12 +87,13 @@ static void move(void* ped){
     auto* clump=at<void*>(ped,0x18);
     const int model=at<short>(ped,0x22);
     if(old!=actors.end()&&(old->second.ped!=ped||old->second.model!=model||old->second.clump!=clump||
-       old->second.nodes!=h->nodes||old->second.binding.count!=h->num||now-old->second.seen>350))actors.erase(old);
+       old->second.weapon!=weapon||old->second.nodes!=h->nodes||
+       old->second.binding.count!=h->num||now-old->second.seen>350))actors.erase(old);
     auto [it,fresh]=actors.try_emplace(ref);
     auto& a=it->second;
     if(fresh){
         if(!a.binding.init(h->nodes,h->num,npc_gait::bank.tags)){actors.erase(it);return;}
-        a.ped=ped;a.model=model;a.clump=clump;a.nodes=h->nodes;
+        a.ped=ped;a.model=model;a.weapon=weapon;a.clump=clump;a.nodes=h->nodes;
         a.planState.variation=unsigned(ref)*2654435761u+now;
     }
     if(a.frame==frame)return;
@@ -105,11 +102,12 @@ static void move(void* ped){
     if(dt<=0){a.weight=0;return;}
     V right=matrix(ped)->right;right.z=0;right=normalized(right);
     bool fast=false;
-    V wish=ped==player()?playerWish(ped,fast):npcWish(a,ped,gun,right,now,fast);
-    const V forward{-right.y,right.x,0};
-    const float cap=fast?2.f:1.f;
+    const V wish=isPlayer?playerWish(ped,fast):npcWish(a,ped,gun,right,now,fast);
     if(!finite(wish)){a.weight=0;return;}
-    const bool moving=length(wish)>.1f;
+    const V forward{-right.y,right.x,0};
+    const float pressure=length(wish);
+    const float cap=isPlayer?playerStrideCap(weapon,pressure,fast):(fast?2.f:1.f);
+    const bool moving=pressure>.1f;
     a.blend.select(moving?cap*dot(wish,right):0.f,moving?cap*dot(wish,forward):0.f,dt);
     const bool cycling=std::hypot(a.blend.right,a.blend.forward)>.01f;
     a.weight=std::clamp(a.weight+(cycling?8.f:-9.f)*dt,0.f,1.f);
@@ -136,7 +134,8 @@ static bool visible(void* ped,int ref,unsigned frame){
     if(it==actors.end())return false;
     auto& a=it->second;
     if(a.ped!=ped||frame-a.frame>1||!a.blend.count||a.weight<=0||agents.contains(ref)||pending.contains(ref)||
-       injuredMoving(ref)||player_cover::owns(ped)||police_cover::officers.contains(ref)||a.model!=at<short>(ped,0x22)||a.clump!=at<void*>(ped,0x18))return false;
+       injuredMoving(ref)||player_cover::owns(ped)||police_cover::officers.contains(ref)||a.model!=at<short>(ped,0x22)||
+       a.weapon!=combatWeapon(ped)||a.clump!=at<void*>(ped,0x18))return false;
     void* gun=nullptr;
     if(!gunActive(ped,gun)||!nativeOnFootControl(at<unsigned char>(ped,0x46D))||
        inVehicle(ped)||(at<unsigned char>(ped,0x46F)&4u))return false;

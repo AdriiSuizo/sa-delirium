@@ -175,6 +175,25 @@ static bool boardingGripActive(const Active&a){
 }
 // General pair hooks were rejected after reproducible startup failures; see
 // logs/contact-rework-20261029.json. ApplyForce is filtered to one verified call.
+// An already simulated CJ can still reach the stock kill routine via the
+// native contact event. Transfer only its health response, for this very
+// vehicle/ped pair and only while the physical scene owns both shapes.
+static bool roadOwnsPhysicalPlayerDamage(void*ped,void*source,int weapon){
+    if(!playerVehicleImpacts||!ready||!applyBones||!detectImpacts||!playing()||cutscene()||
+       (protectMissions&&authoredMissionProtected())||ped!=player()||!ped||inVehicle(ped)||
+       !roadForceContext.eligible||roadForceContext.car!=source||!playerRoadDamage(weapon,true))return false;
+    const int ref=reference(ped),carRef=vehicleRef(source);
+    if(ref<0||carRef<0||roadForceContext.ped!=ref||roadForceContext.vehicle!=carRef||
+       !playerGroundVehicle(at<int>(source,0x594))||at<float>(ped,0x540)<=0)return false;
+    const auto body=agents.find(ref);
+    if(body==agents.end())return false;
+    const auto&a=*body->second;
+    const auto*car=collision?collision->findVehicle(carRef):nullptr;
+    const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
+    return a.ped==ped&&a.agent&&!a.preview&&!a.mounted&&!a.recoveryAnimatedOwner&&
+        a.lastPhysicalRoadFrame&&frame-*a.lastPhysicalRoadFrame<=1&&car&&car->entity==source&&
+        car->shape&&car->shape->id>=0;
+}
 static void __fastcall carPedResponse(void*ped,void*,void*car,float intensity,bool deadAnimation){
     const int carRef=vehicleRef(car),pedRef=reference(ped);
     const bool eligible=ready&&detectImpacts&&playing()&&!cutscene()&&!(protectMissions&&authoredMissionProtected())&&carRef>=0&&pedRef>=0&&at<int>(car,0x594)==0&&validPed(ped,true,false,ped==player()&&playerVehicleImpacts);
