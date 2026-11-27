@@ -875,7 +875,9 @@ static bool player_pose_draw::lowCover(void* p){
 #include "ProcessExitGuard.hpp"
 #include "FileManagerGuard.hpp"
 #include "CrashGuard.hpp"
+#include "StartupVideoMode.hpp"
 static const char* audioStreamDirectoryStatus="not_installed";static const char* audioStreamLengthGuardStatus="not_installed";
+static bool startupVideoFallbackInstalled=false;
 // IV: a player's bullet on the gun in an ambient ped's hand knocks it out as a pickup (0x8226E1F8 -> 0x8222B278, gunknock.rs).
 // SA has no held-gun hitbox. Require the native impact to be next to the gun hand.
 static void shotOutOfHand(void*p,void*source,int piece,const firearm::Contact& contact){
@@ -2021,6 +2023,7 @@ static DWORD WINAPI setup(void*){
     }
     event(std::string("audio_stream_directory_")+audioStreamDirectoryStatus);
     event(std::string("audio_stream_length_guard_")+audioStreamLengthGuardStatus);
+    event(startupVideoFallbackInstalled?"startup_video_fallback_installed":"startup_video_fallback_unavailable");
     auto hook=[](void* target,void* replacement,void** original){return MH_CreateHook(target,replacement,original)==MH_OK;};
     auto initialized=MH_Initialize();if(initialized!=MH_OK&&initialized!=MH_ERROR_ALREADY_INITIALIZED){status="hook_init_failed";event(status);return 0;}
     // CGame.cpp addrof(CGame::Process) = 0x53BEE0; 0x53BFA0 is inside its body, not an entry point.
@@ -2095,5 +2098,16 @@ static DWORD WINAPI setup(void*){
     event(player_pose_draw::installed?"player_pose_draw_hooks_installed":"player_pose_draw_hooks_unavailable");
     status="real_engine_ready";ready=true;event("initialized",-1,-1,applyBones?"bone_application_enabled":"shadow_validation_only");report();return 0;
 }
-extern "C" __declspec(dllexport) void InitializeASI(){static bool started=false;if(started)return;started=true;audioStreamDirectoryStatus=audio_stream_directory::install();audioStreamLengthGuardStatus=audio_stream_directory::installLengthGuard();HMODULE pinned=nullptr;GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&InitializeASI),&pinned);if(auto t=CreateThread(nullptr,0,&setup,nullptr,0,nullptr))CloseHandle(t);}
+extern "C" __declspec(dllexport) void InitializeASI(){
+    static bool started=false;
+    if(started)return;
+    started=true;
+    audioStreamDirectoryStatus=audio_stream_directory::install();
+    audioStreamLengthGuardStatus=audio_stream_directory::installLengthGuard();
+    HMODULE pinned=nullptr;
+    if(GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,
+                          reinterpret_cast<LPCWSTR>(&InitializeASI),&pinned))
+        startupVideoFallbackInstalled=startup_video_mode::install();
+    if(auto t=CreateThread(nullptr,0,&setup,nullptr,0,nullptr))CloseHandle(t);
+}
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD why,LPVOID){if(why==DLL_PROCESS_ATTACH)DisableThreadLibraryCalls(instance);return TRUE;}

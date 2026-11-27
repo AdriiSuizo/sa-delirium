@@ -1,5 +1,13 @@
 # Historial / Changelog
 
+## 0.6.4 · corrección del modo de vídeo
+
+- El arranque usa un modo disponible cuando no existe la resolución exacta solicitada. [Pruebas con DXVK y Direct3D 9](docs/AUDIT-0.6.4-video.md).
+
+## 0.6.4 · corrección del modo de vídeo
+
+- El arranque usa un modo disponible cuando no existe la resolución exacta solicitada. [Pruebas con DXVK y Direct3D 9](docs/AUDIT-0.6.4-video.md).
+
 ## 0.6.3 · tráfico, apuntado y combate
 
 - Los conductores del tráfico simplificado y con física frenan ante el cuerpo de CJ, incluso mientras se levanta. Se conserva el daño físico por contacto.

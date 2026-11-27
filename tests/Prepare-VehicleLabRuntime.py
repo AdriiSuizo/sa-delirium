@@ -772,8 +772,8 @@ if args.shipping:
         "const bool test = false && GetEnvironmentVariableA")
     omitted = strip_fixtures(texts)
     texts["Adapter.cpp"] = replace_once(texts["Adapter.cpp"],
-        "static bool started=false;if(started)return;started=true;",
-        "static volatile LONG started=0;if(InterlockedExchange(&started,1))return;")
+        "    static bool started=false;\n    if(started)return;\n    started=true;",
+        "    static volatile LONG started=0;\n    if(InterlockedExchange(&started,1))return;")
     texts["Adapter.cpp"] = replace_once(texts["Adapter.cpp"],
         "BOOL WINAPI DllMain(HINSTANCE instance,DWORD why,LPVOID){if(why==DLL_PROCESS_ATTACH)DisableThreadLibraryCalls(instance);return TRUE;}",
         r"""
