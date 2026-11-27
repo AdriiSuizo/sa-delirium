@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.6.4-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.6.5-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -47,9 +47,9 @@ SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
 
-## Hotfix 0.6.4
+## Cambios en 0.6.5
 
-- Si el modo de vídeo de arranque falta en la lista del adaptador, el juego elige uno compatible. [Pruebas y alcance](docs/AUDIT-0.6.4-video.md).
+CJ recupera el apuntado de San Andreas a pie y la cadencia de ambas manos con armas duales. También se corrigen los efectos duplicados de contraataques y se ajusta la suspensión en taludes. [Notas de la versión](docs/RELEASE-0.6.5.md).
 
 ## Hotfix 0.6.4
 
@@ -223,7 +223,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.6.4-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.6.5-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -255,13 +255,13 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ---
 
-## English — SA Delirium 0.6.4
+## English — SA Delirium 0.6.5
 
 **SA Delirium** brings GTA IV-inspired character physics (Euphoria/NaturalMotion reimplementation), melee and firearm combat, cover mechanics, and vehicle handling/deformation to classic PC **GTA San Andreas** (Steam AppID 12120 or PC 1.0 US).
 
-### 0.6.4 hotfix
+### Changes in 0.6.5
 
-- The game selects an available mode if the requested startup video mode is missing. [Test results](docs/AUDIT-0.6.4-video.md).
+CJ uses native San Andreas firearm aiming on foot. Dual-wielding fires from both hands again. Counterattack impacts share one sound per blow, and roll damping now accounts for steep banks. [Test results](docs/AUDIT-0.6.5-rc.1.md).
 
 ### 0.6.4 hotfix
 
@@ -304,7 +304,7 @@ en [su documentación histórica](docs/NATIVE-R2-HISTORY.md).
 
 ### Installation & Restore
 
-1. Download **[SA-Delirium-0.6.4-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+1. Download **[SA-Delirium-0.6.5-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
 2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
 3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
 4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.

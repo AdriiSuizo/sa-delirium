@@ -1,8 +1,9 @@
 # Historial / Changelog
 
-## 0.6.4 · corrección del modo de vídeo
+## 0.6.5 · cámara, combate y conducción
 
-- El arranque usa un modo disponible cuando no existe la resolución exacta solicitada. [Pruebas con DXVK y Direct3D 9](docs/AUDIT-0.6.4-video.md).
+- Apuntado a pie y disparo dual de SA, corrección de la proyección de cámara y de los efectos de contraataque.
+- Amortiguamiento en taludes y comprobaciones de los blancos durante el disparo. [Notas de la versión](docs/RELEASE-0.6.5.md).
 
 ## 0.6.4 · corrección del modo de vídeo
 

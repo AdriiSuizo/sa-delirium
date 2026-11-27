@@ -49,6 +49,10 @@ Los tres coches completaron el recorrido en las dos configuraciones. La candidat
 - Pasaron 11 pruebas de comportamiento nativo, las pruebas del orden de llamadas de cámara y las de cámara de cobertura.
 - El comprobador de procedencia revisó 550 registros. Se comparó el contenido de cada miembro del paquete con la 0.6.4. Cambian el ASI y las dos variantes de la biblioteca física. El ASI distribuido tiene dos exportaciones y ninguna de diagnóstico.
 - Se verificó que el manifiesto, el paquete y el lanzador incrustados en el instalador corresponden al material compilado. La comprobación de origen aceptó 415 archivos del juego clásico de prueba. Las pruebas de partida usaron los recursos ya preparados de la ISO.
-- SHA-256 del instalador: `7ee1eafb612854ac4875d6b2e6a1bb081fe2c8539c7632990cb2d436d32fb03a`.
+- SHA-256 del instalador de la candidata: `7ee1eafb612854ac4875d6b2e6a1bb081fe2c8539c7632990cb2d436d32fb03a`.
 
 El fork de EuphoriaConnect contiene documentación y capturas. Las notas de su autor sobre peatones encima de objetos y durante la recuperación orientaron la comprobación de identidad al cambiar de vista. [Fork revisado](https://github.com/AdriiSuizo/EuphoriaConnect) · [Notas del autor](https://github.com/Marii-dev/EuphoriaConnect/releases/tag/1.0.7).
+
+## Publicación de la 0.6.5
+
+El instalador oficial lleva el número 0.6.5. Se recompiló el adaptador desde la rama final con ISO y se verificó que el ASI y las dos bibliotecas físicas coinciden byte por byte con la compilación que incluye el último ajuste de los taludes. La suma del instalador oficial está en [SHA256SUMS.txt](https://github.com/AdriiSuizo/sa-delirium/releases/download/v0.6.5/SHA256SUMS.txt).
