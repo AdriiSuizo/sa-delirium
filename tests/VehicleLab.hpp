@@ -430,6 +430,7 @@ static bool install(HMODULE engine) {
             MH_CreateHook(entry, reinterpret_cast<void*>(&control), reinterpret_cast<void**>(&nativeControl)) != MH_OK ||
             MH_QueueEnableHook(entry) != MH_OK) return false;
     }
+    if (!installRailTrafficBraking()) event("traffic_rail_braking_unavailable");
     enabled = true;
     if (traffic) event("vehicle_iv_traffic_enabled", -1, -1, "activation_radius_m=95");
     if (canToggle) {

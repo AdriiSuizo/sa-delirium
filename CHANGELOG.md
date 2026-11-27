@@ -1,5 +1,21 @@
 # Historial / Changelog
 
+## 0.6.3 · tráfico, apuntado y combate
+
+- Los conductores del tráfico simplificado y con física frenan ante el cuerpo de CJ, incluso mientras se levanta. Se conserva el daño físico por contacto.
+- Recupera el movimiento direccional del spray y ajusta el paso al apuntar.
+- Corrige el reposo, reduce la oscilación de la cabeza con armas a dos manos y recupera efectos de golpes de contraataque.
+- La asistencia antivuelco usa la inclinación actual en cada paso de integración.
+- [Pruebas con tráfico real y alcance](docs/AUDIT-0.6.3-traffic.md).
+
+## 0.6.3 · tráfico, apuntado y combate
+
+- Los conductores del tráfico simplificado y con física frenan ante el cuerpo de CJ, incluso mientras se levanta. Se conserva el daño físico por contacto.
+- Recupera el movimiento direccional del spray y ajusta el paso al apuntar.
+- Corrige el reposo, reduce la oscilación de la cabeza con armas a dos manos y recupera efectos de golpes de contraataque.
+- La asistencia antivuelco usa la inclinación actual en cada paso de integración.
+- [Pruebas con tráfico real y alcance](docs/AUDIT-0.6.3-traffic.md).
+
 ## 0.6.2 · interiores, recuperación junto al tráfico y marcha de NPCs
 
 - Integra las correcciones pendientes de pertenencia de peatones a interiores y de recuperación de CJ junto al tráfico: la interrupción requiere contacto corporal confirmado, no mera proximidad.

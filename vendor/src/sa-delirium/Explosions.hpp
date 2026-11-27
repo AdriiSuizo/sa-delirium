@@ -96,7 +96,7 @@ static void playerImpactDamage(Active&a,float dt){
     if(dt<=0||a.ped!=player()||a.preview||inVehicle(a.ped))return;
     float out[4]{};
     const int impact=nm_agent_take_impact(a.agent,out);
-    if(playerGodMode(a.ped)){a.impactDamageCarry=0.f;return;}
+    if(playerGodMode(a.ped)){a.impactDamageCarry=0.f;a.roadImpactDamage.clear();return;}
     if(impact!=1)return;
     const float before=at<float>(a.ped,0x540);if(!(before>0))return;
     void*car=nullptr;original_impact_damage::Kind kind=original_impact_damage::Kind::Building;
@@ -109,7 +109,23 @@ static void playerImpactDamage(Active&a,float dt){
     const auto r=original_impact_damage::calculate(f);
     if(!r.valid||!(r.amountIV>0))return;
     // CJ's visible range is 200..100 in IV. SA's calculator still applies its .33 player factor; ragdoll impact scaled to 1/4.
-    a.impactDamageCarry+=(combat_health::nativeDamage(r.amountIV,true)/.33f)*.25f;
+    float additionalDamage=r.amountIV;
+    if(car&&playerGroundVehicle(at<int>(car,0x594))){
+        // Wheel and hull constraints can report the same squeeze on every
+        // solver substep. Charge the strongest contact per continuous pass.
+        // A different car or renewed contact after separation deals its own damage.
+        constexpr unsigned separateAfterMs=180;
+        const unsigned now=gameTime();
+        std::erase_if(a.roadImpactDamage,[&](const auto& contact){
+            return now-contact.second.lastContact>separateAfterMs;
+        });
+        auto& episode=a.roadImpactDamage[vehicleRef(car)];
+        episode.lastContact=now;
+        additionalDamage=std::max(0.f,r.amountIV-episode.peak);
+        episode.peak=std::max(episode.peak,r.amountIV);
+    }
+    if(additionalDamage<=0.f)return;
+    a.impactDamageCarry+=(combat_health::nativeDamage(additionalDamage,true)/.33f)*.25f;
     if(a.impactDamageCarry<3.f)return;
     const float amount=a.impactDamageCarry;a.impactDamageCarry=0;
     DamageEvent hit{};

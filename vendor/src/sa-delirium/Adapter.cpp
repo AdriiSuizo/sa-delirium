@@ -190,6 +190,9 @@ struct Active {
     bool runOverByPlayer=false,corpseResting=false,shotRunning=false;
     int shotAttacker=-1;
     MeleeResponse melee=MeleeResponse::Flinch;
+    // One health charge per continuous physical encounter with the same car.
+    struct RoadDamageEpisode { unsigned lastContact=0; float peak=0.f; };
+    std::map<int,RoadDamageEpisode> roadImpactDamage;
     bool physicalAnimation=false;int animationDriveStatus=-1;unsigned entryDamageReport=0;float impactDamageCarry=0;unsigned impactDamageReport=0;
     unsigned impactSoundAt=0,flightVoiceAttemptAt=0;bool flightScream=false;
     float nativeGroundClearance=0;V recoveryVelocity{};

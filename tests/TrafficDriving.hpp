@@ -35,26 +35,76 @@ static float trafficPhysicalPlayerLimit(void* car,const Box& bounds,float speed)
     const auto actor=agents.find(reference(cj));
     if(actor==agents.end())return INFINITY;
     const auto& body=*actor->second;
+    if(body.ped!=cj||!body.rig||body.preview||body.mounted)return INFINITY;
     const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
-    if(body.ped!=cj||!body.rig||body.preview||body.mounted||body.recoveryAnimatedOwner||
-       !body.lastPhysicalRoadFrame||frame-*body.lastPhysicalRoadFrame>1)return INFINITY;
+    const T* parts=body.current.data();
+    if(body.recoveryAnimatedOwner){
+        // Drivers must keep yielding while CJ blends onto the get-up clip.
+        if(body.lastRendered.empty()||gameTime()-body.lastRenderTime>100)return INFINITY;
+        parts=body.renderedParts.data();
+    }else if(!body.lastPhysicalRoadFrame||frame-*body.lastPhysicalRoadFrame>1){
+        return INFINITY;
+    }
     const auto m=matrix(car);
-    if(!m||length(body.current[0].p-m->pos)>std::min(30.f,5.f+speed*1.2f))return INFINITY;
+    if(!m||length(parts[0].p-m->pos)>std::min(30.f,5.f+speed*1.2f))return INFINITY;
     const V heading=normalized(V{m->up.x,m->up.y,0});
     if(length(heading)<.9f)return INFINITY;
     const V right{heading.y,-heading.x,0};
     float distance=INFINITY;
     for(unsigned part=0;part<body.current.size();++part){
-        const V delta=body.current[part].p-m->pos;
+        const V delta=parts[part].p-m->pos;
         if(!finite(delta))continue;
         const float radius=body.rig->partRadius[part];
         const float y=dot(delta,heading),x=dot(delta,right),z=dot(delta,m->at);
         if(y<bounds.max.y-.15f||x+radius<bounds.min.x||x-radius>bounds.max.x||
            z+radius<bounds.min.z-.28f||z-radius>bounds.max.z+.20f)continue;
-        const float gap=std::max(0.f,y-bounds.max.y-radius-.6f);
+        const float gap=std::max(0.f,y-bounds.max.y-radius-1.25f);
         distance=std::min(distance,gap);
     }
     return std::sqrt(2.f*4.8f*distance);
+}
+
+
+static void (__cdecl* nativeRailTraffic)(void*)=nullptr;
+static constexpr uintptr_t railTrafficAddress=0x434790;
+static constexpr uintptr_t modifyPathSpeedAddress=0x41B980;
+
+static void __cdecl brakeRailTraffic(void* car) {
+    nativeRailTraffic(car);
+    if(!adaptNpcDriving||!playerVehicleImpacts||!recoveryAllowed()||
+       carStatus(car)!=2||at<int>(car,0x594)!=0||at<unsigned char>(car,0x4A4)!=1||
+       !at<void*>(car,0x460)||at<void*>(car,0x460)==player()||at<void*>(car,0xFC))return;
+    const auto* m=matrix(car);
+    if(!m)return;
+    const V velocity=at<V>(car,0x44)*50.f;
+    const float speed=dot(velocity,m->up);
+    if(speed<0.f||!std::isfinite(speed))return;
+    const auto* col=reinterpret_cast<ColModel*(__thiscall*)(void*)>(0x535300)(car);
+    if(!col)return;
+    const float limit=trafficPhysicalPlayerLimit(car,col->box,speed);
+    if(!std::isfinite(limit)||(limit>.05f&&speed<=limit+.05f))return;
+
+    // The previous frame's world speed gives the local conversion for this
+    // path segment. Native ModifySpeed maintains its interpolation phase.
+    constexpr float brakingAcceleration=12.f;
+    const float seconds=std::clamp(*reinterpret_cast<float*>(0xB7CB5C)*.02f,0.f,.05f);
+    const float reduced=std::max(limit,speed-brakingAcceleration*seconds);
+    const float pathSpeed=at<float>(car,0x3C8);
+    if(!std::isfinite(pathSpeed)||pathSpeed<=0.f)return;
+    const float next=speed>.2f ? pathSpeed*(reduced/speed) : 0.f;
+    if(next>=pathSpeed)return;
+    reinterpret_cast<void(__thiscall*)(void*,float)>(modifyPathSpeedAddress)(
+        static_cast<unsigned char*>(car)+0x390,next);
+}
+
+static bool installRailTrafficBraking() {
+    constexpr unsigned char railEntry[]={0x8B,0x15,0x4C,0xCB,0xB7,0,0x56};
+    constexpr unsigned char modifyEntry[]={0xD9,0x44,0x24,4,0x83,0xEC,0x30};
+    auto* entry=reinterpret_cast<void*>(railTrafficAddress);
+    return memcmp(entry,railEntry,sizeof(railEntry))==0&&
+        memcmp(reinterpret_cast<void*>(modifyPathSpeedAddress),modifyEntry,sizeof(modifyEntry))==0&&
+        MH_CreateHook(entry,reinterpret_cast<void*>(&brakeRailTraffic),reinterpret_cast<void**>(&nativeRailTraffic))==MH_OK&&
+        MH_QueueEnableHook(entry)==MH_OK;
 }
 
 static void adaptTrafficDriving(void* car, TrafficDriving& state, Frame& frame,
