@@ -7,7 +7,7 @@ struct MouseState {
     float z,x,y;
 };
 static const MouseState& mouse(){return *reinterpret_cast<const MouseState*>(0xB73418);}
-static bool installed=false, driveByEnabled=true, ivFootAimEnabled=true, testInput=false, connected=false;
+static bool installed=false, driveByEnabled=true, testInput=false, connected=false;
 static unsigned sampledFrame=~0u, hydraulicSuppressions=0;
 static XINPUT_GAMEPAD input{}, testPad{};
 static int lowriderVehicleRef=-1;
@@ -235,11 +235,10 @@ static bool recognizedPadEntry(uintptr_t address){
 
 static bool install(const std::filesystem::path&ini){
     driveByEnabled=GetPrivateProfileIntW(L"VehicleLab",L"DriveByShoulderAim",1,ini.c_str())!=0;
-    ivFootAimEnabled=GetPrivateProfileIntW(L"Camera",L"IvAim",1,ini.c_str())!=0;
     lowriderToggleKey=GetPrivateProfileIntW(L"VehicleLab",L"LowriderCameraToggleKey",lowriderToggleKey,ini.c_str());
     if(lowriderToggleKey>255)lowriderToggleKey='G';
     lowriderTogglePad=WORD(GetPrivateProfileIntW(L"VehicleLab",L"LowriderCameraTogglePadButton",lowriderTogglePad,ini.c_str())&0xFFFF);
-    if(!driveByEnabled&&!ivFootAimEnabled)return true;
+    if(!driveByEnabled)return true;
     struct Hook {
         uintptr_t entry;void* replacement;void** original;
         size_t size=0;

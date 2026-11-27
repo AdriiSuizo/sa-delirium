@@ -38,6 +38,8 @@ prefix = r'''
 #include <map>
 #include <string>
 static unsigned coverCalls=0, driveCalls=0, nativeCalls=0;
+static unsigned projectionCalls=0;
+static void applyAimProjection(){assert(coverCalls==nativeCalls+1);++projectionCalls;}
 static void* receivedCamera=nullptr;
 static bool receivedMirror=false, receivedOriented=false;
 static uintptr_t returnAddress=0x52C988;
@@ -128,6 +130,7 @@ int main(){
     returnAddress=0x52C988;
     call(reinterpret_cast<void*>(0x123400),nullptr,false,false);
     assert(coverCalls==2&&driveCalls==1&&nativeCalls==4&&receivedCamera==reinterpret_cast<void*>(0x123400));
+    assert(projectionCalls==2);
     VirtualFree(block,0,MEM_RELEASE);
     puts("PASS independent cover camera; drive-by off/on; foreign camera/caller; signature and hook failures");
 }

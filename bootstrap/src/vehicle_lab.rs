@@ -813,7 +813,7 @@ impl RollAssist {
         let mut planted = contacts
             .iter()
             .enumerate()
-            .filter(|(_, c)| c.supported != 0 && c.normal[2] > 0.85);
+            .filter(|(_, c)| c.supported != 0 && c.normal[2] > 0.5);
         let (wheel, first) = planted.next()?;
         let (_, second) = planted.next()?;
         let normal = planted.fold(
@@ -836,8 +836,16 @@ impl RollAssist {
         let roll_axis = basis[1];
         let lean = dot3(basis[0], self.normal);
         let excess = (lean.abs() - 0.020).max(0.0).copysign(lean);
-        let acceleration = 4.2 * lean + self.excess_stiffness * excess
-            - self.damping * dot3(spin, roll_axis);
+        // The sampled normal can jump at the seam between road and bank.
+        // Bound the restoring torque and damp rapid roll with planted wheels.
+        // A steep bank initially touches just one side of a level car. Let
+        // the wheel struts climb it without actively tipping the roof toward
+        // the new plane; roll-rate damping is independent of the slope.
+        let bank_gain = ((self.normal[2] - 0.75) / 0.20).clamp(0.0, 1.0);
+        let spring = (4.2 * lean + self.excess_stiffness * excess).clamp(-28.0, 28.0) * bank_gain;
+        let rate = dot3(spin, roll_axis);
+        let excess_rate = (rate.abs() - 1.2).max(0.0).copysign(rate);
+        let acceleration = spring - self.damping * rate - 4.0 * excess_rate;
         [roll_axis[0] * acceleration, roll_axis[1] * acceleration, roll_axis[2] * acceleration, 0.0]
     }
 }
@@ -1176,8 +1184,10 @@ mod tests {
         };
         let wheels = || std::array::from_fn::<_, 4, _>(|i| Wheel { flags: (i % 2) as u32, ..Default::default() });
         let dt = MAX_SA_FRAME_SECONDS * VEHICLE_PACE;
+        // Historical frame-frozen linear law, kept independent of the live controller.
+        let old_alpha = 4.2 * sine + 220.0 * (sine - 0.020) - 3.8 * body.ang[1];
         let fixed = wheelstep::integrate(
-            &body, [0.0; 4], assist.acceleration(&body.m, body.ang), &mut wheels(), dt, &mut RollOnly(None),
+            &body, [0.0; 4], [0.0, old_alpha, 0.0, 0.0], &mut wheels(), dt, &mut RollOnly(None),
         );
         let updated = wheelstep::integrate(
             &body, [0.0; 4], [0.0; 4], &mut wheels(), dt, &mut RollOnly(Some(assist)),
@@ -1187,6 +1197,26 @@ mod tests {
         assert!(updated.ang[1].abs() < 5.0, "exit roll speed {}", updated.ang[1]);
         eprintln!("frozen: lean={:.3}, roll={:.3}; recalculated: lean={:.3}, roll={:.3}",
             fixed.m[0][2], fixed.ang[1], updated.m[0][2], updated.ang[1]);
+    }
+
+    #[test]
+    fn roll_assist_tracks_the_bank_only_with_two_supported_wheels() {
+        let k = std::f32::consts::FRAC_1_SQRT_2;
+        let bank = Ground { point: [0.0; 4], normal: [k, 0.0, k, 0.0], travel: 0.3,
+            compression: 0.15, radius: 0.32, load_share: 0.25, supported: 1 };
+        let air = Ground { supported: 0, ..bank };
+        let wall = Ground { normal: [1.0, 0.0, 0.0, 0.0], ..bank };
+        assert!(RollAssist::on_road(&[wall, bank, air, air], 1.0).is_none());
+        let assist = RollAssist::on_road(&[air, bank, bank, air], 1.0).unwrap();
+        let mut basis = [[k,0.0,-k,0.0],[0.0,1.0,0.0,0.0],[k,0.0,k,0.0],[0.0;4]];
+        assert!(assist.acceleration(&basis,[0.0;4])[1].abs() < 1e-5);
+        assert!(assist.acceleration(&basis,[0.0,3.0,0.0,0.0])[1] < -12.0);
+        basis[0] = [1.0,0.0,0.0,0.0];
+        assert_eq!(assist.acceleration(&basis,[0.0;4])[1],0.0);
+        let flat = Ground { normal: [0.0,0.0,1.0,0.0], ..bank };
+        let level = RollAssist::on_road(&[flat;4],1.0).unwrap();
+        basis[0] = [k,0.0,k,0.0];
+        assert_eq!(level.acceleration(&basis,[0.0;4])[1],28.0);
     }
 
     #[test]

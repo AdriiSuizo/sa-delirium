@@ -18,25 +18,13 @@ struct AimView {
 };
 static AimView view;
 
-struct FootAimState {
-    float blend=0,crouchDrop=0,fov=60.f;
-    bool active=false,zoomed=false,prevZoomBtn=false;
-};
-static FootAimState footAim;
-
 struct NativeCamPose {
     void* cam=nullptr;
     V front{}, source{}, up{};
-    bool hasCrosshair=false;
-    float chX=0.53f, chY=0.40f;
 };
 static NativeCamPose nativeCamPose;
 
 static void restoreNativeCamPose(){
-    if(nativeCamPose.hasCrosshair){
-        *reinterpret_cast<float*>(0xB6EC14)=nativeCamPose.chX;
-        *reinterpret_cast<float*>(0xB6EC10)=nativeCamPose.chY;
-    }
     auto*cam=nativeCamPose.cam;
     if(cam){
         at<V>(cam,0x190)=nativeCamPose.front;
@@ -66,82 +54,15 @@ static V lookStick(){
     return stick*(response*response/radius);
 }
 
-static void applyOnFootAimView(void*camera){
-    view={};
-    auto*cj=player();
-    auto*cam=::activeCamera();
-    const float dt=std::clamp(*reinterpret_cast<float*>(0xB7CB5C)*.02f,0.f,.05f);
-    if(!ivFootAimEnabled||!playing()||cutscene()||!cj||inVehicle(cj)||player_cover::owns(cj)||
-       !cam||at<bool>(camera,0x3D)){
-        footAim={};
-        ivTargetFov=0.f;ivFovBlend=0.f;
-        return;
-    }
-    const unsigned short mode=at<unsigned short>(cam,0xC);
-    const unsigned slot=at<unsigned char>(cj,0x718);
-    const int wid=slot<13?at<int>(cj,0x5A0+slot*0x1C):0;
-    const bool validMode=(mode==0x35||mode==0x37||mode==0x41)&&wid>=22&&wid<=34;
-    if(!validMode){
-        footAim.active=false;
-        footAim.zoomed=false;
-        footAim.prevZoomBtn=false;
-        footAim.blend=std::max(0.f,footAim.blend-dt/.14f);
-        if(footAim.blend>0.f){
-            ivTargetFov=footAim.fov;
-            ivFovBlend=footAim.blend*footAim.blend*(3.f-2.f*footAim.blend);
-        }else{
-            footAim.fov=60.f;
-            ivTargetFov=0.f;ivFovBlend=0.f;
-        }
-        return;
-    }
-    footAim.active=true;
-    footAim.blend=std::clamp(footAim.blend+dt/.15f,0.f,1.f);
-    const float b=footAim.blend*footAim.blend*(3.f-2.f*footAim.blend);
-    const bool ducked=(at<unsigned>(cj,0x46C)&0x04000000u)!=0;
-    const float wantDrop=ducked?-.34f:0.f;
-    footAim.crouchDrop+=(wantDrop-footAim.crouchDrop)*std::min(1.f,dt*12.f);
-    const bool zoomBtn=(connected&&(input.wButtons&XINPUT_GAMEPAD_RIGHT_THUMB)!=0)||
-        (!testInput&&mouse().mmb!=0);
-    if(zoomBtn&&!footAim.prevZoomBtn)footAim.zoomed=!footAim.zoomed;
-    footAim.prevZoomBtn=zoomBtn;
-    float shoulderR=.41f,camBack=1.62f,targetFov=48.f;
-    if(wid>=25&&wid<=27){shoulderR=.45f;camBack=1.76f;targetFov=45.f;}
-    else if(wid==30||wid==31||wid==33||wid==34){shoulderR=.44f;camBack=1.48f;targetFov=41.f;}
-    if(footAim.zoomed){targetFov-=9.f;camBack-=.24f;}
-    footAim.fov+=(targetFov-footAim.fov)*std::min(1.f,dt*14.f);
-    ivTargetFov=footAim.fov;ivFovBlend=b;
-    auto&pose=at<M>(camera,0x974);
-    const V front=normalized(pose.up);
-    const V rawLeft=cross({0,0,1},front);
-    const V left=length(rawLeft)>1e-4f?normalized(rawLeft):normalized(pose.right);
-    const V up=cross(front,left);
-    const V pivot=position(cj)+V{0,0,.56f+footAim.crouchDrop}-left*(shoulderR*b);
-    const V desiredSource=pivot-front*camBack;
-    V source=pose.pos+(desiredSource-pose.pos)*b;
-    ColPoint wall{};
-    if(traceDriveBy(pivot,source,cj,wall,false)){
-        const V offset=source-pivot;
-        const float distance=length(offset);
-        if(distance>.01f)source=pivot+offset*(std::clamp(length(wall.point-pivot)-.24f,.35f,distance)/distance);
-    }
-    nativeCamPose={cam,at<V>(cam,0x190),at<V>(cam,0x19C),at<V>(cam,0x1B4),true,
-        *reinterpret_cast<float*>(0xB6EC14),*reinterpret_cast<float*>(0xB6EC10)};
-    *reinterpret_cast<float*>(0xB6EC14)=nativeCamPose.chX+(.50f-nativeCamPose.chX)*b;
-    *reinterpret_cast<float*>(0xB6EC10)=nativeCamPose.chY+(.50f-nativeCamPose.chY)*b;
-    pose.pos=source;pose.up=front;pose.right=left;pose.at=up;
-    at<V>(cam,0x190)=front;at<V>(cam,0x19C)=source;at<V>(cam,0x1B4)=up;
-}
-
 static bool needsAimView();
 static void applyAimView(void*camera){
     sample();
     auto*cj=player();
     if(!cj||!inVehicle(cj)){
-        applyOnFootAimView(camera);
+        view={};
+        ivTargetFov=0.f;ivFovBlend=0.f;
         return;
     }
-    footAim={};
     void*car=armedDriverVehicle(reinterpret_cast<void*>(primaryPad));
     const int ref=vehicleRef(car);
     if(ref<0||!matrix(car)||(at<void*>(camera,0x958)!=car&&at<void*>(camera,0x958)!=cj)||at<bool>(camera,0x3D)){
@@ -222,7 +143,7 @@ static void applyAimView(void*camera){
     // The renderer also reads the active CCam directly. Keep it in sync
     // through rendering, then restore the native follow-camera inputs.
     if(auto*cam=::activeCamera()){
-        nativeCamPose={cam,at<V>(cam,0x190),at<V>(cam,0x19C),at<V>(cam,0x1B4),false,0.53f,0.40f};
+        nativeCamPose={cam,at<V>(cam,0x190),at<V>(cam,0x19C),at<V>(cam,0x1B4)};
         at<V>(cam,0x190)=front;
         at<V>(cam,0x19C)=source;
         at<V>(cam,0x1B4)=up;
@@ -443,12 +364,11 @@ static void __cdecl crosshair(){
     nativeCrosshair();
     void*car=armedDriverVehicle(reinterpret_cast<void*>(primaryPad));
     const bool vehicleAim=hasAimView(car)&&aimHeld();
-    const bool footIvAim=footAim.active&&footAim.blend>.5f;
-    if(!vehicleAim&&!footIvAim)return;
-    const float x=*reinterpret_cast<int*>(0xC17044)*(vehicleAim?.5f:*reinterpret_cast<const float*>(0xB6EC14));
-    const float y=*reinterpret_cast<int*>(0xC17048)*(vehicleAim?.5f:*reinterpret_cast<const float*>(0xB6EC10));
+    if(!vehicleAim)return;
+    const float x=*reinterpret_cast<int*>(0xC17044)*.5f;
+    const float y=*reinterpret_cast<int*>(0xC17048)*.5f;
     if(x<80.f||y<60.f)return;
-    const float size=std::clamp(y/270.f,1.f,vehicleAim?3.f:2.f);
+    const float size=std::clamp(y/270.f,1.f,3.f);
     const auto rect=reinterpret_cast<void(__cdecl*)(const float*,const unsigned char*)>(0x727B60);
     const float outline[]={x-size*2,y-size*2,x+size*2,y+size*2};
     const float dot[]={x-size,y-size,x+size,y+size};

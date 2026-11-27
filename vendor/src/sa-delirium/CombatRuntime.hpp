@@ -12,6 +12,12 @@ struct CombatActor {
     void*ped=nullptr;int model=-1,target=-1;unsigned traceAt=0,movementTraceAt=0;
     std::unique_ptr<Rig> rig;std::vector<T> pose,previous;V root{};float state[16]{},motionSeconds=0;
     int lastResult=-2,deferredIntent=-1,lastDecision=0;bool owned=false;
+    int counterFxSource=-1;
+    unsigned counterFxAt=0;
+    bool newCounterImpact(int source,unsigned now){
+        if(source==counterFxSource&&now-counterFxAt<160u)return false;
+        counterFxSource=source;counterFxAt=now;return true;
+    }
     CombatPoseHistory poseHistory;SeedEpoch poseEpoch{},previousPoseEpoch{},fedPoseEpoch{};T finalizedRoot{};bool authoredPose=false;
     void*clubClump=nullptr;int clubModel=-1;bool clubReady=false;std::array<float,8> clubBounds{};
     // Last drawn authored pose about the ped's root, and when: the release blend's source.
@@ -826,7 +832,7 @@ static void combatFinish(){
         if(hit[15]==3){meleeDisarm(by,p);continue;}
         if(hit[15]==4){
             const V point{hit[4],hit[5],hit[6]};
-            if(finite(point)&&length(point-position(p))<2.5f&&at<float>(p,0x540)>0.f){
+            if(finite(point)&&length(point-position(p))<2.5f&&at<float>(p,0x540)>0.f&&fighters.at(target).newCounterImpact(source,now)){
                 const int weapon=combatWeapon(by);
                 playIvMeleeImpact(clubWeapon(weapon)&&!bladeWeapon(weapon)?5:0,part,point,target);
                 const V away=position(p)-position(by);
@@ -883,7 +889,10 @@ static void combatFinish(){
             const bool hand=(striker>=22&&striker<=26)||(striker>=32&&striker<=36);
             const bool foot=(striker>=42&&striker<=46)||(striker>=52&&striker<=56);
             const bool counter=hit[15]!=0;
-            if(hit[14]==0&&hit[3]>0&&(clubWeapon(weapon)||(weapon==0&&(hand||foot||counter)))){
+            // The geometric impact and the receiver's damage marker may describe the same blow.
+            // Share their sound/blood receipt; damage above is always processed independently.
+            if(hit[14]==0&&hit[3]>0&&(clubWeapon(weapon)||(weapon==0&&(hand||foot||counter)))&&
+               (!counter||fighters.at(target).newCounterImpact(source,now))){
                 const V rawPoint{hit[4],hit[5],hit[6]};
                 const V point=finite(rawPoint)&&length(rawPoint-position(p))<2.5f?rawPoint:position(p)+V{0,0,.2f};
                 playIvMeleeImpact(weapon?(bladeWeapon(weapon)?0:5):0,part,point,target);

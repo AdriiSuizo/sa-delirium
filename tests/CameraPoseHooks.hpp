@@ -3,6 +3,7 @@
 // Cover is an on-foot feature. Its final camera pose must remain available
 // when drive-by shoulder controls are disabled or an unrelated input hook
 // was refused. Chain the native camera independently of that optional set.
+static void applyAimProjection();
 namespace camera_pose_hooks {
 constexpr uintptr_t deriveAddress = 0x5150E0;
 static void(__thiscall* nativeDerivedCamera)(void*,bool,bool) = nullptr;
@@ -12,6 +13,7 @@ static void __fastcall deriveCamera(void* camera, void*, bool mirror, bool orien
         reinterpret_cast<uintptr_t>(_ReturnAddress()) == 0x52C988) {
         if (drive_by_controls::installed) drive_by_controls::applyAimView(camera);
         player_cover::applyCamera(camera);
+        applyAimProjection();
     }
     nativeDerivedCamera(camera, mirror, oriented);
 }

@@ -521,7 +521,8 @@ static bool begin(int ref, bool driverInputs, void* ramp = nullptr, float crestX
 }
 
 static bool fixedWheelSupport(void* support) {
-    return !support || ((at<unsigned char>(support, 0x36) & 7) == 4 &&
+    return !support || (at<unsigned char>(support, 0x36) & 7) == 1 ||
+        ((at<unsigned char>(support, 0x36) & 7) == 4 &&
         (at<unsigned char>(support, 0x1C) & 4) != 0 &&
         !at<void*>(support, 0xFC) &&
         length(at<V>(support, 0x44)) < .0001f && length(at<V>(support, 0x50)) < .0001f);
@@ -662,7 +663,8 @@ static void suspension(void* car) {
         auto it = trafficCars.find(ref);
         if (it != trafficCars.end() && (it->second.entity != car || it->second.mass != frame.mass)) {
             if (it->second.solver) destroy(it->second.solver);
-            it = trafficCars.erase(it);
+            trafficCars.erase(it);
+            it = trafficCars.end();
         }
         if (it == trafficCars.end()) {
             it = trafficCars.emplace(ref, TrafficCar{car, makeSolver(car, dimensions), frame.mass, now}).first;

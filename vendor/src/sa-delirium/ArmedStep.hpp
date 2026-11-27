@@ -8,7 +8,7 @@ inline bool aims(int pending,int last){
     return cmd>=1&&cmd<=3;
 }
 inline bool usesArmedStride(int weapon,bool player){
-    return (weapon>=22&&weapon<=34)||(player&&aimedMovementTool(weapon));
+    return player ? aimedMovementTool(weapon) : weapon>=22&&weapon<=34;
 }
 inline V cameraRelativeWish(float x,float y,V view,V facing){
     if(!std::isfinite(x)||!std::isfinite(y))return {};
@@ -18,13 +18,6 @@ inline V cameraRelativeWish(float x,float y,V view,V facing){
     const V front=normalized(finite(view)&&length(view)>=.05f?view:facing);
     const V right{front.y,-front.x,0};
     return (front*y+right*x)*(1.f/std::max(1.f,magnitude));
-}
-inline float playerStrideCap(int weapon,float pressure,bool sprint){
-    // With a firearm, full movement blends toward the jog clips without
-    // requiring Sprint. Partial stick pressure still allows precise walking.
-    if(aimedMovementTool(weapon))return 1.f;
-    if(sprint)return 2.f;
-    return 1.f+.45f*std::clamp((pressure-.55f)/.45f,0.f,1.f);
 }
 inline unsigned sector(float right,float forward){
     const int octant=int(std::lround(std::atan2(right,forward)*1.273239545f));

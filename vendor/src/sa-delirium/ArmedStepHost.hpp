@@ -106,7 +106,7 @@ static void move(void* ped){
     if(!finite(wish)){a.weight=0;return;}
     const V forward{-right.y,right.x,0};
     const float pressure=length(wish);
-    const float cap=isPlayer?playerStrideCap(weapon,pressure,fast):(fast?2.f:1.f);
+    const float cap=!isPlayer&&fast?2.f:1.f;
     const bool moving=pressure>.1f;
     a.blend.select(moving?cap*dot(wish,right):0.f,moving?cap*dot(wish,forward):0.f,dt);
     const bool cycling=std::hypot(a.blend.right,a.blend.forward)>.01f;

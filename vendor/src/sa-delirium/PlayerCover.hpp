@@ -207,7 +207,7 @@ static void applyAimFacing(void* ped,V view,void* cam,bool syncRw){
         face(ped,{-std::sin(targetRootYaw),std::cos(targetRootYaw),0.f},&cover.aimFacing);
     }else{
         const int weapon=combatWeapon(ped);
-        const int skill=reinterpret_cast<int(__thiscall*)(void*)>(0x5E6580)(ped);
+        const int skill=reinterpret_cast<unsigned char(__thiscall*)(void*)>(0x5E6580)(ped);
         auto* info=weapon>=0?reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(weapon,skill):nullptr;
         const bool armAim=info&&(at<unsigned>(info,0x18)&2u)!=0&&(at<unsigned>(ped,0x46C)&0x04000000u)==0;
         if(!armAim&&cam){
@@ -1060,9 +1060,9 @@ static bool draw(void* ped){
     if(!cover.aiming&&motion==Motion::Blind&&poseReader.rig){
         const int shoulder=poseReader.rig->index(weaponPose(combatWeapon(ped))[0]=='r'?saBone::chest:22),hand=poseReader.rig->index(24);
         auto* cam=activeCamera();
-        const int skill=reinterpret_cast<int(__thiscall*)(void*)>(0x5E6580)(ped);
+        const int skill=reinterpret_cast<unsigned char(__thiscall*)(void*)>(0x5E6580)(ped);
         auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(combatWeapon(ped),skill);
-        if(shoulder>=0&&hand>=0&&cam&&info){
+        if(shoulder>=0&&hand>=0&&cam&&info&&poseReader.rig->parents.size()==size_t(h->num)&&shoulder<h->num&&hand<h->num){
             const float duration=clipMeta(poseReader,ped,blindKey(combatWeapon(ped))).duration;
             const float age=blindTime(duration);
             const float gain=smooth(age/.20f)*smooth((duration-age)/.15f);
@@ -1088,7 +1088,7 @@ static bool draw(void* ped){
     const bool blending=blendCoverPose(ped,poseReader,blend,motion,action,motion==Motion::Blind?.18f:.14f,lowPose(ped,cover.wall.low));
     blend.blindGrip=motion==Motion::Blind;
     if(poseReader.rig){const int hand=poseReader.rig->index(24);
-        if(hand>=0){blend.grip=h->matrices[hand];blend.gripAt=gameTime();}}
+        if(hand>=0&&hand<h->num){blend.grip=h->matrices[hand];blend.gripAt=gameTime();}}
     return cover.aiming||authored||blending;
 }
 static bool blindShot(void* ped,V& muzzle,V& end,float range){
@@ -1104,7 +1104,7 @@ static bool blindShot(void* ped,V& muzzle,V& end,float range){
     const float phase=std::clamp(blindTime(duration)/duration,.30f,.58f);
     if(nm_locomotion_clip_pose(combat,poseReader.reader,key.c_str(),phase,poseReader.rows.data(),int(ids.size()),info)!=1)return false;
     const T grip=mul(transform(*matrix(ped)),rowPose(poseReader.rows.data()+7*(hand-ids.begin())));
-    const int skill=reinterpret_cast<int(__thiscall*)(void*)>(0x5E6580)(ped);
+    const int skill=reinterpret_cast<unsigned char(__thiscall*)(void*)>(0x5E6580)(ped);
     auto* weaponInfo=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(weapon,skill);
     muzzle=grip.p+(weaponInfo?rotate(grip.q,at<V>(weaponInfo,0x24)):V{});
     if(weaponInfo&&transition.ref==cover.ref&&transition.blindGrip&&gameTime()-transition.gripAt<100)

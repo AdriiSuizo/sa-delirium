@@ -8,6 +8,45 @@ static int gameplayRegressionFixture(int mode) {
     static int firearmTarget=-1, firearmShooter=-1, cameraTargets[2]={-1,-1};
     static int coverCop=-1;
     static bool farCover=false;
+    if(mode>=447 && mode<=452){
+        auto* target=pedFromRef(firearmTarget);
+        if(!target)return -447;
+        if(mode==451)return (at<void*>(target,0x18)?1:0)|
+            ((qaCameraPed==target && gameTime()-qaCameraPreRenderAt<100u)?2:0);
+        if(mode==452)return reference(target);
+        auto* camera=reinterpret_cast<void*>(0xB6F028);
+        const V centre=position(target),eye=centre+V{0.f,-8.f,1.f};
+        const V rays[]={{0.f,8.f,-1.f},{6.f,-6.f,-1.f},{2.8f,8.f,-1.f},{0.f,8.f,-1.f}};
+        const V look=eye+rays[mode-447],up{};
+        qaCameraPed=target;qaCameraPreRenderAt=gameTime()-1000u;
+        reinterpret_cast<void(__thiscall*)(void*,const V*,const V*)>(0x50BEC0)(camera,&eye,&up);
+        reinterpret_cast<void(__thiscall*)(void*,const V*,short,int)>(0x50C8B0)(camera,&look,2,1);
+        return firearmTarget;
+    }
+    if(mode==445){
+        // Skill changes live only in this disposable, unsaved QA session.
+        for(unsigned short stat:{69,73,75})
+            reinterpret_cast<void(__cdecl*)(unsigned short,float)>(0x55A070)(stat,1000.f);
+        return 1;
+    }
+    if(mode==446){
+        auto* intelligence=at<void*>(cj,0x47C);
+        auto* task=intelligence?reinterpret_cast<void*(__thiscall*)(void*)>(0x600F70)(intelligence):nullptr;
+        const int slot=at<unsigned char>(cj,0x718);
+        if(!task||slot>=13)return -446;
+        auto* weapon=static_cast<char*>(cj)+0x5A0+slot*0x1C;
+        const int id=at<int>(weapon,0);
+        auto skill=reinterpret_cast<unsigned char(__thiscall*)(void*,int)>(0x5E3B60)(cj,id);
+        auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(id,skill);
+        if(!info||!(at<unsigned>(info,0x18)&(1u<<11))||at<unsigned>(weapon,8)<2)return -447;
+        const auto fireGun=reinterpret_cast<void(__thiscall*)(void*,void*,bool)>(0x61EB10);
+        const unsigned before=at<unsigned>(weapon,8);
+        fireGun(task,cj,false);
+        const unsigned right=at<unsigned>(weapon,8);
+        fireGun(task,cj,true);
+        const unsigned left=at<unsigned>(weapon,8);
+        return (right+1==before?1:0)|(left+1==right?2:0);
+    }
     if(mode>=1912&&mode<=1915){
         const int ref=expansionFixture(133);
         auto*ped=pedFromRef(ref);

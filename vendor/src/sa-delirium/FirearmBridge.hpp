@@ -160,6 +160,7 @@ static void observeShotLine(const V& from,const V& end,uintptr_t caller){
 static void __fastcall impact(void*,void*,void*,void*,const V&,const V&,const ColPoint&,int);
 static void castPellets(void* weapon,Round& fired,const Profile& spec){
     struct RayHit{ColPoint hit;V end;bool first;};
+    struct VictimHits{int type=0,ref=-1;std::vector<RayHit> rays;};
     struct WorldRayScope{
         void*& ignore=*reinterpret_cast<void**>(0xB7CD68);
         bool& bikers=*reinterpret_cast<bool*>(0xB7CD6F);
@@ -180,16 +181,31 @@ static void castPellets(void* weapon,Round& fired,const Profile& spec){
         const float across=random(-1.f,1.f),up=random(-1.f,1.f);
         rays[n].end=fired.from+pelletDirection(forward,spec.accuracy,across,up)*reach;
     }
-    std::map<void*,std::vector<RayHit>> hits;
+    std::map<void*,VictimHits> hits;
     {
         const WorldRayScope flags(fired.shooter);
         tracePellets(fired.from,rays.data(),budget);
     }
-    for(unsigned n=0;n<budget;++n)if(rays[n].victim&&finite(rays[n].hit.point))
-        hits[rays[n].victim].push_back({rays[n].hit,rays[n].end,n==0});
+    for(unsigned n=0;n<budget;++n)if(void* entity=rays[n].victim;entity&&finite(rays[n].hit.point)){
+        auto [it,first]=hits.try_emplace(entity);
+        auto& hit=it->second;
+        if(first){
+            hit.type=at<unsigned char>(entity,0x36)&7;
+            if(hit.type==3)hit.ref=reference(entity);
+            else if(hit.type==2)hit.ref=vehicleRef(entity);
+            else if(hit.type==4)hit.ref=reinterpret_cast<int(__cdecl*)(void*)>(0x550020)(entity);
+        }
+        hit.rays.push_back({rays[n].hit,rays[n].end,n==0});
+    }
     fired.replaying=true;
-    for(const auto&[victim,rays]:hits){
-        const int ref=reference(victim);
+    for(const auto&[victim,groupHit]:hits){
+        // An earlier impact can remove another destructible object or actor.
+        // Compare its generation before handing the recorded address to SA.
+        if((groupHit.type==3&&pedFromRef(groupHit.ref)!=victim)||
+           (groupHit.type==2&&vehicleFromRef(groupHit.ref)!=victim)||
+           (groupHit.type==4&&(groupHit.ref<0||reinterpret_cast<void*(__cdecl*)(int)>(0x550050)(groupHit.ref)!=victim)))continue;
+        const auto& rays=groupHit.rays;
+        const int ref=groupHit.type==3?groupHit.ref:-1;
         auto main=rays.begin();
         if(ref>=0){
             auto& group=fired.shotgun[ref];
@@ -232,11 +248,18 @@ static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,
     const unsigned now=gameTime();
     // SA owns ammo, reloads, animation contact frames and weapon skill.
     // Enforce the imported spacing only after a successful native shot.
-    const bool paced=!ragdollFiring&&spec.interval&&reference(shooter)>=0&&!inVehicle(shooter);
+    const bool onFoot=reference(shooter)>=0&&!inVehicle(shooter);
+    bool dual=false;
+    if(onFoot){
+        const auto skill=reinterpret_cast<unsigned char(__thiscall*)(void*,int)>(0x5E3B60)(shooter,id);
+        auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(id,skill);
+        dual=info&&(at<unsigned>(info,0x18)&(1u<<11))!=0;
+    }
+    const bool paced=!ragdollFiring&&spec.interval&&onFoot&&!dual;
     if(paced&&at<int>(weapon,4)==1&&int(next-now)>0)return false;
     Round fired{shooter,id,{}};
     fired.blind=blind;
-    fired.replacePellets=(paced||ragdollFiring)&&detectImpacts&&spec.shotgun&&std::isfinite(spec.accuracy)&&spec.accuracy>0.f&&spec.accuracy<=1.f;
+    fired.replacePellets=(onFoot||ragdollFiring)&&detectImpacts&&spec.shotgun&&std::isfinite(spec.accuracy)&&spec.accuracy>0.f&&spec.accuracy<=1.f;
     if(fired.replacePellets){
         fired.explicitFrom=muzzle?*muzzle:start?*start:position(shooter)+V{0,0,.45f};
         if(end)fired.explicitEnd=*end;
@@ -248,7 +271,7 @@ static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,
         }
     }
     auto* previous=round;round=(isShotgun(id)||blind||ragdollFiring)?&fired:nullptr;
-    const unsigned char prevIkFlags=shooter?at<unsigned char>(shooter,0x528):0;
+    const unsigned char prevIkFlags=ragdollFiring&&shooter?at<unsigned char>(shooter,0x528):0;
     if(ragdollFiring&&shooter)at<unsigned char>(shooter,0x528)=prevIkFlags|1u;
     const bool result=originalFire(weapon,shooter,start,muzzle,target,end,alt);
     if(ragdollFiring&&shooter)at<unsigned char>(shooter,0x528)=prevIkFlags;

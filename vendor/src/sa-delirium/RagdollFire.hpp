@@ -118,7 +118,7 @@ static void tick(unsigned now){
     if(!ready||!playing()||cutscene()||(protectMissions&&authoredMissionProtected()))return;
     for(auto& [ref,a]:agents){
         auto* ped=a->ped;
-        if(!ped||!a->agent||a->corpseResting||!matrix(ped)||inVehicle(ped))continue;
+        if(!ped||pedFromRef(ref)!=ped||!a->agent||a->corpseResting||!matrix(ped)||inVehicle(ped))continue;
         auto& st=states[ref];
         if(st.agentStart!=a->start){
             resetState(a->agent,st);
@@ -144,7 +144,7 @@ static void tick(unsigned now){
         const int id=at<int>(weaponPtr,0);
         if(id<22||id>34){resetState(a->agent,st);continue;}
         if(at<unsigned>(weaponPtr,8)==0){resetState(a->agent,st);continue;}
-        const int skill=reinterpret_cast<int(__thiscall*)(void*)>(0x5E6580)(ped);
+        const int skill=reinterpret_cast<unsigned char(__thiscall*)(void*)>(0x5E6580)(ped);
         auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(id,skill);
         if(!info)continue;
         const bool continuous=(at<unsigned>(info,0x18)&0x400u)!=0;

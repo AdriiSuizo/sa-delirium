@@ -2,7 +2,7 @@
 // Temporarily expose simulated peds only to native HIT queries. Movement
 // collision stays off, so SA and NM cannot both push a car/body in one tick.
 struct NativeHitScope {
-    struct Entry {int ref;void* ped;bool collision;bool fallen;float rootZ;std::vector<M> matrices;};
+    struct Entry {int ref;void* ped;bool collision;bool fallen;M* root;float rootZ;Hierarchy* hierarchy;M* palette;std::vector<M> matrices;};
     std::vector<Entry> entries;
     NativeHitScope(){
         if(!applyBones)return;
@@ -11,15 +11,15 @@ struct NativeHitScope {
         auto*pool=pedPool();for(int n=0;pool&&n<pool->size;n++)if(!(pool->flags[n]&128)){
             void*p=pool->objects+n*0x7C4;std::vector<T> pose;
             if(!combatQueryPose(p,pose))continue;auto*h=hierarchy(p);
-            if(!h||h->num!=int(pose.size())||!matrix(p))continue;
-            entries.push_back({reference(p),p,(at<unsigned char>(p,0x1C)&1)!=0,(at<unsigned char>(p,0x476)&16)!=0,matrix(p)->pos.z,{h->matrices,h->matrices+h->num}});
+            if(!h||!h->matrices||h->num<=0||h->num>256||h->num!=int(pose.size())||!matrix(p))continue;
+            entries.push_back({reference(p),p,(at<unsigned char>(p,0x1C)&1)!=0,(at<unsigned char>(p,0x476)&16)!=0,matrix(p),matrix(p)->pos.z,h,h->matrices,{h->matrices,h->matrices+h->num}});
             for(int i=0;i<h->num;i++)write(h->matrices[i],pose[i]);
         }
         for(auto&[ref,a]:agents){
             if(a->preview||a->mounted||pedFromRef(ref)!=a->ped||a->lastRendered.empty())continue;
-            auto*h=hierarchy(a->ped);if(!h||h->num!=int(a->lastRendered.size()))continue;
+            auto*h=hierarchy(a->ped);if(!h||!h->matrices||h->num<=0||h->num>256||h->num!=int(a->lastRendered.size()))continue;
             if(!matrix(a->ped))continue;
-            Entry e{ref,a->ped,(at<unsigned char>(a->ped,0x1C)&1)!=0,(at<unsigned char>(a->ped,0x476)&16)!=0,matrix(a->ped)->pos.z,{h->matrices,h->matrices+h->num}};
+            Entry e{ref,a->ped,(at<unsigned char>(a->ped,0x1C)&1)!=0,(at<unsigned char>(a->ped,0x476)&16)!=0,matrix(a->ped),matrix(a->ped)->pos.z,h,h->matrices,{h->matrices,h->matrices+h->num}};
             entries.push_back(std::move(e));at<unsigned char>(a->ped,0x1C)|=1u;
             // SA queries assume a standing root even when its visual body is
             // horizontal. A ragdoll's pelvis-minus-standing-offset can be below
@@ -33,8 +33,8 @@ struct NativeHitScope {
     ~NativeHitScope(){for(auto&e:entries)if(pedFromRef(e.ref)==e.ped){
         auto&flags=at<unsigned char>(e.ped,0x1C);flags=(flags&~1u)|(e.collision?1u:0u);
         auto&fallen=at<unsigned char>(e.ped,0x476);fallen=(fallen&~16u)|(e.fallen?16u:0u);
-        if(matrix(e.ped))matrix(e.ped)->pos.z=e.rootZ;
-        auto*h=hierarchy(e.ped);if(h&&h->num==int(e.matrices.size()))std::copy(e.matrices.begin(),e.matrices.end(),h->matrices);
+        if(matrix(e.ped)==e.root)e.root->pos.z=e.rootZ;
+        auto*h=hierarchy(e.ped);if(h==e.hierarchy&&h->matrices==e.palette&&h->num==int(e.matrices.size()))std::copy(e.matrices.begin(),e.matrices.end(),h->matrices);
     }}
 };
 static bool(__cdecl* originalLineOfSight)(const V&,const V&,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,bool,bool)=nullptr;

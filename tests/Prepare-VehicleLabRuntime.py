@@ -236,7 +236,7 @@ if not args.shipping:
                           '#include "VehicleEntryLab.hpp"\n#include "VehicleDeformationProbe.hpp"\n#include "GameplayRegressionProbe.hpp"')
     source = replace_once(source, '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);',
                           '    if(mode>=380&&mode<=389)return deformationFixture(mode);\n'
-                          '    if((mode>=390&&mode<=398)||(mode>=400&&mode<=444)||(mode>=1900&&mode<=1915))return gameplayRegressionFixture(mode);\n'
+                          '    if((mode>=390&&mode<=398)||(mode>=400&&mode<=452)||(mode>=1900&&mode<=1915))return gameplayRegressionFixture(mode);\n'
                           '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);')
 source = replace_once(source,
     '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);',
@@ -473,9 +473,10 @@ source = replace_once(source, anchor, '''    constexpr int comparisonModels[]={4
         return model;
     }
     const bool runwayProbe=mode>=3400&&mode<=6611&&mode%1000>=400&&mode%1000<=611;
+    const bool bankProbe=mode==7445||mode==7480||mode==7579;
     const bool rightAngle=mode==342||mode==343||modelCorner;
     const bool curveProbe=mode==336||mode==337||mode==341||rightAngle;
-    if(runwayProbe||fleetProbe||curveProbe||(mode>=300&&mode<300+std::size(comparisonModels))){
+    if(bankProbe||runwayProbe||fleetProbe||curveProbe||(mode>=300&&mode<300+std::size(comparisonModels))){
         if(vehicle_lab::carRef>=0||!playing())return -300;
         if(inVehicle(player())){
             auto*previous=vehicleFromRef(probeCar);
@@ -491,7 +492,7 @@ source = replace_once(source, anchor, '''    constexpr int comparisonModels[]={4
         if(vehicleFromRef(probeCar)){
             ProbeScript remove(0x00A6);remove.integer(probeCar);remove.run();
         }
-        const int model=runwayProbe?mode%1000:modelCorner?mode-2000:fleetProbe?mode-400:curveProbe?((mode==337||mode==343)?480:445):comparisonModels[mode-300];
+        const int model=(runwayProbe||bankProbe)?mode%1000:modelCorner?mode-2000:fleetProbe?mode-400:curveProbe?((mode==337||mode==343)?480:445):comparisonModels[mode-300];
         const int speedMode=runwayProbe?mode/1000-2:0;
         if((speedMode==2||speedMode==3)&&!vehicle_lab::speed_probe::measuredTop.contains(model))return -307;
         const bool remote=model==441||model==594;
@@ -499,14 +500,43 @@ source = replace_once(source, anchor, '''    constexpr int comparisonModels[]={4
         reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
         const auto vertical=reinterpret_cast<bool(__cdecl*)(const V&,float,ColPoint&,void*&,bool,bool,bool,bool,bool,bool,void*)>(0x5674E0);
         V road=runwayProbe?vehicle_lab::speed_probe::runway:rightAngle?V{2450.f,-1668.f,38.f}:V{2406.f,-1658.f,38.f};
+        float bankHeading=0.f;
+        if(bankProbe){
+            // Find the toe of a sloped concrete channel under the game's own
+            // collision mesh. Start on the floor and enter the bank obliquely.
+            bool found=false;
+            for(float y:{-1572.f,-1570.f,-1574.f,-1580.f,-1820.f,-1720.f,-1920.f}){
+                if(found)break;
+                const V sector{2570.f,y,12.f};
+                reinterpret_cast<void(__cdecl*)(const V*)>(0x40ED80)(&sector);
+                for(float x=2420.f;x<=2700.f&&!found;x+=2.f){
+                    ColPoint slope{},base{};void* obj=nullptr;
+                    V sample{x,y,28.f};
+                    if(!vertical(sample,-15.f,slope,obj,true,false,false,false,false,false,nullptr)||
+                       slope.point.z>22.f||slope.normal.z<.52f||slope.normal.z>.84f)continue;
+                    V down=slope.normal;down.z=0.f;down=normalized(down);
+                    V tangent{-down.y,down.x,0.f};
+                    const V start=slope.point+down*6.f-tangent*7.f;
+                    sample={start.x,start.y,28.f};
+                    if(!vertical(sample,-15.f,base,obj,true,false,false,false,false,false,nullptr)||
+                       base.normal.z<.97f||slope.point.z-base.point.z<.5f||slope.point.z-base.point.z>10.f)continue;
+                    const V direction=normalized(tangent*.75f-down*.66f);
+                    bankHeading=std::atan2(-direction.x,direction.y);
+                    road=base.point+V{0,0,2.f};
+                    event("qa_channel_bank",-1,model,"floor_x="+std::to_string(base.point.x)+" floor_y="+std::to_string(base.point.y)+" slope_z="+std::to_string(slope.normal.z));
+                    found=true;
+                }
+            }
+            if(!found)return -745;
+        }
         if(runwayProbe){
             reinterpret_cast<void(__cdecl*)(const V*)>(0x40ED80)(&road);
         }
         ColPoint ground{};void*support=nullptr;
         if(!vertical(road,road.z-50,ground,support,true,false,false,true,true,false,nullptr))return -304;
         road.z=ground.point.z;
-        if(runwayProbe){
-            if(road.z<11.f||road.z>15.f)return -306;
+        if(runwayProbe||bankProbe){
+            if(runwayProbe&&(road.z<11.f||road.z>15.f))return -306;
             teleport(player(),road+V{0,-4.f,1.f});
             at<V>(player(),0x44)={};
         }
@@ -522,7 +552,8 @@ source = replace_once(source, anchor, '''    constexpr int comparisonModels[]={4
         if(!std::isfinite(height)||height<0.f||height>6.f)return -304;
         road.z=ground.point.z+height+.01f;
         teleport(car,road);
-        reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(car,-1.5707963268f);
+        reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(car,bankProbe?bankHeading:-1.5707963268f);
+        if(bankProbe)at<V>(car,0x44)=matrix(car)->up*.29f;
         if(remote){
             at<unsigned char>(car,0x36)=(at<unsigned char>(car,0x36)&7)|(8<<3);
             at<unsigned char>(car,0xB8)=0;
@@ -534,7 +565,7 @@ source = replace_once(source, anchor, '''    constexpr int comparisonModels[]={4
             speedMode==4?vehicle_lab::speed_probe::launchRunMs:
             runwayProbe?vehicle_lab::speed_probe::turnRunMs:fleetProbe?1200:5500;
         const float entrySpeed=curveProbe?(rightAngle?12.f:mode==337?24.f:mode==341?18.f:16.f):0.f;
-        if(!vehicle_lab::begin(probeCar,true,nullptr,0.f,false,true,entrySpeed))return -302;
+        if(!vehicle_lab::begin(probeCar,true,nullptr,0.f,false,!bankProbe,entrySpeed))return -302;
         if(runwayProbe){
             vehicle_lab::speed_probe::mode=speedMode;
             vehicle_lab::speed_probe::startHeight=road.z;
@@ -804,3 +835,10 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID) {
     receipt.write_text(json.dumps(record, indent=2), encoding="utf-8")
 else:
     inject_road_prop_fixture(args.out)
+    adapter = args.out / "Adapter.cpp"
+    source = adapter.read_text(encoding="utf-8")
+    hook = "static void __fastcall preRender(void*p,void*){"
+    source = replace_once(source, hook,
+        "static void* qaCameraPed=nullptr;\nstatic unsigned qaCameraPreRenderAt=0;\n" + hook +
+        "\n    if(p==qaCameraPed)qaCameraPreRenderAt=gameTime();")
+    adapter.write_text(source, encoding="utf-8", newline="\n")

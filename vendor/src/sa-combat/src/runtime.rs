@@ -172,7 +172,11 @@ fn counter_effect_contact(
     if !motion.is_finite() || !seconds.is_finite() || seconds <= 0.0
         || motion.length() / seconds < 1.6 || motion.length() > 0.45
     { return None; }
-    let (_, tag, point, normal) = crate::geometry::first_contact(bounds, before, after, radius)?;
+    // Rotation while already in contact is not a second strike.
+    let (entry, (_, tag, point, normal)) = bounds.iter()
+        .filter_map(|b| b.sweep_contact(before, after, radius))
+        .min_by(|a,b| a.0.total_cmp(&b.0))?;
+    if entry <= 0.0 { return None; }
     // A fast glancing slide during a grab is not an impact.
     (motion.dot(normal) / seconds >= 0.9).then_some((tag, point))
 }
@@ -191,6 +195,7 @@ fn paired_counter_effect_requires_a_closing_limb_and_a_reacting_target() {
     let from = Vec3::new(-0.25, 0.0, 0.0);
     let contact = Vec3::new(-0.12, 0.0, 0.0);
     assert_eq!(counter_effect_contact(from, contact, 0.03, 0.02, &[target]).unwrap().0, 12);
+    assert!(counter_effect_contact(contact, Vec3::ZERO, 0.03, 0.02, &[target]).is_none());
     assert!(counter_effect_contact(contact, from, 0.03, 0.02, &[target]).is_none());
     assert!(counter_effect_contact(from, Vec3::new(-0.25, 0.1, 0.0), 0.03, 0.02, &[target]).is_none());
     assert!(counter_effect_contact(from, from, 0.03, 0.02, &[target]).is_none());
@@ -598,8 +603,7 @@ impl Runtime {
             let Some((_, bounds)) = bodies.iter().find(|(actor, _)| *actor == source.target) else { continue };
             let limbs = COUNTER_LIMBS.map(|tag| source.at(tag));
             let prior = previous.get(&id).filter(|p| {
-                p.target == source.target && p.action == m.action && p.phase < m.phase()
-                    && (1..=80).contains(&self.now.wrapping_sub(p.time))
+                p.target == source.target && p.action == m.action && p.phase <= m.phase()
             });
             let mut last_effect = prior.and_then(|p| p.last_effect);
             let health_effect = self.hits.iter().any(|h| {
@@ -610,13 +614,15 @@ impl Runtime {
             // Test the receiver's clip clock, which may differ from the striker's.
             let near_health_marker = d.table.results[reply.result].self_damage > 0.0
                 && reply.key.as_ref().and_then(|key| self.bank.clips.get(key)).is_some_and(|clip| {
-                    let end = ((reply.clip_t + 0.10 * reply.rate.max(0.0)) / reply.dur).min(1.0);
+                    let end = ((reply.clip_t + 0.16 * reply.rate.max(0.0)) / reply.dur).min(1.0);
                     clip.count_between(0x200, reply.phase(), end) != 0
                 });
             if health_effect {
                 last_effect = Some(self.now);
             } else if !near_health_marker {
-                if let Some(prior) = prior.filter(|_| last_effect.is_none_or(|t| self.now.wrapping_sub(t) >= 160)) {
+                if let Some(prior) = prior.filter(|p| m.phase() > p.phase
+                    && (1..=80).contains(&self.now.wrapping_sub(p.time))
+                    && last_effect.is_none_or(|t| self.now.wrapping_sub(t) >= 160)) {
                     let seconds = self.now.wrapping_sub(prior.time) as f32 * 0.001;
                     for (i, tag) in COUNTER_LIMBS.iter().enumerate() {
                         let (Some(before), Some(after)) = (prior.limbs[i], limbs[i]) else { continue };

@@ -27,7 +27,7 @@ extern "C" __declspec(dllexport) int __cdecl DeliriumSA_ProbeAimWheel(int wheel)
 static void(__thiscall* originalBonePosition)(void*,V&,unsigned,bool)=nullptr;
 static void __fastcall bonePosition(void*ped,void*,V&out,unsigned bone,bool update){
     if(cameraQuery){auto it=agents.find(reference(ped));if(it!=agents.end()&&it->second->ped==ped&&!it->second->lastRendered.empty()){
-        const auto&a=*it->second;int index=a.rig->index(int(bone));if(index>=0){out=a.lastRendered[index].p;return;}
+        const auto&a=*it->second;int index=a.rig->index(int(bone));if(index>=0&&size_t(index)<a.lastRendered.size()){out=a.lastRendered[index].p;return;}
     }}
     originalBonePosition(ped,out,bone,update);
 }
@@ -41,6 +41,9 @@ static void __fastcall cameraProcess(void*camera,void*){
     appliedZoom=0;zoomCam=nullptr;
     cameraQuery=true;{NativeHitScope scope;originalCameraProcess(camera);}cameraQuery=false;
     if(onAfterCameraProcess)onAfterCameraProcess(camera);
+}
+// Run before SA derives the frustum and copies its camera to RenderWare.
+static void applyAimProjection(){
     void*cam=activeCamera();
     if(playing()&&!cutscene()&&cam){
         const float base=at<float>(cam,0xB4);
