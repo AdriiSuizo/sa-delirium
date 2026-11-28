@@ -113,10 +113,28 @@ static bool screen(V root,void* enemy,float height){
     const V target=position(enemy)+V{0,0,.3f};
     return ray(from,target,hit,entity);
 }
+// When an armed attacker has a clear shot, only interrupt for cover it
+// can reach in a short side step. The full search remains useful out of sight.
+static constexpr float nearAttackCover=2.f;
+static bool canEngage(void* ped,void* enemy){
+    const int weapon=combatWeapon(ped);
+    if(weapon<22||weapon>34)return false;
+    const auto slot=at<unsigned char>(ped,0x718);
+    if(slot>=13||at<unsigned>(ped,0x5A0+slot*0x1C+0xC)==0)return false;
+    const auto skill=reinterpret_cast<unsigned char(__thiscall*)(void*,int)>(0x5E3B60)(ped,weapon);
+    auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(weapon,skill);
+    if(!info||!(length(position(enemy)-position(ped))<=at<float>(info,8)))return false;
+    ColPoint hit{};void* obstacle=nullptr;
+    return !ray(position(ped)+V{0,0,.42f},position(enemy)+V{0,0,.3f},hit,obstacle);
+}
 static bool find(void* ped,void* enemy,Wall& wall,V& hide,V& fire,int& side){
     const V root=position(ped);
     const V ahead=flat(position(enemy)-root);
-    const float reach=copUnarmedFlee(ped)?8.f:6.5f;
+    const bool unarmed=copUnarmedFlee(ped);
+    const bool canAttack=!unarmed&&canEngage(ped,enemy);
+    // findWall casts to the surface; its standing point is 0.46 m in front.
+    const float reach=unarmed?8.f:canAttack?nearAttackCover+.46f:6.5f;
+    const auto affordable=[&](V destination){return !canAttack||dist2d(root,destination)<=nearAttackCover;};
     bool found=findWall(ped,ahead,reach,wall,hide);
     if(!found){
         for(float a:{.65f,-.65f,1.15f,-1.15f}){
@@ -129,12 +147,12 @@ static bool find(void* ped,void* enemy,Wall& wall,V& hide,V& fire,int& side){
     const V along=tangent(wall.normal);
     side=dot(along,matrix(ped)->right)>=0.f?1:-1;
     fire=hide;
-    if(wall.low&&!screen(hide,enemy,1.4f))return true;
+    if(wall.low&&!screen(hide,enemy,1.4f))return affordable(hide);
     for(float distance:{.48f,.85f,1.2f,1.6f})for(int direction:{1,-1}){
         const V edge=hide+along*(distance*direction);
         if(sameWall(edge,wall)||screen(edge,enemy,wall.low?1.15f:1.4f))continue;
         const V tucked=edge-along*(.42f*direction);
-        if(!sameWall(tucked,wall)||!screen(tucked,enemy,.6f))continue;
+        if(!affordable(tucked)||!sameWall(tucked,wall)||!screen(tucked,enemy,.6f))continue;
         float floor;
         if(!ground(edge,floor))continue;
         side=direction;hide=tucked;fire=edge;
@@ -182,8 +200,10 @@ static void tick(){
         const unsigned elapsed=now-officer.since;
         const bool unarmedNow=copUnarmedFlee(ped);
         const bool expired=!hot(officer.threat,now)&&!(officer.unarmed&&pedWasDisarmed(ped));
-        const bool tooClose=enemy&&length(position(ped)-position(enemy))<(officer.unarmed?6.5f:4.f);
-        const bool badState=unarmedNow!=officer.unarmed||(officer.phase==Phase::Hidden&&expired)||
+        const bool tooClose=ped&&enemy&&length(position(ped)-position(enemy))<(officer.unarmed?6.5f:4.f);
+        const bool approachLostPriority=ped&&enemy&&!officer.unarmed&&officer.phase==Phase::Approach&&
+            (expired||(dist2d(position(ped),officer.hide)>nearAttackCover&&canEngage(ped,enemy)));
+        const bool badState=approachLostPriority||unarmedNow!=officer.unarmed||(officer.phase==Phase::Hidden&&expired)||
             (officer.unarmed&&officer.phase==Phase::Hidden&&(elapsed>5500u||!enemy||!screen(officer.hide,enemy,.6f)));
         void* seenTarget=ped?target(ped):nullptr;
         const bool targetLost=!validPed(enemy,true,false,enemy==player())||

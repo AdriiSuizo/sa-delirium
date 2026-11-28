@@ -457,14 +457,16 @@ impl Car {
             let road_speed = ((speed.abs() - 7.0) / 14.0).clamp(0.0, 1.0);
             let street_speed = ((speed.abs() - 3.0) / 6.0).clamp(0.0, 1.0)
                 * ((20.0 - speed.abs()) / 10.0).clamp(0.0, 1.0);
-            let turn = turn_demand;
+            // Preserve the donor tyre curve for small corrections. The extra front
+            // bite is for deliberate high-lock turns and rear-heavy SA chassis.
+            let high_lock = ((steer_fraction.abs() - 0.5) / 0.5).clamp(0.0, 1.0);
             // SA's rear-heavy chassis can leave only a quarter of the load
             // on the steering axle (Savanna). Compensate at the front tyres
             // while turning and keep the actual mass distribution and roll.
             let front_share = frame.contacts[0].load_share + frame.contacts[1].load_share;
             let light_front = ((0.46 - front_share) / 0.22).clamp(0.0, 1.0);
-            (0.18 * road_speed + 0.14 * street_speed
-                + 0.30 * light_front * road_speed.max(street_speed)) * turn
+            (0.18 * road_speed + 0.14 * street_speed) * high_lock
+                + 0.30 * light_front * road_speed.max(street_speed) * turn_demand
         } else {
             0.0
         };
@@ -548,7 +550,7 @@ impl Car {
             {
                 iv_flags |= tyre::flags::CAP_SPIN();
             }
-            if h.handling_flags & 0x4 != 0 || (quicker && h.drive_force >= 0.26) {
+            if h.handling_flags & 0x4 != 0 {
                 iv_flags |= tyre::flags::CLAMP_SLIP();
             }
             if h.handling_flags & 0x8 != 0 {

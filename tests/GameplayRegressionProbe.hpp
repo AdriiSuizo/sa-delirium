@@ -1,5 +1,21 @@
 #pragma once
 
+// Count native animation-triggered shots, including attempts the weapon rejected.
+static void (__thiscall* qaOriginalSpasFire)(void*,void*,bool);
+static unsigned qaSpasFrames,qaSpasShells;
+static void __fastcall qaObserveSpasFire(void* task,void*,void* ped,bool left){
+    if(!ped || ped!=player() || combatWeapon(ped)!=27){qaOriginalSpasFire(task,ped,left);return;}
+    const auto slot=at<unsigned char>(ped,0x718);
+    if(slot>=13){qaOriginalSpasFire(task,ped,left);return;}
+    auto* weapon=static_cast<char*>(ped)+0x5A0+slot*0x1C;
+    const auto before=at<unsigned>(weapon,8);
+    qaOriginalSpasFire(task,ped,left);
+    if(before>0){
+        ++qaSpasFrames;
+        if(at<unsigned>(weapon,8)+1==before)++qaSpasShells;
+    }
+}
+
 static int gameplayRegressionFixture(int mode) {
     if (!ready||!playing()||!player()||area()!=0||scriptMissionActive()||
         !GetEnvironmentVariableA("GTASA_PASSIVE_TEST_WINDOW",nullptr,0)) return -390;
@@ -23,6 +39,18 @@ static int gameplayRegressionFixture(int mode) {
         reinterpret_cast<void(__thiscall*)(void*,const V*,short,int)>(0x50C8B0)(camera,&look,2,1);
         return firearmTarget;
     }
+    if(mode==453){
+        if(!qaOriginalSpasFire){
+            auto* entry=reinterpret_cast<void*>(0x61EB10);
+            if(MH_CreateHook(entry,reinterpret_cast<void*>(&qaObserveSpasFire),
+                reinterpret_cast<void**>(&qaOriginalSpasFire))!=MH_OK || MH_EnableHook(entry)!=MH_OK)return -453;
+        }
+        reinterpret_cast<void(__cdecl*)(unsigned short,float)>(0x55A070)(74,1000.f);
+        qaSpasFrames=qaSpasShells=0;
+        return reinterpret_cast<unsigned char(__thiscall*)(void*,int)>(0x5E3B60)(cj,27);
+    }
+    if(mode==454)return int(qaSpasFrames);
+    if(mode==455)return int(qaSpasShells);
     if(mode==445){
         // Skill changes live only in this disposable, unsaved QA session.
         for(unsigned short stat:{69,73,75})
@@ -177,7 +205,7 @@ static int gameplayRegressionFixture(int mode) {
         }
         return valid;
     }
-    if(mode==425||mode==426||mode==429||mode==430||mode==443||mode==1905||mode==1911){
+    if(mode==425||mode==426||mode==429||mode==430||mode==443||mode==1905||mode==1911||mode==456||mode==457){
         player_cover::leave("fixture_reset");
         farCover=mode==429;
         static std::vector<int> boxes;
@@ -187,7 +215,7 @@ static int gameplayRegressionFixture(int mode) {
         float floor;
         if(!player_cover::ground(origin,floor))return -425;
         const float rootHeight=origin.z-floor;
-        if(mode==426||mode==430||mode==443||mode==1905||mode==1911){
+        if(mode==426||mode==430||mode==443||mode==1905||mode==1911||mode==456||mode==457){
             const int model=1224;
             reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(model,2);
             reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
@@ -218,10 +246,12 @@ static int gameplayRegressionFixture(int mode) {
             teleport(cj,root);
             reinterpret_cast<void(__thiscall*)(void*,float)>(0x43E0C0)(cj,0.f);
             at<float>(cj,0x558)=at<float>(cj,0x55C)=0.f;
-            if(mode==430||mode==1911){
-                for(int asset:{280,346})reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(asset,2);
+            if(mode==430||mode==1911||mode==456||mode==457){
+                const bool gang=mode==456||mode==457;
+                const int model=gang?102:280;
+                for(int asset:{model,346})reinterpret_cast<void(__cdecl*)(int,int)>(0x4087E0)(asset,2);
                 reinterpret_cast<void(__cdecl*)(bool)>(0x40EA10)(false);
-                void* officer=reinterpret_cast<void*(__cdecl*)(int,unsigned,const V&,bool)>(0x612710)(6,280,root,true);
+                void* officer=reinterpret_cast<void*(__cdecl*)(int,unsigned,const V&,bool)>(0x612710)(gang?7:6,model,mode==456?root+V{0,-3.5f,0}:root,true);
                 if(!officer)return -430;
                 coverCop=reference(officer);
                 at<unsigned char>(officer,0x484)=1;
@@ -277,6 +307,23 @@ static int gameplayRegressionFixture(int mode) {
             (pistol,cj,&from,&muzzle,nullptr,&end,nullptr);
         police_cover::tick();
         return police_cover::gunfire.contains(reference(cj))?1:0;
+    }
+    if(mode==459){
+        const auto it=police_cover::gunfire.find(coverCop);
+        return it==police_cover::gunfire.end()?0:int(it->second);
+    }
+    if(mode==460){
+        auto* ped=pedFromRef(coverCop);if(!ped)return -460;
+        return (police_cover::target(ped)==cj?1:0)|(police_cover::holdsFire(ped)?2:0);
+    }
+    if(mode==458){
+        auto* ped=pedFromRef(coverCop);
+        if(!ped)return -458;
+        const V root=position(ped);
+        player_cover::Wall w;V hide{};
+        const bool wall=player_cover::findWall(ped,player_cover::flat(position(cj)-root),6.5f,w,hide);
+        return (police_cover::target(ped)==cj?1:0)|(police_cover::canEngage(ped,cj)?2:0)|
+            (wall?4:0)|(wall&&player_cover::dist2d(root,hide)>police_cover::nearAttackCover?8:0);
     }
     if(mode==432){
         const auto found=police_cover::officers.find(coverCop);

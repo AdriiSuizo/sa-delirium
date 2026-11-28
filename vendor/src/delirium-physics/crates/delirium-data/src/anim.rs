@@ -44,6 +44,14 @@ fn sys(p: u32) -> Result<usize, String> {
     if p >> crate::kv!(81 int) == crate::kv!(2 int) { Ok((p & crate::kv!(82 int)) as usize) } else { Err(format!("Bad animation pointer {p:08X}")) }
 }
 
+/// Both readers consume the same decompressed owned resource. Move its buffer
+/// into the comparison reader after decoding the pose dictionary.
+pub fn read_sound_tracks(r: Resource) -> Result<Vec<(String, Vec<u32>)>, String> {
+    current_data::anim::read_sound_tracks(&current_data::resource::Resource {
+        kind: r.kind, flags: r.flags, data: r.data,
+    })
+}
+
 pub fn read_dictionary(r: &Resource) -> Result<Vec<Animation>, String> {
     let d = &r.data;
     let count = be16(d, crate::kv!(81 int))? as usize;

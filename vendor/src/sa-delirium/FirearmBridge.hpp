@@ -255,7 +255,9 @@ static bool __fastcall fire(void* weapon,void*,void* shooter,V* start,V* muzzle,
         auto* info=reinterpret_cast<void*(__cdecl*)(int,int)>(0x743C60)(id,skill);
         dual=info&&(at<unsigned>(info,0x18)&(1u<<11))!=0;
     }
-    const bool paced=!ragdollFiring&&spec.interval&&onFoot&&!dual;
+    // The combat shotgun's SA skill animation owns each shell release.
+    // A second deadline here discarded every other expert recoil.
+    const bool paced=!ragdollFiring&&spec.interval&&onFoot&&!dual&&id!=27;
     if(paced&&at<int>(weapon,4)==1&&int(next-now)>0)return false;
     Round fired{shooter,id,{}};
     fired.blind=blind;

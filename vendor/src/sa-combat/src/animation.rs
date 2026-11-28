@@ -17,7 +17,7 @@ impl Pose {
 struct Bone {id:u16,parent:Option<usize>,translation:[f32;3],rotation:[f32;4]}
 #[derive(Deserialize)]
 struct Skeleton{bones:Vec<Bone>}
-pub struct Bank {pub civilian_events:Option<crate::npc_decision::CivilianEvents>,pub clips:HashMap<String,Animation>,pub native:HashMap<String,crate::native_animation::Clip>,pub npc_decision:Option<lsc4_combat::decision::DecisionMaker>,bones:Vec<Bone>,bind:Vec<Pose>,world:Vec<Pose>,align:Quat}
+pub struct Bank {pub counter_impacts:HashMap<String,Vec<ImpactCue>>,pub civilian_events:Option<crate::npc_decision::CivilianEvents>,pub clips:HashMap<String,Animation>,pub native:HashMap<String,crate::native_animation::Clip>,pub npc_decision:Option<lsc4_combat::decision::DecisionMaker>,bones:Vec<Bone>,bind:Vec<Pose>,world:Vec<Pose>,align:Quat}
 pub fn sample_vec(t:&Track,phase:f32,frames:usize)->Vec3 {
     let x=phase.clamp(0.,1.)*(frames-1) as f32;let i=x.floor() as usize;
     Vec3::from_slice(&t.sample(i)).lerp(Vec3::from_slice(&t.sample(i+1)),x.fract())
@@ -54,6 +54,21 @@ fn glam_quat(x:f32,y:f32,z:f32,w:f32)->Quat{Quat::from_xyzw(x,y,z,w).normalize()
 pub fn mover(a:&Animation,phase:f32)->Vec3 {a.tracks.iter().find(|t|t.kind==anim::MOVER_TRANSLATION).map_or(Vec3::ZERO,|t|sample_vec(t,phase,a.frames))}
 pub fn mover_q(a:&Animation,phase:f32)->Quat {a.mover_rotation.as_ref().map_or(Quat::IDENTITY,|t|sample_quat(t,phase,a.frames))}
 pub fn movement_flags(key:&str)->Option<u32>{let name=key.rsplit('/').next()?;lsc4_combat::meleeanims::MOVES.iter().find(|m|m.0.eq_ignore_ascii_case(name)).map(|m|m.1[1])}
+#[derive(Clone,Copy,Debug,PartialEq)]
+pub struct ImpactCue {pub frame:usize,pub bone:u16}
+
+fn counter_impact_bone(event:u32)->Option<u16>{
+    // Named ANIM_MELEE events in the attacker's sound channel. Heel, toe,
+    // scuff, pain and receiver events must never play a second punch sample.
+    match event {
+        0x27f55892 | 0xf0fd3c01 | 0xc6028ce7 | 0x7810883d | 0x4e2bceb0 | 0x9f54b7ec =>
+            Some(0x4b5), // punch/kick/knee to face, uppercut, bat to face / uppercut
+        0x754c8abe | 0xdbf30d7f | 0x5069a78c =>
+            Some(0x36a1), // knee to stomach, bat to torso, stab
+        _=>None,
+    }
+}
+
 impl Bank {
     pub fn load(dir:&Path)->Result<Self,String>{
         let skeleton:Skeleton=serde_json::from_slice(&std::fs::read(dir.join("skeleton.json")).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
@@ -65,13 +80,24 @@ impl Bank {
         let up=(at(0x4b4)?-at(0x1a1)?).normalize();let r=at(0x1a7)?-at(0x1a2)?;let right=(r-up*r.dot(up)).normalize();
         let align=Quat::from_mat3(&Mat3::from_cols(right,up.cross(right),up)).inverse();
         let mut clips=HashMap::new();
+        let mut counter_impacts=HashMap::new();
         for e in std::fs::read_dir(dir).map_err(|e|e.to_string())? {
             let path=e.map_err(|e|e.to_string())?.path();if path.extension().and_then(|s|s.to_str())!=Some("xad"){continue}
             let dictionary=path.file_stem().unwrap().to_string_lossy().to_ascii_lowercase();
             let bytes=std::fs::read(&path).map_err(|e|e.to_string())?;
-            for a in anim::read_dictionary(&resource::parse(&bytes)?)? {
+            let file=resource::parse(&bytes)?;
+            for a in anim::read_dictionary(&file)? {
                 if a.frames==0||a.duration<=0.||!a.duration.is_finite(){return Err("invalid clip timing".into())}
                 let key=format!("{dictionary}/{}",a.name).to_ascii_lowercase();clips.insert(key,a);
+            }
+            if matches!(dictionary.as_str(),"melee_counters"|"melee_baseball_extra"|"melee_knife_extra"){
+                for (name,track) in anim::read_sound_tracks(file)? {
+                    let name=name.to_ascii_lowercase();
+                    if !name.starts_with("counter_"){continue}
+                    let cues:Vec<_>=track.into_iter().enumerate().filter_map(|(frame,event)|
+                        counter_impact_bone(event).map(|bone|ImpactCue{frame,bone})).collect();
+                    if !cues.is_empty(){counter_impacts.insert(format!("{dictionary}/{name}"),cues);}
+                }
             }
         }
         // Optional dictionaries beside the sealed bank (the owner's disc, added later).
@@ -95,7 +121,7 @@ impl Bank {
         let path=dir.join("decision/M_NO_NO.cmb");
         let npc_decision=Some(lsc4_combat::decision::DecisionMaker::parse(&std::fs::read_to_string(path).map_err(|e|format!("missing original combat decision: {e}"))?)?);
         let civilian_events=Some(crate::npc_decision::CivilianEvents::load(&dir.join("decision"))?);
-        Ok(Self{clips,native,npc_decision,civilian_events,bones,bind,world,align})
+        Ok(Self{counter_impacts,clips,native,npc_decision,civilian_events,bones,bind,world,align})
     }
     fn globals(bones:&[Bone],local:&[Pose])->Vec<Pose>{let mut out:Vec<Pose>=vec![];for (i,b) in bones.iter().enumerate(){out.push(b.parent.map_or(local[i],|p|out[p].mul(local[i])))}out}
     pub fn pose(&self,key:&str,phase:f32,flags:u32)->Option<Vec<Pose>>{
@@ -180,6 +206,11 @@ pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36
         assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap())));
         let bank=Bank::load(Path::new(&std::env::var("NM_TEST_COMBAT").unwrap())).unwrap();
         let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+        // The three facial contacts in this owned clip sit at distinct keys.
+        // Pausing and stepping over several keys must still yield each exactly once.
+        let cues=&bank.counter_impacts["melee_counters/counter_right"];
+        assert_eq!(cues.iter().map(|c|(c.frame,c.bone)).collect::<Vec<_>>(),[(6,0x4b5),(16,0x4b5),(30,0x4b5)]);
+        assert_eq!(bank.counter_impacts.len(),15);
         let head=rig.ids.iter().position(|&id|id==5).unwrap();
         let pelvis=rig.ids.iter().position(|&id|id==1).unwrap();
         for thigh in [41,51]{let i=rig.ids.iter().position(|&id|id==thigh).unwrap();assert_eq!(rig.parents[i],Some(pelvis));}

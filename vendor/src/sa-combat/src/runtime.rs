@@ -158,6 +158,33 @@ struct CounterEffects {
     phase: f32,
     limbs: [Option<Vec3>; COUNTER_LIMBS.len()],
     last_effect: Option<u32>,
+    result: usize,
+}
+
+fn crossed_cues(cues:&[crate::animation::ImpactCue],frames:usize,from:f32,to:f32)
+    ->impl Iterator<Item=&crate::animation::ImpactCue>{
+    let last=frames.saturating_sub(1) as f32;
+    let start=(from*last).floor() as usize;
+    let end=(to*last).floor() as usize;
+    cues.iter().filter(move |cue|start<cue.frame && cue.frame<=end)
+}
+
+#[test]
+fn counter_sound_keys_follow_the_animation_across_frame_rates(){
+    use crate::animation::ImpactCue;
+    let cues=[6,16,30].map(|frame|ImpactCue{frame,bone:0x4b5});
+    for step in [1,2,7,22,53]{
+        let mut emitted=vec![];
+        let mut start=0;
+        while start<53{
+            let end=(start+step).min(53);
+            for current in [end,end]{
+                emitted.extend(crossed_cues(&cues,54,start as f32/53.0,current as f32/53.0).map(|cue|cue.frame));
+                start=current;
+            }
+        }
+        assert_eq!(emitted,[6,16,30]);
+    }
 }
 
 fn paired_counter(attacker: &str, victim: &str, given: bool) -> bool {
@@ -603,8 +630,32 @@ impl Runtime {
             let Some((_, bounds)) = bodies.iter().find(|(actor, _)| *actor == source.target) else { continue };
             let limbs = COUNTER_LIMBS.map(|tag| source.at(tag));
             let prior = previous.get(&id).filter(|p| {
-                p.target == source.target && p.action == m.action && p.phase <= m.phase()
+                p.target == source.target && p.action == m.action && p.result == m.result && p.phase <= m.phase()
             });
+            let key=m.key.as_deref().unwrap_or("");
+            if let Some(cues)=self.bank.counter_impacts.get(key){
+                let frames=self.bank.clips[key].frames;
+                let phase=m.phase();
+                let from=prior.map_or_else(||((m.clip_t-m.step)/m.dur).max(0.0),|p|p.phase);
+                // Bit 1 in the contact flags grants the clip sole ownership of FX.
+                // Sweep and health contacts still reach the normal damage dispatcher.
+                for hit in &mut self.hits {
+                    if hit[0]==id as f32 && hit[1]==source.target as f32 && matches!(hit[15],0.0|1.0){
+                        hit[13]=((hit[13] as u32)|2) as f32;
+                    }
+                }
+                for cue in crossed_cues(cues,frames,from,phase){
+                    let mut hit=[0.0;HIT_FLOATS];
+                    hit[0]=id as f32;hit[1]=source.target as f32;hit[2]=cue.bone as f32;
+                    hit[4..7].copy_from_slice(&victim.at(cue.bone).unwrap_or(victim.pos()).to_array());
+                    hit[9]=cue.frame as f32;hit[13]=2.0;hit[15]=4.0;
+                    self.hits.push(hit);
+                }
+                self.counter_effects.insert(id,CounterEffects{
+                    target:source.target,action:m.action,result:m.result,time:self.now,phase,limbs,last_effect:None,
+                });
+                continue;
+            }
             let mut last_effect = prior.and_then(|p| p.last_effect);
             let health_effect = self.hits.iter().any(|h| {
                 h[0] == id as f32 && h[1] == source.target as f32 && h[3] > 0.0
@@ -643,7 +694,7 @@ impl Runtime {
                 }
             }
             self.counter_effects.insert(id, CounterEffects {
-                target: source.target, action: m.action, time: self.now, phase: m.phase(), limbs, last_effect,
+                target: source.target, action: m.action, result: m.result, time: self.now, phase: m.phase(), limbs, last_effect,
             });
         }
     }

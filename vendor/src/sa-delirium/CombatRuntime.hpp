@@ -830,9 +830,10 @@ static void combatFinish(){
         if(native_stealth::ownsPose(by)||native_stealth::ownsPose(p))continue;
         // Hit kind 3: the taker's DisarmOpponent at its clip's 0x200 event (sa-combat runtime.rs): the foe's weapon changes hands, nothing else.
         if(hit[15]==3){meleeDisarm(by,p);continue;}
+        const bool clipOwnsImpact=(int(hit[13])&2)!=0;
         if(hit[15]==4){
             const V point{hit[4],hit[5],hit[6]};
-            if(finite(point)&&length(point-position(p))<2.5f&&at<float>(p,0x540)>0.f&&fighters.at(target).newCounterImpact(source,now)){
+            if(finite(point)&&length(point-position(p))<2.5f&&(clipOwnsImpact||(at<float>(p,0x540)>0.f&&fighters.at(target).newCounterImpact(source,now)))){
                 const int weapon=combatWeapon(by);
                 playIvMeleeImpact(clubWeapon(weapon)&&!bladeWeapon(weapon)?5:0,part,point,target);
                 const V away=position(p)-position(by);
@@ -843,7 +844,7 @@ static void combatFinish(){
                     reinterpret_cast<void*>(0xA9AE00),&blood,&direction,5,
                     std::isfinite(light)?std::clamp(light,.35f,1.f):.85f);
                 event("combat_counter_impact_effect",target,at<short>(p,0x22),
-                    "attacker="+std::to_string(source)+" part="+std::to_string(part));
+                    "attacker="+std::to_string(source)+" part="+std::to_string(part)+" cue_frame="+std::to_string(clipOwnsImpact?int(hit[9]):-1));
             }
             continue;
         }
@@ -891,7 +892,7 @@ static void combatFinish(){
             const bool counter=hit[15]!=0;
             // The geometric impact and the receiver's damage marker may describe the same blow.
             // Share their sound/blood receipt; damage above is always processed independently.
-            if(hit[14]==0&&hit[3]>0&&(clubWeapon(weapon)||(weapon==0&&(hand||foot||counter)))&&
+            if(!clipOwnsImpact&&hit[14]==0&&hit[3]>0&&(clubWeapon(weapon)||(weapon==0&&(hand||foot||counter)))&&
                (!counter||fighters.at(target).newCounterImpact(source,now))){
                 const V rawPoint{hit[4],hit[5],hit[6]};
                 const V point=finite(rawPoint)&&length(rawPoint-position(p))<2.5f?rawPoint:position(p)+V{0,0,.2f};
