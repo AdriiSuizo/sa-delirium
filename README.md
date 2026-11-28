@@ -10,7 +10,7 @@ perfil completo con los extras.
 
 ## Instalar
 
-Descarga [SA-Delirium-0.6.5-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
+Descarga [SA-Delirium-0.6.6-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)
 o extrae el RAR de la misma versión. Elige la carpeta o el ejecutable de San
 Andreas y selecciona tu ISO de GTA IV para Xbox 360.
 
@@ -46,6 +46,10 @@ Se requiere espacio para el perfil y su preparación temporal (aproximadamente
 SA1.0 para los nombres de sus partidas; el asistente comprueba ese límite.
 Si faltan DirectX9 D3DX/XInput, el asistente ofrece el redistribuible original de
 Microsoft incluido; su instalador puede pedir permisos de administrador.
+
+## Cambios en 0.6.6
+
+Se corrigen la cadencia de la SPAS-12 y la sincronización de los golpes en contraataques. Los NPC armados dan prioridad a un disparo claro frente a una cobertura lejana. El agarre al hacer correcciones suaves de volante se acerca al del coche equivalente de GTA IV. [Notas de la versión](docs/RELEASE-0.6.6.md).
 
 ## Cambios en 0.6.5
 
@@ -223,7 +227,7 @@ Para comprobar una carpeta de referencia, basta con sus archivos. Este modo
 devuelve la edición, cuántos archivos coinciden y cuáles hay que revisar.
 
 ```powershell
-Start-Process -Wait .\SA-Delirium-0.6.5-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
+Start-Process -Wait .\SA-Delirium-0.6.6-Setup.exe -ArgumentList '--verify-source --target "D:\Juegos\GTA San Andreas" --report "D:\compatibilidad.json"'
 ```
 
 Las huellas y las recetas verifican Steam clásico y PC 1.0 US. Otras
@@ -304,7 +308,7 @@ CJ uses native San Andreas firearm aiming on foot. Dual-wielding fires from both
 
 ### Installation & Restore
 
-1. Download **[SA-Delirium-0.6.5-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
+1. Download **[SA-Delirium-0.6.6-Setup.exe](https://github.com/AdriiSuizo/sa-delirium/releases/latest)** or extract the **RAR** archive (both contain the same setup assistant).
 2. Choose **Full installation** (*Instalación completa*) for the complete standalone profile with extras, or **Delirium only** (*Solo Delirium*) to install only the physics/combat core into a compatible PC 1.0 US copy.
 3. Select your classic PC **GTA San Andreas** folder/executable and your own **GTA IV Xbox 360 ISO** (USA `6AC07221` or Europe/Asia `4A53F9F6`). Requires 64-bit Windows 10/11 and .NET Framework 4.8. No official Rockstar game files or GTA IV assets are redistributed.
 4. If updating from a previous version, click **Restore** (*Restaurar*) in the assistant first before installing the new version.

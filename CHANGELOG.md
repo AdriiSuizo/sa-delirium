@@ -1,5 +1,11 @@
 # Historial / Changelog
 
+## 0.6.6 · SPAS-12, contraataques y cobertura
+
+- Cadencia de la SPAS-12 sincronizada con su animación de disparo.
+- Efectos de contraataque sincronizados con las marcas de impacto.
+- Prioridad de ataque frente a cobertura lejana y ajuste de agarre al volante. [Notas de la versión](docs/RELEASE-0.6.6.md).
+
 ## 0.6.5 · cámara, combate y conducción
 
 - Apuntado a pie y disparo dual de SA, corrección de la proyección de cámara y de los efectos de contraataque.
