@@ -308,6 +308,20 @@ static int gameplayRegressionFixture(int mode) {
         police_cover::tick();
         return police_cover::gunfire.contains(reference(cj))?1:0;
     }
+    if(mode==461){
+        auto* ped=pedFromRef(coverCop);
+        if(!ped||police_cover::target(ped)!=cj||combatWeapon(ped)!=22)return -461;
+        // Run the normal cover decision immediately after the threat's shot.
+        // Then submit one shot to the same weapon entry used by the armed task.
+        police_cover::nextSearch=0;police_cover::tick();
+        if(police_cover::holdsFire(ped))return 0;
+        const auto slot=at<unsigned char>(ped,0x718);if(slot>=13)return -461;
+        auto* gun=static_cast<char*>(ped)+0x5A0+slot*0x1C;
+        V start=position(ped)+V{0,0,.42f},end=position(cj)+V{0,0,.3f};
+        V muzzle=start+normalized(end-start)*.25f;
+        return reinterpret_cast<bool(__thiscall*)(void*,void*,V*,V*,void*,V*,V*)>(0x742300)
+            (gun,ped,&start,&muzzle,cj,&end,nullptr)?1:0;
+    }
     if(mode==459){
         const auto it=police_cover::gunfire.find(coverCop);
         return it==police_cover::gunfire.end()?0:int(it->second);

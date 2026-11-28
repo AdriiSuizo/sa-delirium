@@ -236,7 +236,7 @@ if not args.shipping:
                           '#include "VehicleEntryLab.hpp"\n#include "VehicleDeformationProbe.hpp"\n#include "GameplayRegressionProbe.hpp"')
     source = replace_once(source, '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);',
                           '    if(mode>=380&&mode<=389)return deformationFixture(mode);\n'
-                          '    if((mode>=390&&mode<=398)||(mode>=400&&mode<=460)||(mode>=1900&&mode<=1915))return gameplayRegressionFixture(mode);\n'
+                          '    if((mode>=390&&mode<=398)||(mode>=400&&mode<=461)||(mode>=1900&&mode<=1915))return gameplayRegressionFixture(mode);\n'
                           '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);')
 source = replace_once(source,
     '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);',
