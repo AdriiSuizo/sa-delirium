@@ -1331,6 +1331,39 @@ static void traceBikeJackGap(){
         }
     }
 }
+// Open water has no collision triangles in the physical body solver.
+// Hand the living player to SA's original water event as soon as the body enters.
+static bool releasePlayerIntoWater(Active& body){
+    auto* ped=body.ped;
+    if(ped!=player()||body.mounted||body.preview||body.recovering||at<float>(ped,0x540)<=0.f)return false;
+    const V pelvis=body.current[0].p;
+    float surface=0.f;
+    const auto waterLevel=reinterpret_cast<bool(__cdecl*)(float,float,float,float&,unsigned char,V*)>(0x6EB690);
+    if(!finite(pelvis)||!waterLevel(pelvis.x,pelvis.y,pelvis.z,surface,1,nullptr)||
+        !std::isfinite(surface)||pelvis.z>surface)return false;
+
+    // A road, boat deck or submerged step just under the surface is
+    // still solid support. Keep the existing ground recovery on those.
+    ColPoint support{};
+    if(playerFallSurface({pelvis.x,pelvis.y,surface+.55f},1.2f,support))return false;
+
+    V velocity{},spin{};
+    if(nm_agent_get_part_velocity(body.agent,0,&velocity.x,&spin.x)<0||!finite(velocity))return false;
+    const V entry{pelvis.x,pelvis.y,std::max(pelvis.z,surface-.35f)};
+    retireNativeFallAndGetUp(body);
+    restore(body,"player_water_entry",false);
+    pending.erase(body.ref);
+    movePhysicalRoot(ped,entry,true);
+    at<unsigned char>(ped,0x1C)|=1u;
+    at<V>(ped,0x44)={velocity.x*.02f,velocity.y*.02f,std::max(velocity.z,-2.f)*.02f};
+    // CPed::ProcessBuoyancy queues its normal InWater event, including the
+    // splash. Its task handler selects swim or climb with native controls.
+    reinterpret_cast<void(__thiscall*)(void*)>(0x5E1FA0)(ped);
+    event("player_water_handoff",body.ref,body.model,"surface="+std::to_string(surface)+
+        " pelvis="+std::to_string(pelvis.z)+" entry="+std::to_string(entry.z));
+    return true;
+}
+
 static void simulatePhysicsFrame(){
     traceNativeAnimations();
     traceBikeJackGap();
@@ -1548,6 +1581,7 @@ static void simulatePhysicsFrame(){
                     restore(a,"invalid_physics_pose_rejected",true);
                 it=agents.erase(it);continue;
             }
+            if(releasePlayerIntoWater(a)){it=agents.erase(it);continue;}
             vehicleEntryDragDamage(a,dt);
             // IV CTaskSimpleDead (0x824CE598): 1000 ms after the death, with the body slower than 0.05 m/s where it
             // lies, it comes off the ragdoll. A corpse left simulated kept pushing the bike it lay on every frame.

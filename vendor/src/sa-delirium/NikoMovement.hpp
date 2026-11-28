@@ -16,7 +16,7 @@ static std::vector<T> nikoHandoffPose;
 
 struct NikoIdleGesture {
     const char* clip=nullptr;
-    unsigned restSince=0,started=0,released=0;
+    unsigned nextAt=0,started=0,released=0;
     size_t next=0;
     float duration=0.f;
 };
@@ -324,17 +324,17 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
     const unsigned now=gameTime();
     const bool settled=nikoIdleIntent&&nikoState[3]<.01f&&std::hypot(nikoState[1],nikoState[2])<.05f;
     if(!settled){
-        nikoIdle.restSince=0;
+        nikoIdle.nextAt=0;
         if(!nikoIdle.clip)return;
         if(!nikoIdle.released)nikoIdle.released=now;
-    }else if(!nikoIdle.restSince)nikoIdle.restSince=now;
+    }
 
     static constexpr const char* clips[]={
         "playidles_std/idle_look_l", "playidles_std/idle_checkarm_r",
         "playidles_std/idle_look_r", "playidles_std/idle_crackknuckles",
         "playidles_std/idle_scratch_head",
     };
-    constexpr unsigned restDelay=6500;
+    constexpr unsigned betweenGestures=1100, missingClipRetry=6500;
     constexpr float entrySeconds=.25f, exitSeconds=.18f;
     // Keep the clip's body articulation but leave mover translation and yaw
     // with SA so a gesture cannot drag or turn the standing player.
@@ -342,12 +342,14 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
     static std::vector<float> rows;
     rows.resize(bones.size()*7);
     if(!nikoIdle.clip){
-        if(now-nikoIdle.restSince<restDelay)return;
+        // Enter the first gesture as soon as the stop settles. Only a
+        // completed gesture takes a short breath before the next one.
+        if(nikoIdle.nextAt&&int(now-nikoIdle.nextAt)<0)return;
         const auto* clip=clips[nikoIdle.next++%std::size(clips)];
         float info[2]{};
         if(nm_locomotion_clip_pose_masked(combat,nikoMovement,clip,0.f,rows.data(),int(bones.size()),info,maskMover)!=1||
            !std::isfinite(info[0])||info[0]<entrySeconds+exitSeconds){
-            nikoIdle.restSince=now;return;
+            nikoIdle.nextAt=now+missingClipRetry;return;
         }
         nikoIdle.clip=clip;nikoIdle.duration=info[0];nikoIdle.started=now;
         event("niko_idle_started",nikoRef,nikoModel,clip);
@@ -358,7 +360,10 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
         (nikoIdle.duration-elapsed)/exitSeconds;
     const float weight=std::clamp(std::min(elapsed/entrySeconds,tail),0.f,1.f);
     if(tail<=0.f){
-        nikoCancelIdle();nikoIdle.restSince=settled?now:0;return;
+        const bool completed=settled&&!nikoIdle.released;
+        nikoCancelIdle();
+        if(completed)nikoIdle.nextAt=now+betweenGestures;
+        return;
     }
     if(weight<=0.f)return;
     float info[2]{};

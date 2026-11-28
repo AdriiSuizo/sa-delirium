@@ -39,6 +39,17 @@ static int gameplayRegressionFixture(int mode) {
         reinterpret_cast<void(__thiscall*)(void*,const V*,short,int)>(0x50C8B0)(camera,&look,2,1);
         return firearmTarget;
     }
+    if(mode==462){
+        const int ref=expansionFixture(80);
+        auto* injured=pedFromRef(ref);
+        if(!injured)return -462;
+        at<float>(injured,0x540)=35.f;
+        beginInjuredMove(injured);
+        return injuredMoving(ref)?ref:-462;
+    }
+    if(mode==465){
+        return (agents.contains(reference(cj))?1:0)|(playerLeafTask(cj)==TASK_SIMPLE_SWIM?2:0);
+    }
     if(mode==453){
         if(!qaOriginalSpasFire){
             auto* entry=reinterpret_cast<void*>(0x61EB10);

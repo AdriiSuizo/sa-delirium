@@ -227,6 +227,22 @@ pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36
             assert!(moved, "static pose in {key}");
         }
     }
+    #[test]
+    #[ignore = "requires the wound locomotion clips from the owner's ISO"]
+    fn injured_walk_loops_at_the_collision_root(){
+        let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").unwrap());
+        assert!(delirium_data::kv::unlock_program(&std::fs::read(assets.join("iv-program.bin")).unwrap()));
+        let bank=Bank::load(&assets.join("combat")).unwrap();
+        let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+        for key in ["move_injured_lower/walk","move_injured_upper/walk"]{
+            let setup=bank.retarget(&rig,key,0.,0x400).unwrap();
+            let old=bank.retarget(&rig,key,1.,0).unwrap();
+            let corrected=bank.retarget(&rig,key,1.,0x400).unwrap();
+            assert!(old[0].p.distance(setup[0].p)>0.80, "{key}");
+            let seam=corrected.iter().zip(&setup).map(|(a,b)|a.p.distance(b.p)).fold(0.0f32,f32::max);
+            assert!(seam<0.08, "visible stride discontinuity in {key}: {seam}");
+        }
+    }
     #[test]fn cj_facial_children_keep_their_local_pose_under_a_turning_head(){
         let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").unwrap());
         assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap())));

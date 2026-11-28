@@ -236,7 +236,7 @@ if not args.shipping:
                           '#include "VehicleEntryLab.hpp"\n#include "VehicleDeformationProbe.hpp"\n#include "GameplayRegressionProbe.hpp"')
     source = replace_once(source, '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);',
                           '    if(mode>=380&&mode<=389)return deformationFixture(mode);\n'
-                          '    if((mode>=390&&mode<=398)||(mode>=400&&mode<=461)||(mode>=1900&&mode<=1915))return gameplayRegressionFixture(mode);\n'
+                          '    if((mode>=390&&mode<=398)||((mode>=400&&mode<=462)||mode==465)||(mode>=1900&&mode<=1915))return gameplayRegressionFixture(mode);\n'
                           '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);')
 source = replace_once(source,
     '    if(mode==45&&ready&&playing())return recoveryAuditFixture(mode);',
@@ -461,6 +461,26 @@ source = replace_once(source, anchor, '''    constexpr int comparisonModels[]={4
         const int ref=startCjFallProbe(position(player())+V{0,0,7.f});
         if(ref>=0)event("probe_cj_high_fall",ref,at<short>(player(),0x22),"native_air_task=1 start_offset_m=7");
         return ref;
+    }
+    if(mode==464){
+        const auto water=reinterpret_cast<bool(__cdecl*)(float,float,float,float&,unsigned char,V*)>(0x6EB690);
+        // Find a gently sloped seabed through the native collision geometry.
+        for(float x:{450.f,650.f,780.f,355.f,2940.f}){
+            const V sector{x,-1950.f,0.f};
+            reinterpret_cast<void(__cdecl*)(const V*)>(0x40ED80)(&sector);
+            for(float y=-1830.f;y>=-2110.f;y-=4.f){
+                float surface=0.f;
+                if(!water(x,y,0.f,surface,1,nullptr))continue;
+                ColPoint floor{};
+                if(!playerFallSurface({x,y,surface+6.f},17.f,floor)||
+                    floor.normal.z<.72f||surface-floor.point.z<3.5f||surface-floor.point.z>6.f)continue;
+                const int ref=startCjFallProbe({x,y,surface+6.3f});
+                if(ref>=0)event("probe_cj_water_fall",ref,0,"surface="+std::to_string(surface)+
+                    " floor="+std::to_string(floor.point.z));
+                return ref;
+            }
+        }
+        return -464;
     }
     const bool fleetProbe=mode>=800&&mode<=1011;
     const bool modelCorner=mode>=2400&&mode<=2611;

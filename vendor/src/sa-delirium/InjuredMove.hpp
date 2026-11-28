@@ -15,6 +15,7 @@
 // Shots and melee alike. Clips: the owner's disc (bootstrap import).
 struct InjuredMove {
     void* ped=nullptr;int model=-1;NmLocomotion* mover=nullptr;std::unique_ptr<Rig> rig;std::vector<float> pose;
+    V lastPosition{};
     std::string set;float phase=0,duration=1,speed=0;unsigned until=0,frame=UINT32_MAX,updates=0,drawn=0,drawnFrame=UINT32_MAX;bool moving=false,posed=false;
     ~InjuredMove(){if(mover)nm_locomotion_destroy(mover);}
 };
@@ -66,14 +67,32 @@ static void injuredUpdatePosition(void* p){
     const auto found=injuredMoves.find(reference(p));if(found==injuredMoves.end())return;
     auto&m=*found->second;if(m.ped!=p||agents.contains(found->first))return;
     const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
-    if(m.frame==frame)return;m.frame=frame;
-    const float dt=*reinterpret_cast<float*>(0xB7CB5C)*.02f;
-    // SA's flee task keeps the route; only the gait and its speed are the original clip's.
-    const float sx=at<float>(p,0x550),sy=at<float>(p,0x554);m.moving=sx*sx+sy*sy>1.e-8f;
+    if(m.frame==frame)return;
+    const V root=position(p);
+    const bool continuous=frame-m.frame==1;
+    const V travel=continuous?root-m.lastPosition:V{};
+    m.frame=frame;
+    m.lastPosition=root;
+    const float dt=combatSimulationSeconds(*reinterpret_cast<float*>(0xB7CB5C));
+    // SA's flee task owns world travel. The walk palette must exclude the
+    // forward mover or it walks almost a metre ahead of the actual ped each
+    // loop and snaps back to the root at phase zero.
+    const float sx=at<float>(p,0x550),sy=at<float>(p,0x554);
+    const bool moving=sx*sx+sy*sy>1.e-8f;
+    if(m.moving!=moving)m.phase=0.f;
+    else if(moving&&m.speed>0.f){
+        const float stride=m.speed*m.duration;
+        const float distance=std::hypot(travel.x,travel.y);
+        if(distance<stride*.5f)
+            m.phase=std::fmod(m.phase+distance/std::max(stride,.05f),1.f);
+    }else if(!moving)m.phase=std::fmod(m.phase+dt/m.duration,1.f);
+    m.moving=moving;
     float info[2]{};
-    m.posed=nm_locomotion_clip_pose(combat,m.mover,(m.set+(m.moving?"/walk":"/idle")).c_str(),m.phase,m.pose.data(),int(m.rig->ids.size()),info)==1;
+    constexpr unsigned carriedForward=0x400;
+    m.posed=nm_locomotion_clip_pose_masked(combat,m.mover,(m.set+(moving?"/walk":"/idle")).c_str(),
+        m.phase,m.pose.data(),int(m.rig->ids.size()),info,moving?carriedForward:0)==1;
     if(!m.posed)return;
-    m.updates++;m.duration=std::max(info[0],.05f);m.speed=info[1];m.phase=std::fmod(m.phase+dt/m.duration,1.f);
+    m.updates++;m.duration=std::max(info[0],.05f);m.speed=info[1];
     if(m.moving){
         const float yaw=at<float>(p,0x558),scale=combatMotionScale(dt,*reinterpret_cast<float*>(0xB7CB5C));
         at<float>(p,0x550)=-std::sin(yaw)*m.speed*scale;at<float>(p,0x554)=std::cos(yaw)*m.speed*scale;
