@@ -158,7 +158,26 @@ impl Bank {
         if frames.is_empty(){return None}
         blend_n(&mut dest,&frames.iter().map(Vec::as_slice).collect::<Vec<_>>(),&weights,None);
         let local:Vec<_>=dest.chunks_exact(2).map(|d|Pose{p:Vec3::from_slice(&d[0].value),q:Quat::from_array(d[1].value).normalize()}).collect();
-        self.retarget_source(rig,&Self::globals(&self.bones,&local))
+        let mut pose=self.retarget_source(rig,&Self::globals(&self.bones,&local))?;
+        // Add a visible breath to the relaxed standing layer. Rotate the
+        // upper body about the spine so the hips, feet and joint lengths stay
+        // fixed. Locomotion transitions blend out with the idle's weight.
+        if let Some(&(_,phase,weight))=samples.iter().find(|&&(key,_,w)|key=="move_player/idle"&&w>0.) {
+            if let Some(spine)=rig.ids.iter().position(|&id|id==2){
+                let inhale=0.5*(1.-(phase*std::f32::consts::TAU).cos());
+                let rotation=Quat::from_rotation_x(0.07*inhale*weight.clamp(0.,1.));
+                let pivot=pose[spine].p;
+                let mut upper=[false;128];
+                for i in spine..pose.len(){
+                    upper[i]=i==spine||rig.parents[i].is_some_and(|parent|upper[parent]);
+                    if upper[i]{
+                        pose[i].p=pivot+rotation*(pose[i].p-pivot);
+                        pose[i].q=(rotation*pose[i].q).normalize();
+                    }
+                }
+            }
+        }
+        Some(pose)
     }
     fn correction(&self,rig:&Rig,i:usize,s:usize)->Quat{
         if matches!(rig.ids[i],21|31){return Quat::IDENTITY;}
@@ -208,7 +227,7 @@ pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36
         assert!(delirium_data::kv::unlock_program(&std::fs::read(assets.join("iv-program.bin")).unwrap()));
         let bank=Bank::load(&assets.join("combat")).unwrap();
         let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
-        for name in ["idle_look_l","idle_checkarm_r","idle_look_r","idle_crackknuckles","idle_scratch_head"]{
+        for name in ["idle_look_l","idle_checkarm_r","idle_look_r","idle_crackknuckles","idle_scratch_head","idle_scratch_balls"]{
             let key=format!("playidles_std/{name}");
             let neutral=bank.retarget(&rig,&key,0.,0x3e00).unwrap();
             assert!(bank.clips[&key].duration>=2., "{key}");

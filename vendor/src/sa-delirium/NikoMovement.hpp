@@ -330,11 +330,11 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
     }
 
     static constexpr const char* clips[]={
-        "playidles_std/idle_look_l", "playidles_std/idle_checkarm_r",
-        "playidles_std/idle_look_r", "playidles_std/idle_crackknuckles",
-        "playidles_std/idle_scratch_head",
+        "playidles_std/idle_look_l", "playidles_std/idle_scratch_balls",
+        "playidles_std/idle_checkarm_r", "playidles_std/idle_look_r",
+        "playidles_std/idle_crackknuckles", "playidles_std/idle_scratch_head",
     };
-    constexpr unsigned betweenGestures=1100, missingClipRetry=6500;
+    constexpr unsigned betweenGestures=2450, missingClipRetry=6500;
     constexpr float entrySeconds=.25f, exitSeconds=.18f;
     // Keep the clip's body articulation but leave mover translation and yaw
     // with SA so a gesture cannot drag or turn the standing player.

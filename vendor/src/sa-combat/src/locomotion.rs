@@ -307,9 +307,12 @@ impl Locomotion{
         // on the animation clock, including when it underlays a transition.
         let elapsed=self.elapsed+dt;
         let samples=|ratio:f32,phase:f32,set:usize|clips.gait_parts(ratio,set,slope,p.turn_col).into_iter().map(|(c,w)|{
-            let phase=if matches!(c.key,"move_player/idle"|"move_crouch/idle"){
-                (elapsed/c.anim.duration).fract()
-            }else{phase};
+            let phase=match c.key{
+                // A relaxed breath gets its own clock while the feet wait.
+                "move_player/idle"=>(elapsed/(c.anim.duration*2.4)).fract(),
+                "move_crouch/idle"=>(elapsed/c.anim.duration).fract(),
+                _=>phase,
+            };
             (c.key,phase,w)
         }).collect::<Vec<_>>();
         let mut list=samples(gait_ratio(p.ratio,p.state),p.phase,set);
