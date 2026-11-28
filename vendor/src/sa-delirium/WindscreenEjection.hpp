@@ -39,16 +39,36 @@ static bool windscreenTwoWheeler(void* vehicle){
     const int type=at<int>(hit,0x594);
     return type==9||type==10; // VEHICLE_TYPE_BIKE / VEHICLE_TYPE_BMX
 }
-// Adaptation asked by the user: SA stops the car a frame on a lamp post before it gives way, and on a bike, which read as a
-// head-on crash. +0xDC CPhysical damage entity; object info +0x160: uproot limit +0x14, col damage effect +0x1C.
-static bool windscreenYields(void*v){
-    void*hit=at<void*>(v,0xDC);if(!hit)return false;
-    const int type=at<unsigned char>(hit,0x36)&7;
-    if(type==4){const auto*info=at<const char*>(hit,0x160);return info&&(*reinterpret_cast<const float*>(info+0x14)>0.f||info[0x1C]!=0);}
+// Map objects can be dummies before becoming physical. Their model
+// still refers to CObjectData, including the breakable fence response.
+static bool windscreenYields(void*hit,int type){
+    void*info=nullptr;
+    if(type==4){
+        if(at<unsigned char>(hit,0x144)||at<unsigned char>(hit,0x145))return true;
+        info=at<void*>(hit,0x160);
+    }else if(type==5){
+        const int model=at<short>(hit,0x22);
+        if(model>=0&&model<20000){
+            auto* modelInfo=reinterpret_cast<void**>(0xA9B0C8)[model];
+            const int index=modelInfo?at<short>(modelInfo,0x10):-1;
+            if(index>=0&&index<160)info=reinterpret_cast<char*>(0xBB4A90)+index*0x50;
+        }
+    }
+    if(info)return at<float>(info,0x14)>0.f||at<unsigned char>(info,0x1C)!=0;
     return type==2&&at<float>(hit,0x90)<700.f;
 }
+static void* windscreenFrontalContact(void*v,unsigned now,V forward){
+    // Only accept the native damage record from this step. AI can change
+    // the entire velocity vector in one frame without touching anything.
+    if(at<unsigned>(v,0x3C)!=now||!(at<float>(v,0xD8)>0.f))return nullptr;
+    void*hit=at<void*>(v,0xDC);if(!hit)return nullptr;
+    const int type=at<unsigned char>(hit,0x36)&7;
+    if((type!=1&&type!=2&&type!=4&&type!=5)||windscreenYields(hit,type))return nullptr;
+    const V normal=at<V>(v,0xE0);
+    return std::abs(normal.z)<.8f&&dot(normal,forward)<-.35f?hit:nullptr;
+}
 constexpr float windscreenPlayerDv=21.6f,windscreenPedDv=12.f,windscreenChance=.75f,windscreenForwardDot=-.707f,windscreenIvImpulse=.25f,windscreenExtraHorizontal=.11f,windscreenUp=3.f;
-struct WindscreenRun {V last{};unsigned lastFrame=0,decided[2]{0,0},twoWheelerAt=0;};
+struct WindscreenRun {V last{};const void* contact=nullptr;unsigned lastFrame=0,decided[2]{0,0};};
 static std::map<int,WindscreenRun> windscreenRuns; // per vehicle ref
 struct WindscreenMark {V launch{};unsigned time=0;};
 static std::map<int,WindscreenMark> windscreenMarks; // per ejected ped ref, until its NM task is verified
@@ -330,43 +350,36 @@ static void tickWindscreenEjection(){
         if(!seat[0]&&!seat[1]){windscreenRuns.erase(ref);continue;}
         const V now=at<V>(v,0x44)*50.f,d=now-before;
         auto&run=windscreenRuns[ref];
-        // The native damage record identifies the strongest collision in
-        // this step. Discard a bike's contribution to the two-frame sum.
-        // A following collision with a wall or car gets its own decision.
-        if(windscreenTwoWheeler(v)){
-            run.last={};run.lastFrame=frame;run.twoWheelerAt=gameTime();
+        const V forward=normalized(matrix(v)->up);
+        const bool twoWheeler=windscreenTwoWheeler(v);
+        void*contact=twoWheeler?nullptr:windscreenFrontalContact(v,gameTime(),forward);
+        if(!contact){
+            run.contact=nullptr;
             if(windscreenAudit()){
-                auto*hit=at<void*>(v,0xDC);
-                event("windscreen_two_wheeler_ignored",ref,at<short>(v,0x22),
-                      "model="+std::to_string(at<short>(hit,0x22))+" dv_mps="+std::to_string(length(d)));
+                if(twoWheeler){
+                    auto*hit=at<void*>(v,0xDC);
+                    event("windscreen_two_wheeler_ignored",ref,at<short>(v,0x22),
+                          "model="+std::to_string(at<short>(hit,0x22))+" dv_mps="+std::to_string(length(d)));
+                }else if(length(d)>windscreenPedDv){
+                    event("windscreen_unconfirmed",ref,at<short>(v,0x22),"dv_mps="+std::to_string(length(d)));
+                }
             }
             continue;
         }
-        if(run.twoWheelerAt&&gameTime()-run.twoWheelerAt<=180){
-            // Native suspension and the rider may still move the car after
-            // the two-wheeler leaves its damage record. Admit a new frontal
-            // impact with a rigid object immediately, even in this window.
-            auto*hit=at<void*>(v,0xDC);
-            const int hitType=hit?(at<unsigned char>(hit,0x36)&7):0;
-            const V normal=at<V>(v,0xE0);
-            const bool rigid=at<float>(v,0xD8)>0.f&&(hitType==1||hitType==2||hitType==4)&&
-                !windscreenYields(v)&&std::abs(normal.z)<.8f&&dot(normal,matrix(v)->up)<-.35f;
-            if(!rigid){run.last={};run.lastFrame=frame;continue;}
-            run.twoWheelerAt=0;
-        }
-        // IV's impact is one frame's impulse; our contact can spread over two frames, so that pair counts once.
-        V best=d;if(run.lastFrame&&frame-run.lastFrame==1&&length(run.last+d)>length(d))best=run.last+d;
-        run.last=d;run.lastFrame=frame;
+        // A single rigid contact can spread its impulse over two frames.
+        // Never carry a brake, a turn, or a different obstacle into that sum.
+        V best=d;
+        if(run.contact==contact&&frame-run.lastFrame==1&&length(run.last+d)>length(d))best=run.last+d;
+        run.contact=contact;run.last=d;run.lastFrame=frame;
         // Tests only: GTASA_WINDSCREEN_TEST_DV=x replaces both thresholds (exercise the detach on a small frontal hit).
         static const float testDv=[]{char b[16]{};return GetEnvironmentVariableA("GTASA_WINDSCREEN_TEST_DV",b,16)?float(std::atof(b)):0.f;}();
         const float pedDv=testDv>0?testDv:windscreenPedDv,playerDv=testDv>0?testDv:windscreenPlayerDv;
         const float dv=length(best);
         if(!(dv>pedDv)||dv>200.f||!finite(best))continue;
-        const V dir=best*(1.f/dv);const float along=dot(normalized(matrix(v)->up),dir);
+        const V dir=best*(1.f/dv);const float along=dot(forward,dir);
         if(windscreenAudit())event("windscreen_eval",-1,at<short>(v,0x22),"vehicle_ref="+std::to_string(ref)+" dv_mps="+std::to_string(dv)+" forward_dot="+std::to_string(along)+
             " frontal="+std::to_string(along<windscreenForwardDot)+" driver="+std::to_string(reference(seat[0]))+" passenger="+std::to_string(reference(seat[1])));
         if(!(along<windscreenForwardDot))continue;
-        if(windscreenYields(v)){event("windscreen_yielded",ref,at<short>(v,0x22),"dv_mps="+std::to_string(dv));continue;}
         for(int s=0;s<2;s++){
             void*ped=seat[s];if(!ped||!windscreenOccupant(ped,v))continue;
             const bool isPlayer=ped==player();

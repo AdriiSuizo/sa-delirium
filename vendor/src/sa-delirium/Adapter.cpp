@@ -1722,8 +1722,21 @@ static void faceCameraOnAim(){
     if(!facing)event("aim_faced_camera",reference(p),0,"heading="+std::to_string(heading)+" weapon="+std::to_string(weapon)+" target="+std::to_string(target));
     facing=true;
 }
+static bool inGamePauseMenu(){
+    return *reinterpret_cast<int*>(0xC8D4C0)==9&&*reinterpret_cast<bool*>(0xBA67A4);
+}
+static void suspendPhysicsFrame(){
+    // The menu suspends this world. Keep agents, transit holds and game-time
+    // stamps; a genuine load still goes through the boundary checks on return.
+    physicsFrame.reset();
+    lastTickStart=0;
+}
 static void __cdecl process(){
     crash_guard::tick(int(agents.size()),int(pending.size()));
+    if(inGamePauseMenu()){
+        if(ready)suspendPhysicsFrame();
+        return crash_guard::timedGameProcess(originalProcess);
+    }
     if(ready)faceCameraOnAim();
     {static int chord=0;const int now=trainer_chord_guard::maintain();
      if(now!=chord){chord=now;event("trainer_chord_guard",-1,-1,"xinput_hooks="+std::to_string(now)+" chord=cross_square_circle");}}
@@ -1756,6 +1769,7 @@ static void __cdecl process(){
     reserveOriginalGroundFrame();
     cost.lap(0);
     crash_guard::timedGameProcess(originalProcess);cost.lap(1);if(!ready)return;
+    if(inGamePauseMenu()){suspendPhysicsFrame();return;}
     if(!bikeFallAudits.empty())observeNativeBikeFalls();
     tickWheelSmokeProbe();
     tickCopProbe();
