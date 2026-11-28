@@ -222,18 +222,25 @@ pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36
     use super::*;
     #[test]
     #[ignore = "requires the optional idle bank from the owner's ISO"]
-    fn standing_gestures_retarget_on_cj_without_mover_translation(){
+    fn standing_gestures_match_cj_idle_at_both_ends_and_keep_local_steps(){
         let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").unwrap());
         assert!(delirium_data::kv::unlock_program(&std::fs::read(assets.join("iv-program.bin")).unwrap()));
         let bank=Bank::load(&assets.join("combat")).unwrap();
         let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+        let stand=bank.retarget(&rig,"move_player/idle",0.,0).unwrap();
         for name in ["idle_look_l","idle_checkarm_r","idle_look_r","idle_crackknuckles","idle_scratch_head","idle_scratch_balls"]{
             let key=format!("playidles_std/{name}");
-            let neutral=bank.retarget(&rig,&key,0.,0x3e00).unwrap();
+            let neutral=bank.retarget(&rig,&key,0.,0).unwrap();
+            let end=bank.retarget(&rig,&key,1.,0).unwrap();
+            for (transition,pose) in [("entry",&neutral),("exit",&end)]{
+                assert!(pose[0].p.distance(stand[0].p)<0.01,"{key} {transition} slides");
+                assert!(pose[0].q.dot(stand[0].q).abs()>0.9999,"{key} {transition} turns");
+            }
             assert!(bank.clips[&key].duration>=2., "{key}");
             let mut moved=false;
+            let mut root_shift=0.0f32;
             for frame in 1..60{
-                let pose=bank.retarget(&rig,&key,frame as f32/60.,0x3e00).unwrap();
+                let pose=bank.retarget(&rig,&key,frame as f32/60.,0).unwrap();
                 for (i,bone) in pose.iter().enumerate(){
                     assert!(bone.p.is_finite()&&bone.q.is_finite(), "{key}");
                     if let Some(parent)=rig.parents[i]{
@@ -241,7 +248,11 @@ pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36
                     }
                     moved|=bone.q.dot(neutral[i].q).abs()<0.995;
                 }
-                assert!(pose[0].p.distance(neutral[0].p)<0.3, "moving root in {key}");
+                root_shift=root_shift.max(pose[0].p.distance(neutral[0].p));
+            }
+            assert!(root_shift<0.3, "excessive body travel in {key}: {root_shift}");
+            if name=="idle_scratch_head"{
+                assert!(root_shift>0.06, "missing weight shift in {key}: {root_shift}");
             }
             assert!(moved, "static pose in {key}");
         }

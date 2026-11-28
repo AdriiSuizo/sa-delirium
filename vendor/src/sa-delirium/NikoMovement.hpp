@@ -336,9 +336,9 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
     };
     constexpr unsigned betweenGestures=2450, missingClipRetry=6500;
     constexpr float entrySeconds=.25f, exitSeconds=.18f;
-    // Keep the clip's body articulation but leave mover translation and yaw
-    // with SA so a gesture cannot drag or turn the standing player.
-    constexpr unsigned maskMover=0xE00|0x3000;
+    // These gestures start and end in the standing pose. Preserve the
+    // authored mover on the rendered skeleton for weight shifts and steps;
+    // SA still owns the player's collision position and heading.
     static std::vector<float> rows;
     rows.resize(bones.size()*7);
     if(!nikoIdle.clip){
@@ -347,7 +347,7 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
         if(nikoIdle.nextAt&&int(now-nikoIdle.nextAt)<0)return;
         const auto* clip=clips[nikoIdle.next++%std::size(clips)];
         float info[2]{};
-        if(nm_locomotion_clip_pose_masked(combat,nikoMovement,clip,0.f,rows.data(),int(bones.size()),info,maskMover)!=1||
+        if(nm_locomotion_clip_pose(combat,nikoMovement,clip,0.f,rows.data(),int(bones.size()),info)!=1||
            !std::isfinite(info[0])||info[0]<entrySeconds+exitSeconds){
             nikoIdle.nextAt=now+missingClipRetry;return;
         }
@@ -367,8 +367,8 @@ static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
     }
     if(weight<=0.f)return;
     float info[2]{};
-    if(nm_locomotion_clip_pose_masked(combat,nikoMovement,nikoIdle.clip,elapsed/nikoIdle.duration,
-        rows.data(),int(bones.size()),info,maskMover)!=1){nikoCancelIdle();return;}
+    if(nm_locomotion_clip_pose(combat,nikoMovement,nikoIdle.clip,elapsed/nikoIdle.duration,
+        rows.data(),int(bones.size()),info)!=1){nikoCancelIdle();return;}
     std::vector<T> gesture(bones.size());
     for(size_t i=0;i<bones.size();i++){
         const float* r=rows.data()+7*i;
