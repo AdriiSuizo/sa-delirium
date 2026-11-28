@@ -44,6 +44,7 @@ const COVER_DICTIONARIES: &[&str] = &[
     "cover_l_low_corner.xad", "cover_r_low_corner.xad",
     "cover_l_high_corner.xad", "cover_r_high_corner.xad", "cover_dive.xad",
 ];
+const PLAYER_IDLE_DICTIONARY: &str = "playidles_std.xad";
 const WEAPON_INFO: &str = "weaponinfo.xml";
 const VEHICLE_HANDLING: &str = "iv-vehicle-handling.dat";
 const PARTS: i32 = 21;
@@ -295,11 +296,20 @@ fn import_weapon_info(cache: &Path, iso: &Path) -> Result<(), String> {
         let entry = entries.iter().find(|e| e.name.eq_ignore_ascii_case(name)).ok_or_else(|| format!("Falta {name}"))?;
         fs::write(dir.join(name), disc.read_at(ANIM, entry.offset, entry.size() as usize)?).map_err(|error| error.to_string())?;
     }
-    let dir = cache.join("cover");
-    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
-    for name in COVER_DICTIONARIES {
-        let entry = entries.iter().find(|e| e.name.eq_ignore_ascii_case(name)).ok_or_else(|| format!("Falta {name}"))?;
+    let cover = cache.join("cover");
+    let idle = cache.join("idle");
+    fs::create_dir_all(&cover).map_err(|error| error.to_string())?;
+    fs::create_dir_all(&idle).map_err(|error| error.to_string())?;
+    for (name,dir) in COVER_DICTIONARIES.iter().map(|name| (*name,&cover))
+        .chain([(PLAYER_IDLE_DICTIONARY,&idle)]) {
         let path = dir.join(name);
+        let entry = entries.iter().find(|e| e.name.eq_ignore_ascii_case(name));
+        // Existing caches and other accepted discs retain their breathing loop
+        // when this optional animation dictionary cannot be found.
+        let Some(entry) = entry else {
+            if name == PLAYER_IDLE_DICTIONARY { continue; }
+            return Err(format!("Falta {name}"));
+        };
         if !path.is_file() {
             let temporary = path.with_extension(format!("tmp-{}", std::process::id()));
             fs::write(&temporary, disc.read_at(ANIM, entry.offset, entry.size() as usize)?).map_err(|error| error.to_string())?;
@@ -333,7 +343,8 @@ pub fn prepare_with_iso(root: &Path, supplied_iso: Option<&Path>) -> Result<&'st
         Ok(true) => {
             activate(&cache)?;
             let needs_weapons=!cache.join(WEAPON_INFO).is_file()||!cache.join("injured").is_dir()
-                ||COVER_DICTIONARIES.iter().any(|name| !cache.join("cover").join(name).is_file());
+                ||COVER_DICTIONARIES.iter().any(|name| !cache.join("cover").join(name).is_file())
+                ||!cache.join("idle").join(PLAYER_IDLE_DICTIONARY).is_file();
             let needs_handling=!cache.join(VEHICLE_HANDLING).is_file();
             let needs_pose_banks=!iso_pose_banks::ready(&cache);
             if needs_weapons||needs_handling||needs_pose_banks {

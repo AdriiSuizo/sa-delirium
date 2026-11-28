@@ -17,7 +17,7 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def rebuild(base, native, output, version, bootstrap=None, avx2=None):
+def rebuild(base, native, output, version, bootstrap=None, avx2=None, importer=None):
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc\.\d+)?', version):
         raise ValueError('Use an explicit version or release-candidate version')
     spec = json.loads((base / 'portable-manifest.json').read_text(encoding='utf-8-sig'))
@@ -54,6 +54,16 @@ def rebuild(base, native, output, version, bootstrap=None, avx2=None):
         entry.update(bytes=len(binary), sha256=sha(binary))
         payloads[path] = entry
     with zipfile.ZipFile(old_bundle) as old:
+        if importer is not None:
+            member = 'sa-delirium-bootstrap.exe'
+            if bootstrap is None:
+                raise ValueError('The ISO preparation tool must match the replacement runtimes')
+            previous = old.read(member)
+            binary = importer.read_bytes()
+            pe_head = int.from_bytes(binary[0x3c:0x40], 'little')
+            if binary[:2] != b'MZ' or binary[pe_head:pe_head + 6] != b'PE\x00\x00\x4c\x01':
+                raise ValueError(f'Expected a Win32 PE binary: {member}')
+            replacements[member] = (binary, sha(previous), len(previous))
         if len(old.namelist()) != len(set(old.namelist())):
             raise ValueError('Duplicate archive members')
         for member, (_, expected, size) in replacements.items():
@@ -81,6 +91,7 @@ def rebuild(base, native, output, version, bootstrap=None, avx2=None):
     (output / 'routing-report.json').write_text(json.dumps({
         'status': 'local_native_candidate', 'unresolved': [], 'base_version': spec['version'],
         'base_tools_sha256': spec['tools_sha256'], 'changed_payloads': sorted(payloads),
+        'changed_tools': ['sa-delirium-bootstrap.exe'] if importer is not None else [],
         'files': len(profile['files']), 'bytes': profile['total_bytes']}), encoding='utf-8')
     shutil.copyfile(base / 'SteamLauncher.exe', output / 'SteamLauncher.exe')
     # Verify every untouched archived byte, including tools, optional mods,
@@ -100,7 +111,8 @@ if __name__ == '__main__':
     parser.add_argument('--native', type=Path, required=True)
     parser.add_argument('--bootstrap', type=Path)
     parser.add_argument('--avx2', type=Path)
+    parser.add_argument('--importer', type=Path, help='matching ISO preparation tool')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--version', default='0.6.2-rc.1')
     args = parser.parse_args()
-    rebuild(args.base, args.native, args.out, args.version, args.bootstrap, args.avx2)
+    rebuild(args.base, args.native, args.out, args.version, args.bootstrap, args.avx2, args.importer)

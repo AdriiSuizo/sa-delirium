@@ -13,12 +13,29 @@ static bool nikoLastRejectWasPureJump=false,nikoJumpSuspended=false,nikoLastReje
 static unsigned nikoHandoffStarted=0;
 static unsigned nikoSnapshotFrame=UINT32_MAX;
 static std::vector<T> nikoHandoffPose;
+
+struct NikoIdleGesture {
+    const char* clip=nullptr;
+    unsigned restSince=0,started=0,released=0;
+    size_t next=0;
+    float duration=0.f;
+};
+static NikoIdleGesture nikoIdle;
+static bool nikoIdleIntent=false;
+static void nikoCancelIdle(){
+    const auto next=nikoIdle.next;
+    nikoIdle={};
+    nikoIdle.next=next;
+}
+
 static void nikoClear(){
+    nikoCancelIdle();
     if(nikoMovement)nm_locomotion_destroy(nikoMovement);
     nikoMovement=nullptr;nikoRig.reset();nikoRef=-1;nikoArea=-1;nikoActive=false;nikoFrame=UINT32_MAX;
     nikoLastRejectWasPureJump=false;nikoJumpSuspended=false;nikoLastRejectWasGunAim=false;nikoAimSuspended=false;nikoHandoffStarted=0;nikoSnapshotFrame=UINT32_MAX;nikoHandoffPose.clear();
 }
 static void nikoYieldForStealth(){
+    nikoCancelIdle();
     if(nikoMovement&&(nikoActive||nikoJumpSuspended||nikoAimSuspended))
         nm_locomotion_step(combat,nikoMovement,0,0,0,0,0,gameTime(),-1.f);
     nikoActive=false;
@@ -31,6 +48,7 @@ static void nikoYieldForStealth(){
 }
 static void nikoSuspendForCover(void* p){
     if(!nikoMovement||!p||p!=player()||reference(p)!=nikoRef||!player_cover::owns(p))return;
+    nikoCancelIdle();
     // The cover mover bypasses nikoUpdatePosition. Cancel an active free gait
     // here so its old heading and sprint cannot survive the whole cover task.
     if(nikoActive||nikoJumpSuspended)
@@ -131,6 +149,7 @@ static void nikoUpdatePosition(void*p){
     if(p!=player())return;
     const unsigned frame=*reinterpret_cast<unsigned*>(0xB7CB4C);
     if(!nikoEligible(p)){
+        nikoCancelIdle();
         const bool pureJump=(nikoActive||nikoJumpSuspended)&&nikoLastRejectWasPureJump;
         const bool gunAim=nikoLastRejectWasGunAim;
         if(nikoActive){
@@ -203,6 +222,7 @@ static void nikoUpdatePosition(void*p){
             nikoAimSuspended=false;nikoJumpSuspended=false;
         }
         const bool crouch=(at<unsigned char>(p,0x46F)&4)!=0;
+        nikoIdleIntent=!crouch&&wanted==0.f&&nikoTask==TASK_SIMPLE_PLAYER_ON_FOOT;
         const int stepped=nm_locomotion_step(combat,nikoMovement,wanted,at<float>(p,0x55C),nikoActive?nikoState[0]:at<float>(p,0x558),crouch,0,gameTime(),dt);
         if(!ok(stepped)){nikoActive=false;return;}
         nikoActive=nm_locomotion_pose(nikoMovement,nikoPose.data(),int(nikoRig->ids.size()),nikoState)==1;nikoFrame=frame;
@@ -299,11 +319,65 @@ static void nikoBlendHandoff(const std::vector<int>& parents,const std::vector<T
     for(size_t i=0;i<target.size();i++)
         target[i]=mul(parents[i]>=0?target[parents[i]]:root,target[i]);
 }
+static void nikoApplyIdleGesture(void* p,const T& root,std::vector<T>& bones){
+    if(combatWeapon(p)!=0){nikoCancelIdle();return;}
+    const unsigned now=gameTime();
+    const bool settled=nikoIdleIntent&&nikoState[3]<.01f&&std::hypot(nikoState[1],nikoState[2])<.05f;
+    if(!settled){
+        nikoIdle.restSince=0;
+        if(!nikoIdle.clip)return;
+        if(!nikoIdle.released)nikoIdle.released=now;
+    }else if(!nikoIdle.restSince)nikoIdle.restSince=now;
+
+    static constexpr const char* clips[]={
+        "playidles_std/idle_look_l", "playidles_std/idle_checkarm_r",
+        "playidles_std/idle_look_r", "playidles_std/idle_crackknuckles",
+        "playidles_std/idle_scratch_head",
+    };
+    constexpr unsigned restDelay=6500;
+    constexpr float entrySeconds=.25f, exitSeconds=.18f;
+    // Keep the clip's body articulation but leave mover translation and yaw
+    // with SA so a gesture cannot drag or turn the standing player.
+    constexpr unsigned maskMover=0xE00|0x3000;
+    static std::vector<float> rows;
+    rows.resize(bones.size()*7);
+    if(!nikoIdle.clip){
+        if(now-nikoIdle.restSince<restDelay)return;
+        const auto* clip=clips[nikoIdle.next++%std::size(clips)];
+        float info[2]{};
+        if(nm_locomotion_clip_pose_masked(combat,nikoMovement,clip,0.f,rows.data(),int(bones.size()),info,maskMover)!=1||
+           !std::isfinite(info[0])||info[0]<entrySeconds+exitSeconds){
+            nikoIdle.restSince=now;return;
+        }
+        nikoIdle.clip=clip;nikoIdle.duration=info[0];nikoIdle.started=now;
+        event("niko_idle_started",nikoRef,nikoModel,clip);
+    }
+    const unsigned poseTime=nikoIdle.released?nikoIdle.released:now;
+    const float elapsed=(poseTime-nikoIdle.started)*.001f;
+    const float tail=nikoIdle.released?1.f-(now-nikoIdle.released)*.001f/exitSeconds:
+        (nikoIdle.duration-elapsed)/exitSeconds;
+    const float weight=std::clamp(std::min(elapsed/entrySeconds,tail),0.f,1.f);
+    if(tail<=0.f){
+        nikoCancelIdle();nikoIdle.restSince=settled?now:0;return;
+    }
+    if(weight<=0.f)return;
+    float info[2]{};
+    if(nm_locomotion_clip_pose_masked(combat,nikoMovement,nikoIdle.clip,elapsed/nikoIdle.duration,
+        rows.data(),int(bones.size()),info,maskMover)!=1){nikoCancelIdle();return;}
+    std::vector<T> gesture(bones.size());
+    for(size_t i=0;i<bones.size();i++){
+        const float* r=rows.data()+7*i;
+        gesture[i]=T{{r[3],r[4],r[5],r[6]},{r[0],r[1],r[2]}};
+    }
+    nikoBlendHandoff(nikoRig->parents,gesture,root,1.f-weight,bones);
+}
+
 static bool nikoRender(void*p){
     if(p!=player()||!p||reference(p)!=nikoRef||!nikoRig||!nikoActive)return false;
     if(!nikoEligible(p)||nikoFrame!=*reinterpret_cast<unsigned*>(0xB7CB4C))return false;
     auto*h=hierarchy(p);if(!h||!h->matrices||h->num!=int(nikoRig->ids.size()))return false;
     const T root=transform(*matrix(p));std::vector<T> bones;for(size_t i=0;i<nikoRig->ids.size();i++){const float*r=nikoPose.data()+7*i;bones.push_back(mul(root,T{{r[3],r[4],r[5],r[6]},{r[0],r[1],r[2]}}));}
+    nikoApplyIdleGesture(p,root,bones);
     // Preserve SA's weapon/aim upper layer until its own IV retarget is complete.
     // Arms cannot inherit locomotion rotations while holding a two-handed gun.
     const int weapon=combatWeapon(p);

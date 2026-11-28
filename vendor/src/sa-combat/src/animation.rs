@@ -101,7 +101,7 @@ impl Bank {
             }
         }
         // Optional dictionaries beside the sealed bank (the owner's disc, added later).
-        for extra in ["injured", "cover"].into_iter()
+        for extra in ["injured", "cover", "idle"].into_iter()
             .filter_map(|name|dir.parent().and_then(|p|std::fs::read_dir(p.join(name)).ok())) {
             for e in extra.flatten(){
                 let path=e.path();if path.extension().and_then(|s|s.to_str())!=Some("xad"){continue}
@@ -201,6 +201,32 @@ impl Bank {
 pub fn iv_bone(sa:u32)->Option<u16>{Some(match sa{0=>0,1=>0x1a1,2=>0x4b2,3=>0x36a1,4=>0x4b4,5=>0x4b5,41=>0x1a2,42=>0x1a3,43=>0x1a4,44=>0x1a5,51=>0x1a7,52=>0x1a8,53=>0x1a9,54=>0x4b0,31=>0x4c0,32=>0x4c1,33=>0x4c2,34=>0x4c3,35=>0x35d6,36=>0x35d7,21=>0x4c7,22=>0x4c8,23=>0x4c9,24=>0x4d0,25=>0x35b6,26=>0x35b7,_=>return None})}
 #[cfg(test)]mod anatomy_tests{
     use super::*;
+    #[test]
+    #[ignore = "requires the optional idle bank from the owner's ISO"]
+    fn standing_gestures_retarget_on_cj_without_mover_translation(){
+        let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").unwrap());
+        assert!(delirium_data::kv::unlock_program(&std::fs::read(assets.join("iv-program.bin")).unwrap()));
+        let bank=Bank::load(&assets.join("combat")).unwrap();
+        let rig=Rig::from_json(&std::fs::read(std::env::var("NM_TEST_RIG").unwrap()).unwrap()).unwrap();
+        for name in ["idle_look_l","idle_checkarm_r","idle_look_r","idle_crackknuckles","idle_scratch_head"]{
+            let key=format!("playidles_std/{name}");
+            let neutral=bank.retarget(&rig,&key,0.,0x3e00).unwrap();
+            assert!(bank.clips[&key].duration>=2., "{key}");
+            let mut moved=false;
+            for frame in 1..60{
+                let pose=bank.retarget(&rig,&key,frame as f32/60.,0x3e00).unwrap();
+                for (i,bone) in pose.iter().enumerate(){
+                    assert!(bone.p.is_finite()&&bone.q.is_finite(), "{key}");
+                    if let Some(parent)=rig.parents[i]{
+                        assert!((bone.p.distance(pose[parent].p)-rig.local[i].p.length()).abs()<1e-3, "{key}");
+                    }
+                    moved|=bone.q.dot(neutral[i].q).abs()<0.995;
+                }
+                assert!(pose[0].p.distance(neutral[0].p)<0.3, "moving root in {key}");
+            }
+            assert!(moved, "static pose in {key}");
+        }
+    }
     #[test]fn cj_facial_children_keep_their_local_pose_under_a_turning_head(){
         let assets=std::path::PathBuf::from(std::env::var("NM_TEST_ASSETS").unwrap());
         assert!(delirium_data::kv::unlock(&delirium_data::nm_asset::read(&std::fs::read(assets.join("fred.xrt")).unwrap())));
