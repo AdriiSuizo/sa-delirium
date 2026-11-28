@@ -602,7 +602,7 @@
     "src/sa-delirium/VehicleContacts.hpp": "5deccea1bbe3b9dd5fe810fe2596cf48753de5b065c2cf6c1fd48cf8e2601753",
     "src/sa-delirium/PhysicalDeathNative.hpp": "6d3978ca436dbcb40e02c14019c83d1d2c09e619f90ded316d447dc54e7e2db3",
     "src/sa-delirium/Rig.hpp": "7e2a3eec0a50f6441b7e5205519047747c1daaf6d46f9060d2e1334295823d05",
-    "src/sa-delirium/CombatRuntime.hpp": "4893df999d91baed8f685db7dd7c95a05f5c6f1f667837693cf7d28a5d4cfb4d",
+    "src/sa-delirium/CombatRuntime.hpp": "af91dce912fcf7079734674381a67ec68c93d1722997023ccb11771ca0672c8c",
     "src/sa-delirium/MeleeResponse.hpp": "ad5b037b6fe7087db0a6a8eca85fdb8776102a4561bbf3ce5bfd104f3c9b5bf2",
     "src/sa-delirium/VehicleReactions.hpp": "a58d2a4492a9303a015df874fbc72d7e765e784057f9d29d82127a980fdc01fc",
     "src/sa-delirium/VehicleProbe.hpp": "f887e03008d4d48581bcae2821e5e6b9dd6c9d6687964b6e24b5daff9e740920",

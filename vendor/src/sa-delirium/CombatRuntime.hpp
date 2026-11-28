@@ -30,7 +30,7 @@ static bool combatFrameReady=false;
 static uint64_t combatPoseSerial=0;
 static std::map<int,CombatActor> fighters;
 static std::map<int,std::pair<int,unsigned>> combatTargets;
-struct CombatReceipt {int source=-1,piece=0;unsigned time=0;bool eventCombat=false;int eventResponse=-1,weapon=0;};
+struct CombatReceipt {int source=-1,piece=0;unsigned time=0;bool eventCombat=false;int eventResponse=-1,weapon=0;bool pairedSelfDamage=false;};
 static std::map<int,CombatReceipt> combatReceipts;
 struct CombatInput {bool aim=false;unsigned buttons=0;float x=127,y=127;int look=0;} combatInput;
 static int combatLockRef=-1;
@@ -267,11 +267,16 @@ static void __fastcall combatUpdatePosition(void*p,void*){
 }
 static void(__thiscall* originalCombatDamageAnim)(DamageEvent*,void*,bool)=nullptr;
 static void(__thiscall* originalCombatDeathAnim)(DamageEvent*,void*,bool)=nullptr;
+static const CombatReceipt* matchedCombatDamage(const DamageEvent& damage,void* ped){
+    const auto receipt=combatReceipts.find(reference(ped));
+    if(!combatAllowed()||receipt==combatReceipts.end())return nullptr;
+    const auto& row=receipt->second;
+    return sameDeliveredCombatDamage(
+        {row.time,row.source,row.weapon,row.piece},
+        {damage.time,reference(damage.source),damage.weapon,damage.piece},gameTime())?&row:nullptr;
+}
 static bool combatReplacesNativeReaction(DamageEvent*damage,void*ped){
-    auto r=combatReceipts.find(reference(ped));
-    if(combatAllowed()&&r!=combatReceipts.end()&&sameDeliveredCombatDamage(
-        {r->second.time,r->second.source,r->second.weapon,r->second.piece},
-        {damage->time,reference(damage->source),damage->weapon,damage->piece},gameTime())){
+    if(matchedCombatDamage(*damage,ped)){
         // Only our delivered event: keep native health/armour/crime/hostility.
         // SA's sentinel is 191, not -1: GenerateDamageEvent compares it at
         // 0x73A7B0 before calling CAnimManager. -1 indexes before the group.
@@ -294,6 +299,17 @@ static void __fastcall combatDeathAnim(DamageEvent*damage,void*,void*ped,bool ab
     // Replace that reaction before it runs; damage/death/crime still run in SA.
     auto held=agents.find(reference(ped));
     const bool entryDeath=held!=agents.end()&&held->second->ped==ped&&matchesEntryFatalDamage(*held->second,*damage);
+    if(const auto* receipt=matchedCombatDamage(*damage,ped);!entryDeath&&receipt&&receipt->pairedSelfDamage){
+        // Keep a native death clip underneath the physical pose. If the body
+        // cannot enter or later leaves the solver, SA still completes its die
+        // task with a prone pose. ComputeDeathAnim would add a second impulse.
+        damage->animGroup=0; // ANIM_GROUP_DEFAULT
+        damage->anim=15;     // ANIM_ID_KO_SHOT_FRONT_0
+        damage->blend=4.f;
+        damage->speed=1.f;
+        damage->flags&=~2u;
+        return;
+    }
     if(entryDeath){damage->anim=191;damage->flags&=~2u;}
     if(entryDeath||combatReplacesNativeReaction(damage,ped)){
         // CTaskSimpleDie::StartAnim normally records this timestamp. Its
@@ -872,7 +888,7 @@ static void combatFinish(){
             const auto prior=combatReceipts.find(target);const bool alreadyOwned=prior!=combatReceipts.end()&&prior->second.source==source&&prior->second.eventCombat;
             const auto beforeIntent=combatReadNativeIntent(p);const float armourBefore=at<float>(p,0x548);
             const int priorResponse=prior!=combatReceipts.end()&&prior->second.source==source?prior->second.eventResponse:-1;
-            combatReceipts[target]={source,piece,now,alreadyOwned,priorResponse,weapon};
+            combatReceipts[target]={source,piece,now,alreadyOwned,priorResponse,weapon,hit[15]==1};
             const float damage=combat_health::meleeDamage(std::max(0.f,hit[3]),ivDefenceWeakness(p),
                 p==player(),unsigned(hit[2]),clubWeapon(weapon)&&!bladeWeapon(weapon),hit[14]!=0);
             const float nativeDamage=combat_health::nativeDamage(damage,p==player());
